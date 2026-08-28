@@ -10,3 +10,4 @@ ansible/inventories/*/generated*
 vault-password-file
 .sops.yaml.local
 .env
+/terraform/environments/private/
