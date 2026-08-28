@@ -1,0 +1,17 @@
+---
+- name: Install edge administration packages
+  ansible.builtin.dnf:
+    name:
+      - nftables
+      - wireguard-tools
+      - bind-utils
+      - openssh-clients
+      - podman
+      - podman-compose
+    state: present
+
+- name: Enable nftables
+  ansible.builtin.systemd:
+    name: nftables
+    enabled: true
+    state: started

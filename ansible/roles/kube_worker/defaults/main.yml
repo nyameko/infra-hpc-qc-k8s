@@ -1,0 +1,3 @@
+---
+kube_join_command: ''
+kube_control_plane_join_command: ''

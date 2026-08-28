@@ -1,0 +1,14 @@
+---
+- name: Create Pi-hole persistent directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  loop:
+    - /opt/pihole/etc
+    - /opt/pihole/dnsmasq.d
+
+# The container deployment is intentionally supplied by the environment branch.
+# Keep API keys, timezone, admin password, DNS upstreams and domain-specific records in Vault/SOPS.

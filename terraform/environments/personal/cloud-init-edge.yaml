@@ -1,0 +1,19 @@
+#cloud-config
+hostname: edge-admin
+manage_etc_hosts: true
+users:
+  - name: ansible
+    groups: [wheel]
+    shell: /bin/bash
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    ssh_authorized_keys:
+      - REPLACE_WITH_BOOTSTRAP_PUBLIC_KEY
+package_update: true
+packages:
+  - python3
+  - git
+  - curl
+  - chrony
+runcmd:
+  - systemctl enable --now sshd
+  - systemctl enable --now chronyd

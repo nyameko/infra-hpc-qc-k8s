@@ -1,0 +1,30 @@
+---
+# Supply Wazuh credentials/manager data from an external vault. Do not commit secrets.
+- name: Install Wazuh repository
+  ansible.builtin.get_url:
+    url: https://packages.wazuh.com/4.x/yum/wazuh.repo
+    dest: /etc/yum.repos.d/wazuh.repo
+    mode: '0644'
+  when: wazuh_agent_enabled | bool
+
+- name: Install Wazuh agent
+  ansible.builtin.dnf:
+    name: wazuh-agent
+    state: present
+  when: wazuh_agent_enabled | bool
+
+- name: Configure Wazuh manager address
+  ansible.builtin.replace:
+    path: /var/ossec/etc/ossec.conf
+    regexp: '<address>.*</address>'
+    replace: '      <address>{{ wazuh_manager_address }}</address>'
+  when:
+    - wazuh_agent_enabled | bool
+    - wazuh_manager_address | length > 0
+
+- name: Enable Wazuh agent
+  ansible.builtin.systemd:
+    name: wazuh-agent
+    enabled: true
+    state: started
+  when: wazuh_agent_enabled | bool

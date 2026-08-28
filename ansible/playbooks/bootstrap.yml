@@ -1,0 +1,24 @@
+---
+- name: Base configuration and security agents
+  hosts: all
+  become: true
+  roles:
+    - common
+    - ssh
+    - wazuh_agent
+
+- name: Edge/admin services
+  hosts: edge
+  become: true
+  roles:
+    - edge_admin
+    - wireguard
+    - pihole
+    - suricata
+
+- name: Kubernetes prerequisites
+  hosts: kubernetes
+  become: true
+  roles:
+    - containerd
+    - kubernetes_prereqs

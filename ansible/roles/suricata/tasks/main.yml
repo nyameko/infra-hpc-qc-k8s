@@ -1,0 +1,11 @@
+---
+- name: Install Suricata
+  ansible.builtin.dnf:
+    name: suricata
+    state: present
+
+- name: Enable Suricata
+  ansible.builtin.systemd:
+    name: suricata
+    enabled: true
+    state: started

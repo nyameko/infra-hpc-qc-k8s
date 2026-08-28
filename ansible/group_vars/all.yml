@@ -1,0 +1,14 @@
+---
+cluster_name: nyameko-admin
+kubernetes_minor: "1.36"
+# Pin this to an exact supported patch release before deployment.
+kubernetes_version: "REPLACE_WITH_EXACT_1.36.x"
+pod_cidr: "10.244.0.0/16"
+service_cidr: "10.96.0.0/12"
+k8s_api_endpoint: "10.51.0.100:6443"
+k8s_api_dns: "k8s-api.nyameko.internal"
+mgmt_cidr: "10.50.0.0/24"
+k8s_cidr: "10.51.0.0/24"
+wireguard_cidr: "10.60.0.0/24"
+edge_admin_ip: "10.50.0.10"
+wazuh_agent_enabled: false

@@ -1,0 +1,13 @@
+---
+- name: Require secure join command
+  ansible.builtin.assert:
+    that:
+      - kube_join_command | length > 0
+    fail_msg: >-
+      No join command was supplied. Generate a short-lived kubeadm join token on CP1
+      and inject it at runtime through Ansible Vault/extra-vars. Never commit it.
+
+- name: Join node to Kubernetes cluster
+  ansible.builtin.command: "{{ kube_join_command }}"
+  args:
+    creates: /etc/kubernetes/kubelet.conf

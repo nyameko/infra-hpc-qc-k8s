@@ -1,0 +1,3 @@
+---
+wazuh_manager_address: ""
+wazuh_agent_enabled: false

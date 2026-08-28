@@ -1,0 +1,17 @@
+variable "name_prefix" { type = string }
+variable "external_network_name" { type = string }
+variable "image_id" { type = string }
+variable "key_pair_name" { type = string }
+variable "edge_flavor" { type = string }
+variable "control_plane_flavor" { type = string }
+variable "worker_flavor" { type = string }
+variable "mgmt_network_id" { type = string }
+variable "mgmt_subnet_id" { type = string }
+variable "k8s_network_id" { type = string }
+variable "k8s_subnet_id" { type = string }
+variable "edge_sg_id" { type = string }
+variable "control_plane_sg_id" { type = string }
+variable "worker_sg_id" { type = string }
+variable "edge_ip" { type = string }
+variable "edge_cloud_init" { type = string }
+variable "node_cloud_init_template" { type = string }
