@@ -1,6 +1,6 @@
-# infra-hpc-qc-k8s
+# Hybrid Quantum Centric Supercomputing Kubernetes Infrastructure
 
-Infrastructure-as-code for the Nyameko hybrid HPC / AI / ML / QC platform.
+Infrastructure-as-code for the National Integrated Cyber Infrastructure Systems (NICIS) Quantum Hybrid HPC / AI / ML / QC platform.
 
 ## Initial environment
 
@@ -58,3 +58,24 @@ The VM agent is deliberately outside Kubernetes so a Kubernetes failure cannot t
 ## Secrets
 
 No credentials belong in the repository. Use environment variables for Terraform/OpenStack credentials and Ansible Vault or SOPS/age for secrets. A future GitOps secret manager can be layered on later.
+
+## How to Deploy
+
+- TODO: Fix ip and kubernetes network infrastructure
+- TODO: Turn this deployment guide, instao an installaiton guide / and / or workshop / tutorial.
+
+This setup will walkthrough and guide users on deployment of the Kubernetes cluster onto an OpenStack workspace. This will be done initially from an Arch Workstation (I use Arch btw) adn POC servers will deploy Rocky 9 where appropriate.
+
+### Installation Guide
+
+1. Clone the Repository
+```bash
+git clone https://github.com/nyameko/infra-hpc-qc-k8s.git
+cd infra-hpc-qc-k8s
+```
+
+1. Install Terraform, Ansible and the OpenStack Client on your Local Workstation
+
+```bash
+sudo pacman -Syu ansible terraform python-openstackclient
+```
