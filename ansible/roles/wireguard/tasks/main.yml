@@ -1,9 +1,4 @@
 ---
-- name: Install WireGuard tools
-  ansible.builtin.dnf:
-    name: wireguard-tools
-    state: present
-
 - name: Create WireGuard directory
   ansible.builtin.file:
     path: /etc/wireguard
@@ -12,12 +7,12 @@
     group: root
     mode: '0700'
 
-- name: Deploy WireGuard configuration
-  ansible.builtin.template:
-    src: wg0.conf.j2
-    dest: /etc/wireguard/{{ wireguard_interface }}.conf
-    owner: root
-    group: root
+- name: Install example WireGuard configuration
+  ansible.builtin.copy:
+    dest: /etc/wireguard/wg0.conf.example
     mode: '0600'
-  when: wireguard_enabled | bool
-  notify: restart wireguard
+    content: |
+      [Interface]
+      Address = 10.60.0.1/24
+      ListenPort = 51820
+      # Real private key and peers go into Ansible Vault/SOPS.

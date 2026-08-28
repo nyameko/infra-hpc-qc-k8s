@@ -1,13 +1,14 @@
-# DNS naming
+# Domain plan
 
-Use `nyameko.com` as the primary domain. There is no technical need to introduce `nyameko.io` for this platform.
+Primary: `nyameko.com`
 
-Recommended surfaces:
+Research: `research.nyameko.com`
 
-- `nyameko.com` — personal landing site.
-- `blog.nyameko.com` OR `nyameko.com/blog` — choose one canonical URL and redirect the other.
-- `research.nyameko.com` — research platform.
-- `shop.nyameko.com` — future shop.
-- `omra.nyameko.com` — future One Million Raspberry Pis Africa programme.
+Later services:
 
-Keep internal service names under a private DNS zone such as `nyameko.internal`.
+- `jupyter.research.nyameko.com`
+- `grafana.research.nyameko.com`
+- `argo.research.nyameko.com`
+- `hermes.research.nyameko.com`
+
+Future nonprofit: `omra.nyameko.com`

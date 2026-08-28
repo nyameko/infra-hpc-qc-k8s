@@ -1,10 +1,9 @@
 # Version policy
 
-As of 2026-08-28:
+- OpenStack Terraform provider: 3.4.0 in the starter.
+- Kubernetes: use the currently supported `1.36.x` patch selected immediately before deployment; do not hard-code an old patch merely because it was current when this repository started.
+- Cilium: pin an exact reviewed 1.20.x version when the cluster phase begins.
+- Argo CD: pin an exact reviewed 3.5.x patch when the GitOps phase begins.
+- Slurm: pin the distribution/OpenHPC build after the target Rocky 9 repositories are confirmed.
 
-- Terraform OpenStack provider: 3.4.0, current on the Terraform Registry.
-- Kubernetes 1.37.0 is the newest release, published 2026-08-26. For this initial platform build, prefer Kubernetes 1.36 because it is a mature currently supported branch; before deployment, select and pin the exact currently available 1.36.x patch from `pkgs.k8s.io` and record it here.
-- Cilium 1.20.1 is the stable chart used in this blueprint.
-- Argo CD 3.5.x is the current stable release line as of this blueprint; pin the exact patch selected for deployment rather than using a floating manifest URL.
-
-Do not upgrade Kubernetes, Cilium or Argo CD automatically in production. Promote upgrades as reviewed Git changes.
+Upgrades happen as reviewed Git changes, not automatic floating upgrades.

@@ -1,0 +1,7 @@
+---
+- name: Kubernetes prerequisites
+  hosts: control_plane:workers
+  become: true
+  roles:
+    - containerd
+    - kubernetes_prereqs

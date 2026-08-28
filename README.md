@@ -1,42 +1,60 @@
 # infra-hpc-qc-k8s
 
-Infrastructure-as-code and GitOps source of truth for the Nyameko hybrid HPC / AI / ML / quantum-computing platform.
+Infrastructure-as-code for the Nyameko hybrid HPC / AI / ML / QC platform.
 
-## Design principles
+## Initial environment
 
-- Terraform owns OpenStack resources.
-- Ansible owns VM operating-system configuration.
-- kubeadm owns Kubernetes bootstrap.
-- Argo CD owns in-cluster applications after bootstrap.
-- Secrets and personal state live outside Git (Ansible Vault / SOPS+age / external secret store).
-- No OpenStack VM except explicitly designated edge/ingress nodes should receive a floating IP.
-- The Kubernetes API is reached through an internal OpenStack Octavia load balancer.
-- Cinder provides RWO block storage; Manila/NFS provides RWX shared storage.
-- Kubernetes is for services and interactive workloads; Slurm is reserved for traditional HPC scheduling.
+This first environment is the central personal/admin federation environment. It is **not** the research production cluster. It provides the control/orchestration foundation from which the later production and Purple Team environments will be derived.
 
-## Repository model
+### Initial VM topology
 
-`main` contains reusable modules, roles, schemas and sanitized examples only.
+| VM | IP | Role |
+|---|---:|---|
+| edge-admin | 10.50.0.10 | WireGuard, Pi-hole, nftables, Suricata IDS, SSH bastion, Wazuh agent |
+| hermes-orchestrator-01 | 10.50.0.11 | isolated personal Hermes orchestrator; read/report only by default |
+| slurm-controller-01 | 10.50.0.12 | slurmctld + slurmdbd + initial MariaDB; no user logins |
+| login1 | 10.50.0.20 | SSH user login, Slurm client |
+| login2 | 10.50.0.21 | SSH user login, Slurm client |
+| slurm-cpu-01 | 10.50.0.30 | 64-core pure Slurm compute node |
+| slurm-cpu-02 | 10.50.0.31 | 64-core pure Slurm compute node |
+| k8s-cp-01 | 10.51.0.11 | Kubernetes control plane |
+| k8s-cp-02 | 10.51.0.12 | Kubernetes control plane |
+| k8s-cp-03 | 10.51.0.13 | Kubernetes control plane |
+| k8s-worker-01 | 10.51.0.21 | Kubernetes worker |
+| k8s-worker-02 | 10.51.0.22 | Kubernetes worker |
+| k8s-worker-03 | 10.51.0.23 | Kubernetes worker |
 
-Recommended protected environment branches/forks:
+Kubernetes API VIP: **10.51.0.100**.
 
-- `env/personal`
-- `env/production`
-- `env/purple-1`
-- `env/purple-2`
+WireGuard clients: **10.60.0.0/24**.
 
-Do not place credentials, private keys, personal addresses, real WireGuard keys, Wazuh passwords, or Terraform state in Git.
+## Hermes federation
 
-## Current bootstrap target
+There are two Hermes roles from the beginning:
 
-Six Kubernetes VMs plus one edge-admin VM:
+1. `hermes-orchestrator-01`: isolated VM outside Kubernetes. This is the personal/federation orchestrator and reporting point. It receives read-only telemetry/log access and has no credentials capable of directly pushing Git changes or bypassing approval.
+2. `research-hermes`: later deployed inside Kubernetes. It is the research-cluster agent and reports upward to the personal/federation Hermes.
 
-- edge-admin: 10.50.0.10
-- cp-01: 10.51.0.11
-- cp-02: 10.51.0.12
-- cp-03: 10.51.0.13
-- worker-01: 10.51.0.21
-- worker-02: 10.51.0.22
-- worker-03: 10.51.0.23
+The VM agent is deliberately outside Kubernetes so a Kubernetes failure cannot take down the orchestration/control root.
 
-The example values are deliberately non-production and must be overridden in the environment branch.
+## Slurm architecture
+
+`slurmctld` is on **its own dedicated VM**, not `edge-admin` and not a login node. The initial controller also hosts `slurmdbd` and MariaDB to keep the first deployment small. A dedicated database VM and a backup slurmctld VM can be introduced later.
+
+`login1` and `login2` provide user SSH access and Slurm commands (`sbatch`, `squeue`, `srun`, etc.). They are not the compute pool.
+
+`slurm-cpu-01` and `slurm-cpu-02` are initially the pure CPU partition, each provisioned as a 64-core compute VM.
+
+## Deployment order
+
+1. Terraform: OpenStack networks, router, security groups, ports, VMs, and Kubernetes API Octavia LB.
+2. Ansible: OS hardening, SSH, Wazuh agent, edge services, Hermes orchestrator host, Slurm nodes, Kubernetes prerequisites.
+3. kubeadm: bootstrap 3 control-plane + 3 worker Kubernetes cluster.
+4. Cilium + OpenStack CCM + Cinder/shared-storage CSI.
+5. Argo CD.
+6. Platform services: ingress, cert-manager, Prometheus/Grafana/Loki, Wazuh, JupyterHub, Ollama, llama.cpp.
+7. Research Hermes inside Kubernetes.
+
+## Secrets
+
+No credentials belong in the repository. Use environment variables for Terraform/OpenStack credentials and Ansible Vault or SOPS/age for secrets. A future GitOps secret manager can be layered on later.

@@ -1,0 +1,16 @@
+ClusterName={{ slurm_cluster_name }}
+SlurmctldHost=slurm-controller-01
+SlurmUser=slurm
+AuthType=auth/munge
+CredType=cred/munge
+SelectType=select/cons_tres
+SelectTypeParameters=CR_Core_Memory
+StateSaveLocation=/var/spool/slurmctld
+SlurmctldLogFile=/var/log/slurm/slurmctld.log
+AccountingStorageType=accounting_storage/slurmdbd
+AccountingStorageHost=slurm-controller-01
+
+{% for n in slurm_compute_nodes %}
+NodeName={{ n.name }} NodeAddr={{ n.addr }} CPUs={{ n.cpus }} State=UNKNOWN
+{% endfor %}
+PartitionName={{ slurm_partition_name }} Nodes=slurm-cpu-[01-02] Default=YES MaxTime=INFINITE State=UP

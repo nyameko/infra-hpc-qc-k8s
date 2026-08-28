@@ -8,9 +8,9 @@ nodeRegistration:
 ---
 apiVersion: kubeadm.k8s.io/v1beta4
 kind: ClusterConfiguration
-clusterName: {{ cluster_name }}
-kubernetesVersion: "{{ kubernetes_version if kubernetes_version.startswith('v') else 'v' + kubernetes_version }}"
-controlPlaneEndpoint: "{{ k8s_api_endpoint }}"
+clusterName: nyameko-admin
+kubernetesVersion: "{{ kubernetes_exact_version }}"
+controlPlaneEndpoint: "{{ kube_api_endpoint }}"
 networking:
-  podSubnet: "{{ pod_cidr }}"
-  serviceSubnet: "{{ service_cidr }}"
+  podSubnet: "{{ kube_pod_cidr }}"
+  serviceSubnet: "{{ kube_service_cidr }}"

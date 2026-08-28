@@ -1,0 +1,6 @@
+---
+- name: Configure isolated personal Hermes orchestrator VM
+  hosts: hermes_orchestrator
+  become: true
+  roles:
+    - hermes_orchestrator

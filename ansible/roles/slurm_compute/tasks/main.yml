@@ -1,0 +1,23 @@
+---
+- name: Create Slurm compute directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  loop:
+    - /etc/slurm
+    - /var/spool/slurmd
+    - /var/log/slurm
+
+- name: Check CPU count
+  ansible.builtin.command: nproc
+  register: slurm_cpu_count
+  changed_when: false
+
+- name: Verify 64-core provisioning
+  ansible.builtin.assert:
+    that:
+      - slurm_cpu_count.stdout | int == 64
+    fail_msg: "This initial Slurm compute node must expose exactly 64 CPUs."

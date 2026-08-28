@@ -1,0 +1,41 @@
+---
+- name: Install isolated Hermes host dependencies
+  ansible.builtin.dnf:
+    name:
+      - git
+      - jq
+      - curl
+      - podman
+    state: present
+
+- name: Create Hermes service account
+  ansible.builtin.user:
+    name: hermes
+    system: true
+    create_home: true
+    shell: /bin/bash
+
+- name: Create Hermes directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: hermes
+    group: hermes
+    mode: '0750'
+  loop:
+    - /opt/hermes
+    - /var/lib/hermes
+    - /var/log/hermes
+
+- name: Install federation security policy
+  ansible.builtin.copy:
+    dest: /opt/hermes/SECURITY.md
+    owner: hermes
+    group: hermes
+    mode: '0640'
+    content: |
+      Read-only by default.
+      No Git push credential.
+      No cluster-admin credential.
+      No unrestricted OpenStack credential.
+      All mutations require an explicit approved automation path.

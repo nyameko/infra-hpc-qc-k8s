@@ -1,2 +1,22 @@
 ---
-- import_playbook: join-cluster.yml
+- name: Initialize first control plane
+  hosts: control_plane[0]
+  become: true
+  roles:
+    - kube_control_plane
+
+- name: Join remaining control planes
+  hosts: control_plane[1:]
+  become: true
+  vars:
+    kube_control_plane_join_command: "{{ hostvars[groups['control_plane'][0]].kube_cp_join_command }}"
+  roles:
+    - kube_join_control_plane
+
+- name: Join worker nodes
+  hosts: workers
+  become: true
+  vars:
+    kube_join_command: "{{ hostvars[groups['control_plane'][0]].kube_worker_join_command }}"
+  roles:
+    - kube_worker

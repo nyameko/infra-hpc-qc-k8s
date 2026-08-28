@@ -1,0 +1,41 @@
+---
+- name: Install initial Slurm database dependency
+  ansible.builtin.dnf:
+    name: mariadb-server
+    state: present
+
+- name: Create Slurm directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  loop:
+    - /etc/slurm
+    - /var/log/slurm
+    - /var/spool/slurmctld
+
+- name: Create Slurm service account
+  ansible.builtin.user:
+    name: slurm
+    system: true
+    shell: /sbin/nologin
+
+- name: Template slurm.conf
+  ansible.builtin.template:
+    src: slurm.conf.j2
+    dest: /etc/slurm/slurm.conf
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Enable MariaDB
+  ansible.builtin.systemd:
+    name: mariadb
+    enabled: true
+    state: started
+
+- name: Pause before Slurm daemon installation
+  ansible.builtin.debug:
+    msg: "Install the selected pinned Slurm/OpenHPC packages before enabling slurmctld/slurmdbd."

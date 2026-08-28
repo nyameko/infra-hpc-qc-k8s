@@ -4,8 +4,8 @@
     name: suricata
     state: present
 
-- name: Enable Suricata
+- name: Keep Suricata disabled until the correct interface/path is selected
   ansible.builtin.systemd:
     name: suricata
     enabled: true
-    state: started
+    state: stopped

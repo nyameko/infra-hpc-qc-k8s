@@ -1,41 +1,43 @@
 ---
-- name: Require exact Kubernetes version for deterministic bootstrap
-  ansible.builtin.assert:
-    that:
-      - kubernetes_version | length > 0
-      - kubernetes_version is match('^v?1\\.[0-9]+\\.[0-9]+$')
-    fail_msg: 'Set kubernetes_version to the exact pinned v1.x.y release in the environment configuration.'
-
-- name: Create kubeadm configuration directory
-  ansible.builtin.file:
-    path: /etc/kubernetes
-    state: directory
-    mode: '0755'
-
-- name: Render kubeadm configuration
+- name: Write kubeadm configuration
   ansible.builtin.template:
     src: kubeadm.yaml.j2
     dest: /etc/kubernetes/kubeadm.yaml
     mode: '0600'
 
-- name: Initialize CP1
+- name: Initialize the first control plane
   ansible.builtin.command:
     cmd: kubeadm init --config /etc/kubernetes/kubeadm.yaml --upload-certs
     creates: /etc/kubernetes/admin.conf
 
-- name: Create admin kubeconfig directory
-  ansible.builtin.file:
-    path: /home/ansible/.kube
-    state: directory
-    owner: ansible
-    group: ansible
-    mode: '0700'
+- name: Configure kubeconfig for ansible user
+  ansible.builtin.shell: |
+    set -e
+    install -d -m 0700 -o ansible -g ansible /home/ansible/.kube
+    cp /etc/kubernetes/admin.conf /home/ansible/.kube/config
+    chown ansible:ansible /home/ansible/.kube/config
+  args:
+    executable: /bin/bash
+    creates: /home/ansible/.kube/config
 
-- name: Install admin kubeconfig for Ansible user
-  ansible.builtin.copy:
-    src: /etc/kubernetes/admin.conf
-    dest: /home/ansible/.kube/config
-    remote_src: true
-    owner: ansible
-    group: ansible
-    mode: '0600'
+- name: Create short-lived worker join command
+  ansible.builtin.command: kubeadm token create --ttl 30m --print-join-command
+  register: worker_join
+  changed_when: false
+  no_log: true
+
+- name: Generate control-plane certificate key
+  ansible.builtin.shell: |
+    set -o pipefail
+    kubeadm init phase upload-certs --upload-certs | tail -n 1
+  args:
+    executable: /bin/bash
+  register: certificate_key
+  changed_when: false
+  no_log: true
+
+- name: Keep join material in Ansible memory only
+  ansible.builtin.set_fact:
+    kube_worker_join_command: "{{ worker_join.stdout }}"
+    kube_cp_join_command: "{{ worker_join.stdout }} --control-plane --certificate-key {{ certificate_key.stdout | trim }}"
+  no_log: true

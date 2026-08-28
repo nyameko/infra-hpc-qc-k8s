@@ -1,20 +1,67 @@
-# Bootstrap sequence
+# Bootstrap sequence — first implementation
 
-1. Create/select the OpenStack project and quotas outside this repository if Keystone administration is required.
-2. Select an exact Kubernetes patch release in environment configuration; keep only the minor repository URL in Ansible.
-3. Populate environment-specific Terraform variables out of Git or in a private environment branch.
-4. Run Terraform to create networks, router, security groups, ports, edge-admin, six Kubernetes VMs and the internal Octavia API load balancer.
-5. Verify that the Kubernetes API VIP is `10.51.0.100` in this example and is outside the DHCP/allocation pool.
-6. Run `ansible-playbook -i inventories/personal/hosts.yml playbooks/bootstrap.yml`.
-7. Establish WireGuard and verify VPN-only access.
-8. Remove the temporary public SSH ingress rule from the edge-admin security group.
-9. Run `ansible-playbook -i inventories/personal/hosts.yml playbooks/kubernetes.yml`.
-10. The join playbook creates a 30-minute kubeadm token and certificate key on CP1 and keeps the values in Ansible memory only; they are never committed.
-11. Verify `kubectl get nodes -o wide` and etcd/control-plane health.
-12. Install Cilium.
-13. Install OpenStack CCM, Cinder CSI, and Manila/NFS CSI when available.
-14. Install Argo CD and make it the in-cluster source of truth.
-15. Add ingress/cert-manager, observability and security stacks.
-16. Add JupyterHub, resource profiles, shared storage and research images.
-17. Add Ollama/llama.cpp.
-18. Deploy Hermes last with narrowly scoped credentials.
+### 1. Verify local tooling
+
+```bash
+terraform version
+ansible --version
+openstack --version
+kubectl version --client
+helm version
+```
+
+### 2. Configure OpenStack
+
+Use `clouds.yaml` or environment variables for authentication. Never put credentials in `terraform.tfvars` committed to Git.
+
+### 3. Select environment values
+
+```bash
+cp terraform/environments/personal/example.tfvars terraform/environments/personal/terraform.tfvars
+$EDITOR terraform/environments/personal/terraform.tfvars
+```
+
+### 4. Provision OpenStack
+
+```bash
+make init
+make validate
+make plan
+make apply
+```
+
+Expected result: 13 VMs plus the Kubernetes API Octavia load balancer.
+
+### 5. Validate SSH
+
+```bash
+make ansible-ping
+```
+
+### 6. Base OS
+
+```bash
+make bootstrap
+```
+
+### 7. Edge, Hermes and Slurm host preparation
+
+```bash
+make edge
+make hermes
+make slurm
+```
+
+### 8. Kubernetes prerequisites
+
+```bash
+make k8s-prereqs
+```
+
+### 9. Kubernetes bootstrap
+
+```bash
+make k8s-init
+```
+
+Do not deploy Argo or applications until all six Kubernetes nodes are healthy.

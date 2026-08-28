@@ -1,0 +1,9 @@
+---
+- name: Configure edge admin
+  hosts: edge
+  become: true
+  roles:
+    - edge_admin
+    - wireguard
+    - pihole
+    - suricata

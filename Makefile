@@ -1,6 +1,6 @@
 SHELL := /bin/bash
-ROOT := $(shell pwd)
-TF := terraform -chdir=$(ROOT)/terraform/environments/personal
+TF := terraform -chdir=terraform/environments/personal
+INV := ansible/inventories/personal/hosts.yml
 
 fmt:
 	terraform fmt -recursive terraform
@@ -17,14 +17,23 @@ plan:
 apply:
 	$(TF) apply
 
-inventory:
-	$(ROOT)/scripts/render_inventory.py
-
 ansible-ping:
-	ansible all -m ping
+	ansible all -i $(INV) -m ping
 
-ansible-bootstrap:
-	ansible-playbook ansible/playbooks/bootstrap.yml
+bootstrap:
+	ansible-playbook -i $(INV) ansible/playbooks/bootstrap.yml
 
-ansible-k8s:
-	ansible-playbook ansible/playbooks/kubernetes.yml
+edge:
+	ansible-playbook -i $(INV) ansible/playbooks/edge.yml
+
+slurm:
+	ansible-playbook -i $(INV) ansible/playbooks/slurm.yml
+
+hermes:
+	ansible-playbook -i $(INV) ansible/playbooks/hermes.yml
+
+k8s-prereqs:
+	ansible-playbook -i $(INV) ansible/playbooks/kubernetes-prereqs.yml
+
+k8s-init:
+	ansible-playbook -i $(INV) ansible/playbooks/kubernetes.yml

@@ -1,11 +1,6 @@
 ---
-- name: Require control-plane join material
-  ansible.builtin.assert:
-    that:
-      - kube_control_plane_join_command | length > 0
-    fail_msg: "No control-plane join command was supplied at runtime."
-
 - name: Join additional control plane
   ansible.builtin.command: "{{ kube_control_plane_join_command }}"
   args:
     creates: /etc/kubernetes/kubelet.conf
+  no_log: true

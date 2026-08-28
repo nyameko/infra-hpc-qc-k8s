@@ -1,0 +1,12 @@
+---
+- name: Create Slurm configuration directory
+  ansible.builtin.file:
+    path: /etc/slurm
+    state: directory
+    mode: '0755'
+
+- name: Create Slurm client marker
+  ansible.builtin.copy:
+    dest: /etc/slurm/login-node
+    content: "This is a Slurm login/client node; users submit jobs to slurm-controller-01.\n"
+    mode: '0644'
