@@ -6,8 +6,7 @@ variable "security_group_ids" { type = list(string) }
 variable "image_id" { type = string }
 variable "flavor_id" { type = string }
 variable "key_pair" { type = string }
-variable "backend_addresses" { type = list(string) }
-variable "backend_port" {
+variable "lister_port" {
   type    = number
   default = 6443
 }

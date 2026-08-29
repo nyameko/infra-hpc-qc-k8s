@@ -1,4 +1,4 @@
-hresource "openstack_lb_loadbalancer_v2" "api" {
+resource "openstack_lb_loadbalancer_v2" "api" {
   name           = var.name
   vip_subnet_id  = var.vip_subnet_id
   vip_address    = var.vip_address
