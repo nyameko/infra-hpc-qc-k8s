@@ -62,7 +62,7 @@ resource "openstack_networking_secgroup_rule_v2" "api_lb" {
   port_range_min    = 6443
   port_range_max    = 6443
   remote_ip_prefix  = var.mgmt_cidr
-  security_group_id = openstack_networking_secgroup_v2.this["api_lb"].id
+  security_group_id = openstack_networking_secgroup_v2.this["api-lb"].id
 }
 
 
