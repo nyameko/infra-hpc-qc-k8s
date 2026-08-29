@@ -273,6 +273,105 @@ terraform -chdir=terraform/environments/private output k8s_api_vip
 
 ## Phase 5 — Ansible connectivity check
 
+Once the infrastructure has been provisioned by Terraform, connect to the edge node using SSH. First verify your SSH Configurations for connectivity to the cluster:
+```bash
+Host edge
+    HostName <YOUR PUBLIC IP>
+    User <your-image-user>
+    IdentityFile ~/.ssh/id25591_admin
+    IdentitiesOnly yes
+
+Host hermes-orchestrator
+    HostName 10.50.0.11
+    User <your-image-user>
+    IdentityFile ~/.ssh/id25591_admin
+    IdentitiesOnly yes
+    ProxyJump edge
+
+Host slurm-controller
+    HostName 10.50.0.12
+    User <your-image-user>
+    IdentityFile ~/.ssh/id25591_admin
+    IdentitiesOnly yes
+    ProxyJump edge
+
+Host login1
+    HostName 10.50.0.20
+    User <your-image-user>
+    IdentityFile ~/.ssh/id25591_admin
+    IdentitiesOnly yes
+    ProxyJump edge
+
+Host login2
+    HostName 10.50.0.21
+    User <your-image-user>
+    IdentityFile ~/.ssh/id25591_admin
+    IdentitiesOnly yes
+    ProxyJump edge
+
+Host slurm-cpu-01
+    HostName 10.50.0.30
+    User <your-image-user>
+    IdentityFile ~/.ssh/id25591_admin
+    IdentitiesOnly yes
+    ProxyJump edge
+
+Host slurm-cpu-02
+    HostName 10.50.0.31
+    User <your-image-user>
+    IdentityFile ~/.ssh/id25591_admin
+    IdentitiesOnly yes
+    ProxyJump edge
+
+Host api-lb-01
+    HostName 10.51.0.100
+    User <your-image-user>
+    IdentityFile ~/.ssh/id25591_admin
+    IdentitiesOnly yes
+    ProxyJump edge
+
+Host k8s-cp-01
+    HostName 10.51.0.11
+    User <your-image-user>
+    IdentityFile ~/.ssh/id25591_admin
+    IdentitiesOnly yes
+    ProxyJump edge
+
+Host k8s-cp-02
+    HostName 10.51.0.12
+    User <your-image-user>
+    IdentityFile ~/.ssh/id25591_admin
+    IdentitiesOnly yes
+    ProxyJump edge
+
+Host k8s-cp-03
+    HostName 10.51.0.13
+    User <your-image-user>
+    IdentityFile ~/.ssh/id25591_admin
+    IdentitiesOnly yes
+    ProxyJump edge
+
+Host k8s-worker-01
+    HostName 10.51.0.21
+    User <your-image-user>
+    IdentityFile ~/.ssh/id25591_admin
+    IdentitiesOnly yes
+    ProxyJump edge
+
+Host k8s-worker-02
+    HostName 10.51.0.22
+    User <your-image-user>
+    IdentityFile ~/.ssh/id25591_admin
+    IdentitiesOnly yes
+    ProxyJump edge
+
+Host k8s-worker-03
+    HostName 10.51.0.23
+    User <your-image-user>
+    IdentityFile ~/.ssh/id25591_admin
+    IdentitiesOnly yes
+    ProxyJump edge```
+
 ### 5.1 Apply the required pre-flight patch
 
 As committed, roles live in `ansible/roles/` but playbooks live in `ansible/playbooks/`, and `ansible.cfg` has no `roles_path`. Ansible's default search path is `<playbook_dir>/roles`, which doesn't exist here — **every playbook fails with `role not found`** without this fix:
