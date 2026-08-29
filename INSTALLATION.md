@@ -151,11 +151,11 @@ image_id                 = "REPLACE-WITH-ROCKY9-IMAGE-ID"
 ssh_key_name              = "nyameko-admin"        # from Phase 0.4
 bootstrap_ssh_cidr       = "YOUR.PUBLIC.IP.ADDR/32"
 
-admin_flavor              = "REPLACE-ME"
+edge_flavor              = "REPLACE-ME"
 hermes_flavor              = "REPLACE-ME"
 slurm_controller_flavor   = "REPLACE-ME"
 login_flavor               = "REPLACE-ME"
-compute_64c_flavor        = "REPLACE-ME"           # must expose exactly 64 vCPUs
+compute_32c_flavor        = "REPLACE-ME"           # must expose exactly 64 vCPUs
 k8s_control_plane_flavor  = "REPLACE-ME"
 k8s_worker_flavor          = "REPLACE-ME"
 EOF
