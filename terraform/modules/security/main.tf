@@ -48,6 +48,18 @@ resource "openstack_networking_secgroup_rule_v2" "edge_ssh_vpn" {
   security_group_id = openstack_networking_secgroup_v2.this["edge"].id
 }
 
+resource "openstack_networking_secgroup_rule_v2" "ssh_from_mgmt" {
+  for_each = setsubtract(local.groups, ["edge"])
+
+  direction         = "ingress"
+  ethertype         = "IPv4"
+  protocol          = "tcp"
+  port_range_min    = 22
+  port_range_max    = 22
+  remote_ip_prefix  = var.mgmt_cidr
+  security_group_id = openstack_networking_secgroup_v2.this[each.key].id
+}
+
 resource "openstack_networking_secgroup_rule_v2" "api_lb_ingress" {
   direction         = "ingress"
   ethertype         = "IPv4"

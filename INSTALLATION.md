@@ -281,96 +281,19 @@ Host edge
     IdentityFile ~/.ssh/id25591_admin
     IdentitiesOnly yes
 
-Host hermes-orchestrator
-    HostName 10.50.0.11
+Host 10.51.0.*
     User <your-image-user>
     IdentityFile ~/.ssh/id25591_admin
     IdentitiesOnly yes
     ProxyJump edge
 
-Host slurm-controller
-    HostName 10.50.0.12
+Host 10.50.0.*
     User <your-image-user>
     IdentityFile ~/.ssh/id25591_admin
     IdentitiesOnly yes
     ProxyJump edge
 
-Host login1
-    HostName 10.50.0.20
-    User <your-image-user>
-    IdentityFile ~/.ssh/id25591_admin
-    IdentitiesOnly yes
-    ProxyJump edge
-
-Host login2
-    HostName 10.50.0.21
-    User <your-image-user>
-    IdentityFile ~/.ssh/id25591_admin
-    IdentitiesOnly yes
-    ProxyJump edge
-
-Host slurm-cpu-01
-    HostName 10.50.0.30
-    User <your-image-user>
-    IdentityFile ~/.ssh/id25591_admin
-    IdentitiesOnly yes
-    ProxyJump edge
-
-Host slurm-cpu-02
-    HostName 10.50.0.31
-    User <your-image-user>
-    IdentityFile ~/.ssh/id25591_admin
-    IdentitiesOnly yes
-    ProxyJump edge
-
-Host api-lb-01
-    HostName 10.51.0.100
-    User <your-image-user>
-    IdentityFile ~/.ssh/id25591_admin
-    IdentitiesOnly yes
-    ProxyJump edge
-
-Host k8s-cp-01
-    HostName 10.51.0.11
-    User <your-image-user>
-    IdentityFile ~/.ssh/id25591_admin
-    IdentitiesOnly yes
-    ProxyJump edge
-
-Host k8s-cp-02
-    HostName 10.51.0.12
-    User <your-image-user>
-    IdentityFile ~/.ssh/id25591_admin
-    IdentitiesOnly yes
-    ProxyJump edge
-
-Host k8s-cp-03
-    HostName 10.51.0.13
-    User <your-image-user>
-    IdentityFile ~/.ssh/id25591_admin
-    IdentitiesOnly yes
-    ProxyJump edge
-
-Host k8s-worker-01
-    HostName 10.51.0.21
-    User <your-image-user>
-    IdentityFile ~/.ssh/id25591_admin
-    IdentitiesOnly yes
-    ProxyJump edge
-
-Host k8s-worker-02
-    HostName 10.51.0.22
-    User <your-image-user>
-    IdentityFile ~/.ssh/id25591_admin
-    IdentitiesOnly yes
-    ProxyJump edge
-
-Host k8s-worker-03
-    HostName 10.51.0.23
-    User <your-image-user>
-    IdentityFile ~/.ssh/id25591_admin
-    IdentitiesOnly yes
-    ProxyJump edge```
+```
 
 ### 5.1 Apply the required pre-flight patch
 
