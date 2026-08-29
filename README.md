@@ -47,7 +47,7 @@ The VM agent is deliberately outside Kubernetes so a Kubernetes failure cannot t
 
 ## Deployment order
 
-1. Terraform: OpenStack networks, router, security groups, ports, VMs, and Kubernetes API Octavia LB.
+1. Terraform: OpenStack networks, router, security groups, ports, VMs, and Kubernetes API Api_Lb LB.
 2. Ansible: OS hardening, SSH, Wazuh agent, edge services, Hermes orchestrator host, Slurm nodes, Kubernetes prerequisites.
 3. kubeadm: bootstrap 3 control-plane + 3 worker Kubernetes cluster.
 4. Cilium + OpenStack CCM + Cinder/shared-storage CSI.

@@ -114,7 +114,7 @@ openstack flavor list -c Name -c VCPUs
 - [ ] A Rocky 9 (or equivalent dnf-based) image exists and its ID is noted
 - [ ] An SSH keypair exists in OpenStack (not just locally) and its name is noted
 - [ ] A flavor with **exactly** 64 vCPUs exists for the two Slurm compute nodes
-- [ ] You have enough quota for 13 instances + 1 Octavia load balancer + 2 networks + 1 router + 1 floating IP
+- [ ] You have enough quota for 13 instances + 1 Api_Lb load balancer + 2 networks + 1 router + 1 floating IP
 
 TODO: Verify NUMA domain and CPU topology and pinning options for 64 VCPU Virtual Compute Nodes
 ```bash
@@ -157,7 +157,7 @@ edge_flavor              = "REPLACE-ME"
 hermes_flavor            = "REPLACE-ME"
 slurm_controller_flavor  = "REPLACE-ME"
 login_flavor             = "REPLACE-ME"
-compute_32c_flavor       = "REPLACE-ME"           # must expose exactly 64 vCPUs
+compute_12c_flavor       = "REPLACE-ME"           # must expose exactly 64 vCPUs
 k8s_control_plane_flavo  = "REPLACE-ME"
 k8s_worker_flavor        = "REPLACE-ME"
 EOF
@@ -495,7 +495,7 @@ ansible control_plane[0] -i inventories/private/hosts.yml -m command -a "kubectl
 ansible control_plane -i inventories/private/hosts.yml -m command -a "systemctl is-active kubelet" -b
 # Expected: active on all 3
 
-# Confirm the API is reachable via the Octavia VIP from Phase 3/4, not just node-local
+# Confirm the API is reachable via the Api_Lb VIP from Phase 3/4, not just node-local
 curl -sk https://10.51.0.100:6443/healthz
 # Expected: "ok" (may need --cacert if you want a non-insecure check)
 ```

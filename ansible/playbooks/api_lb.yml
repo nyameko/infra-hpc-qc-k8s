@@ -1,0 +1,7 @@
+- name: Configure API load balancer
+  hosts: api_lb
+  become: true
+
+  roles:
+    - role: api_lb_haproxy
+      when: api_lb_type == "haproxy"

@@ -5,6 +5,7 @@ locals {
     "slurm-controller",
     "slurm-login",
     "slurm-compute",
+    "api-lb",
     "k8s-control-plane",
     "k8s-worker",
   ])
@@ -43,6 +44,7 @@ resource "openstack_networking_secgroup_rule_v2" "internal_all" {
     slurm_controller = "slurm-controller"
     slurm_login      = "slurm-login"
     slurm_compute    = "slurm-compute"
+    api_lb           = "api-lb"
     k8s_control      = "k8s-control-plane"
     k8s_worker       = "k8s-worker"
   }
@@ -53,13 +55,24 @@ resource "openstack_networking_secgroup_rule_v2" "internal_all" {
   security_group_id = openstack_networking_secgroup_v2.this[each.value].id
 }
 
-resource "openstack_networking_secgroup_rule_v2" "k8s_api" {
+resource "openstack_networking_secgroup_rule_v2" "api_lb" {
   direction         = "ingress"
   ethertype         = "IPv4"
   protocol          = "tcp"
   port_range_min    = 6443
   port_range_max    = 6443
   remote_ip_prefix  = var.mgmt_cidr
+  security_group_id = openstack_networking_secgroup_v2.this["api_lb"].id
+}
+
+
+resource "openstack_networking_secgroup_rule_v2" "k8s_api" {
+  direction         = "ingress"
+  ethertype         = "IPv4"
+  protocol          = "tcp"
+  port_range_min    = 6443
+  port_range_max    = 6443
+  remote_ip_prefix  = var.api_lb_cidr
   security_group_id = openstack_networking_secgroup_v2.this["k8s-control-plane"].id
 }
 

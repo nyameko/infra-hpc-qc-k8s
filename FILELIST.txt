@@ -49,9 +49,9 @@ terraform/modules/compute/variables.tf
 terraform/modules/network/main.tf
 terraform/modules/network/outputs.tf
 terraform/modules/network/variables.tf
-terraform/modules/octavia/main.tf
-terraform/modules/octavia/outputs.tf
-terraform/modules/octavia/variables.tf
+terraform/modules/api_lb/main.tf
+terraform/modules/api_lb/outputs.tf
+terraform/modules/api_lb/variables.tf
 terraform/modules/security/main.tf
 terraform/modules/security/outputs.tf
 terraform/modules/security/variables.tf

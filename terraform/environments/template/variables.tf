@@ -8,6 +8,6 @@ variable "edge_flavor" { type = string }
 variable "hermes_flavor" { type = string }
 variable "slurm_controller_flavor" { type = string }
 variable "login_flavor" { type = string }
-variable "compute_32c_flavor" { type = string }
+variable "compute_12c_flavor" { type = string }
 variable "k8s_control_plane_flavor" { type = string }
 variable "k8s_worker_flavor" { type = string }

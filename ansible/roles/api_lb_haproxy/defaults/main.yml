@@ -1,0 +1,4 @@
+api_lb_listen_address: "{{ kubernetes_api_endpoint.address }}"
+api_lb_listen_port: "{{ kubernetes_api_endpoint.port }}"
+
+api_lb_backends: "{{ kubernetes_api_backends }}"

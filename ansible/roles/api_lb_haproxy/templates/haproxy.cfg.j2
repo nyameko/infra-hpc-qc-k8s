@@ -1,0 +1,25 @@
+global
+    log /dev/log local0
+    log /dev/log local1 notice
+    daemon
+    maxconn 4096
+
+defaults
+    log global
+    mode tcp
+    option tcplog
+    timeout connect 5s
+    timeout client  30s
+    timeout server  30s
+
+frontend kubernetes-api
+    bind {{ api_lb_listen_address }}:{{ api_lb_listen_port }}
+    default_backend kubernetes-control-plane
+
+backend kubernetes-control-plane
+    mode tcp
+    balance roundrobin
+
+{% for backend in api_lb_backends %}
+    server cp{{ loop.index }} {{ backend.address }}:{{ backend.port }} check
+{% endfor %}

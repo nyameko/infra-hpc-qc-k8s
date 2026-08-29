@@ -30,7 +30,7 @@ make plan
 make apply
 ```
 
-Expected result: 13 VMs plus the Kubernetes API Octavia load balancer.
+Expected result: 13 VMs plus the Kubernetes API Api_Lb load balancer.
 
 ### 5. Validate SSH
 
