@@ -72,7 +72,7 @@ resource "openstack_networking_secgroup_rule_v2" "k8s_api" {
   protocol          = "tcp"
   port_range_min    = 6443
   port_range_max    = 6443
-  remote_ip_prefix  = var.api_lb_cidr
+  remote_ip_prefix  = var.k8s_cidr
   security_group_id = openstack_networking_secgroup_v2.this["k8s-control-plane"].id
 }
 
