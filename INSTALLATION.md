@@ -43,17 +43,51 @@ export OS_CLOUD=mycloud   # if using clouds.yaml
 ### 0.3 Verify credentials actually work
 
 ```bash
-# Depending on the OpenStack cloud.yaml files you downloaded from Sebowa
+# Depending on the OpenStack cloud.yaml files you downloaded from Sebowa 
 openstack token issue
+
+# Export the variables into your shell environment
+# export OS_TOKEN=<id>
+# export OS_AUTH_URL=<auth_url>
+# export OS_PROJECT_ID=<project_id>
+
 openstack quota show --compute
+
 ```
+
 **Expected:** a valid token response and quota table. If this fails, nothing downstream will work — stop here and fix auth first.
+
+#### Or better yet, add the temporary token=<id> to clouds.yaml
+
+Comment out or remove username, project_name and user_domain_name, and make sure to add project_domain_name and auth_type.
+
+```yaml
+clouds:
+  openstack:
+    auth:
+      auth_url: <url>
+      token: <id>
+      #username: "nlisa"
+      project_id: <id>
+      # project_name: "QC Simulator"
+      # user_domain_name: "Default"
+      project_domain_name: "Default"
+    region_name: "RegionOne"
+    interface: "public"
+    identity_api_version: 3
+    auth_type: v3token
+
+```
 
 ### 0.4 Verify every resource the Terraform code references by name actually exists
 
 The Terraform in this repo **does not create** an image, a keypair, or the external network — it only references them by name/ID. If any of these are missing, `terraform apply` will fail partway through (after some resources are already created).
 
 ```bash
+# You may need to explicity 
+export OS_CLIENT_CONFIG_FILE="$HOME/.config/openstack/clouds.yaml"
+openstack --os-cloud infra-hpc-qc-debug server list
+
 # External/public network (var.external_network_name)
 openstack network list --external
 
@@ -63,11 +97,14 @@ openstack image list | grep -i rocky
 
 # SSH keypair matching what you'll set as ssh_key_name — create one if needed
 openstack keypair list
-openstack keypair create --public-key ~/.ssh/id_ed25519.pub nyameko-admin   # if it doesn't exist yet
+
+# Optionally create the keypair if it doesn't yet exist, using an existing local ssh key
+# openstack keypair create --public-key ~/.ssh/id_ed25519_csir.pub nyameko-admin
 
 # Flavors — you need one flavor that exposes EXACTLY 64 vCPUs.
 # The slurm_compute Ansible role hard-asserts `nproc == 64` and will fail
 # the whole playbook run on that host if the flavor doesn't match exactly.
+# optionall -c RAM -c DISK
 openstack flavor list -c Name -c VCPUs
 ```
 
@@ -79,6 +116,19 @@ openstack flavor list -c Name -c VCPUs
 - [ ] A flavor with **exactly** 64 vCPUs exists for the two Slurm compute nodes
 - [ ] You have enough quota for 13 instances + 1 Octavia load balancer + 2 networks + 1 router + 1 floating IP
 
+TODO: Verify NUMA domain and CPU topology and pinning options for 64 VCPU Virtual Compute Nodes
+```bash
+hw:cpu_policy=dedicated
+hw:numa_nodes
+hw:numa_cpus.N
+hw:num_mem.N
+```
+Not too worried about other nodes which can have shared CPU policy
+
+Not permitted to check hypersisor config
+```bash
+$ openstack hypervisor list
+```
 ---
 
 ## Phase 1 — Repository preparation & tfvars
