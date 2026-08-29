@@ -1,5 +1,5 @@
 #cloud-config
-hostname: edge-admin
+hostname: edge
 manage_etc_hosts: true
 users:
   - name: ansible

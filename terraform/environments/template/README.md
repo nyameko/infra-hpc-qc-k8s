@@ -6,7 +6,7 @@ Copy or branch the reusable code and provide environment-specific values through
 
 Expected topology:
 
-- edge-admin: 10.50.0.10
+- edge: 10.50.0.10
 - K8s API VIP: 10.51.0.100
 - cp-01: 10.51.0.11
 - cp-02: 10.51.0.12

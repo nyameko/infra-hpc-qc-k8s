@@ -11,7 +11,7 @@ ansible/playbooks/kubernetes.yml
 ansible/roles/common/tasks/main.yml
 ansible/roles/containerd/handlers/main.yml
 ansible/roles/containerd/tasks/main.yml
-ansible/roles/edge_admin/tasks/main.yml
+ansible/roles/edge/tasks/main.yml
 ansible/roles/kube_control_plane/defaults/main.yml
 ansible/roles/kube_control_plane/tasks/main.yml
 ansible/roles/kube_control_plane/templates/kubeadm.yaml.j2

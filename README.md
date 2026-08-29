@@ -10,7 +10,7 @@ This first environment is the central personal/admin federation environment. It 
 
 | VM | IP | Role |
 |---|---:|---|
-| edge-admin | 10.50.0.10 | WireGuard, Pi-hole, nftables, Suricata IDS, SSH bastion, Wazuh agent |
+| edge | 10.50.0.10 | WireGuard, Pi-hole, nftables, Suricata IDS, SSH bastion, Wazuh agent |
 | hermes-orchestrator-01 | 10.50.0.11 | isolated personal Hermes orchestrator; read/report only by default |
 | slurm-controller-01 | 10.50.0.12 | slurmctld + slurmdbd + initial MariaDB; no user logins |
 | login1 | 10.50.0.20 | SSH user login, Slurm client |
@@ -39,7 +39,7 @@ The VM agent is deliberately outside Kubernetes so a Kubernetes failure cannot t
 
 ## Slurm architecture
 
-`slurmctld` is on **its own dedicated VM**, not `edge-admin` and not a login node. The initial controller also hosts `slurmdbd` and MariaDB to keep the first deployment small. A dedicated database VM and a backup slurmctld VM can be introduced later.
+`slurmctld` is on **its own dedicated VM**, not `edge` and not a login node. The initial controller also hosts `slurmdbd` and MariaDB to keep the first deployment small. A dedicated database VM and a backup slurmctld VM can be introduced later.
 
 `login1` and `login2` provide user SSH access and Slurm commands (`sbatch`, `squeue`, `srun`, etc.). They are not the compute pool.
 

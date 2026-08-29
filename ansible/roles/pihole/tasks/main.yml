@@ -4,6 +4,6 @@
     dest: /etc/nyameko-pihole.md
     mode: '0644'
     content: |
-      Pi-hole will run on edge-admin.
+      Pi-hole will run on edge.
       Persistent state remains on this VM.
       Internal DNS records for infrastructure belong here.

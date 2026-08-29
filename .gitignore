@@ -11,4 +11,5 @@ vault-password-file
 .sops.yaml.local
 .env
 /terraform/environments/private/
-clouds.yml
+*clouds.yaml
+*.terraform.lock.hcl

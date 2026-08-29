@@ -1,6 +1,6 @@
 locals {
   groups = toset([
-    "edge-admin",
+    "edge",
     "hermes-orchestrator",
     "slurm-controller",
     "slurm-login",
@@ -23,7 +23,7 @@ resource "openstack_networking_secgroup_rule_v2" "edge_ssh_bootstrap" {
   port_range_min    = 22
   port_range_max    = 22
   remote_ip_prefix  = var.bootstrap_ssh_cidr
-  security_group_id = openstack_networking_secgroup_v2.this["edge-admin"].id
+  security_group_id = openstack_networking_secgroup_v2.this["edge"].id
 }
 
 resource "openstack_networking_secgroup_rule_v2" "edge_wireguard" {
@@ -33,23 +33,23 @@ resource "openstack_networking_secgroup_rule_v2" "edge_wireguard" {
   port_range_min    = 51820
   port_range_max    = 51820
   remote_ip_prefix  = "0.0.0.0/0"
-  security_group_id = openstack_networking_secgroup_v2.this["edge-admin"].id
+  security_group_id = openstack_networking_secgroup_v2.this["edge"].id
 }
 
 resource "openstack_networking_secgroup_rule_v2" "internal_all" {
   for_each = {
-    edge = "edge-admin"
-    hermes = "hermes-orchestrator"
+    edge             = "edge"
+    hermes           = "hermes-orchestrator"
     slurm_controller = "slurm-controller"
-    slurm_login = "slurm-login"
-    slurm_compute = "slurm-compute"
-    k8s_control = "k8s-control-plane"
-    k8s_worker = "k8s-worker"
+    slurm_login      = "slurm-login"
+    slurm_compute    = "slurm-compute"
+    k8s_control      = "k8s-control-plane"
+    k8s_worker       = "k8s-worker"
   }
   direction         = "ingress"
   ethertype         = "IPv4"
   protocol          = null
-  remote_ip_prefix  = each.value == "edge-admin" ? var.mgmt_cidr : var.mgmt_cidr
+  remote_ip_prefix  = each.value == "edge" ? var.mgmt_cidr : var.mgmt_cidr
   security_group_id = openstack_networking_secgroup_v2.this[each.value].id
 }
 

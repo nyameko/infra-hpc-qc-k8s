@@ -3,7 +3,7 @@
   hosts: edge
   become: true
   roles:
-    - edge_admin
+    - edge
     - wireguard
     - pihole
     - suricata

@@ -43,6 +43,7 @@ export OS_CLOUD=mycloud   # if using clouds.yaml
 ### 0.3 Verify credentials actually work
 
 ```bash
+# Depending on the OpenStack cloud.yaml files you downloaded from Sebowa
 openstack token issue
 openstack quota show --compute
 ```
@@ -161,7 +162,7 @@ terraform -chdir=terraform/environments/personal show -json tfplan | \
 ```
 **Expected output — exactly these 13 names:**
 ```
-edge-admin
+edge
 hermes-orchestrator-01
 k8s-cp-01
 k8s-cp-02
@@ -183,7 +184,7 @@ terraform -chdir=terraform/environments/personal show -json tfplan | \
 ```
 **Expected:** both `openstack_lb_loadbalancer_v2` and `openstack_networking_floatingip_v2` appear.
 
-**Note the known no-op logic bug (non-blocking, informational):** `terraform/modules/security/main.tf`'s `internal_all` rule has a ternary — `each.value == "edge-admin" ? var.mgmt_cidr : var.mgmt_cidr` — that evaluates to the same CIDR either way. This doesn't break `plan`/`apply`, but if you expected per-group CIDR scoping on that rule, it isn't happening. Safe to proceed; just don't assume that rule is differentiated by group.
+**Note the known no-op logic bug (non-blocking, informational):** `terraform/modules/security/main.tf`'s `internal_all` rule has a ternary — `each.value == "edge" ? var.mgmt_cidr : var.mgmt_cidr` — that evaluates to the same CIDR either way. This doesn't break `plan`/`apply`, but if you expected per-group CIDR scoping on that rule, it isn't happening. Safe to proceed; just don't assume that rule is differentiated by group.
 
 ---
 
@@ -202,13 +203,13 @@ terraform -chdir=terraform/environments/personal state list | grep openstack_com
 
 # 2. Outputs
 terraform -chdir=terraform/environments/personal output
-# Expected: edge_admin_floating_ip, k8s_api_vip (10.51.0.100), node_ips (map of all 13 fixed IPs)
+# Expected: edge_floating_ip, k8s_api_vip (10.51.0.100), node_ips (map of all 13 fixed IPs)
 
 # 3. Reachability — the repo ships a script for exactly this
 chmod +x scripts/check_initial_hosts.sh
 ./scripts/check_initial_hosts.sh
 ```
-**Expected:** `SSH-OPEN` for all 13 addresses. Note this script checks the *management-network* fixed IPs directly — it assumes you're running it from somewhere with L3 reachability to `10.50.0.0/24` / `10.51.0.0/24` (e.g., already on the OpenStack tenant network, or via an existing VPN/jump host). If you're running it from the open internet, only `edge-admin`'s floating IP will be reachable at this stage — that's expected, since WireGuard (the intended path into `10.50.0.0/24`) isn't configured until Phase 7.
+**Expected:** `SSH-OPEN` for all 13 addresses. Note this script checks the *management-network* fixed IPs directly — it assumes you're running it from somewhere with L3 reachability to `10.50.0.0/24` / `10.51.0.0/24` (e.g., already on the OpenStack tenant network, or via an existing VPN/jump host). If you're running it from the open internet, only `edge`'s floating IP will be reachable at this stage — that's expected, since WireGuard (the intended path into `10.50.0.0/24`) isn't configured until Phase 7.
 
 ```bash
 # 4. Confirm the K8s API load balancer VIP is what was requested
@@ -318,7 +319,7 @@ ansible all -i inventories/personal/hosts.yml -m command -a "timedatectl show -p
 ```bash
 make edge
 ```
-Applies `edge_admin`, `wireguard`, `pihole`, `suricata` to `edge-admin` only.
+Applies `edge`, `wireguard`, `pihole`, `suricata` to `edge` only.
 
 **Known limitations to test for, not against:** these roles are intentionally partial in this snapshot —
 - `wireguard` only creates `/etc/wireguard` and drops a **static example** file (`wg0.conf.example`); it never renders the role's own `wg0.conf.j2` template, so no live WireGuard interface comes up from this alone.
@@ -336,7 +337,7 @@ ansible edge -i inventories/personal/hosts.yml -m command -a "rpm -q suricata" -
 ansible edge -i inventories/personal/hosts.yml -m command -a "systemctl is-active suricata" -b
 # Expected: inactive (intentional — do not treat this as a failure)
 ```
-If you need a working WireGuard tunnel at this stage (recall Phase 4's reachability test depends on it for anything beyond `edge-admin`), you'll need to either hand-roll `wg0.conf` from the existing template/variables or extend the role — this repo doesn't do it yet.
+If you need a working WireGuard tunnel at this stage (recall Phase 4's reachability test depends on it for anything beyond `edge`), you'll need to either hand-roll `wg0.conf` from the existing template/variables or extend the role — this repo doesn't do it yet.
 
 ---
 
