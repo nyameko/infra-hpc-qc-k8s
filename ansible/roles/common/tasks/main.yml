@@ -14,20 +14,6 @@
       - bash-completion
     state: present
 
-- name: Disable swap
-  ansible.builtin.command: swapoff -a
-  when: ansible_swaptotal_mb | int > 0
-
-- name: Remove persistent swap entries
-  ansible.builtin.replace:
-    path: /etc/fstab
-    regexp: '^([^#].*\sswap\s+.*)$'
-    replace: '# \\1'
-
-- name: Set timezone
-  community.general.timezone:
-    name: "{{ timezone }}"
-
 - name: Enable chronyd
   ansible.builtin.systemd:
     name: chronyd

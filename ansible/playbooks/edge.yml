@@ -1,6 +1,6 @@
 ---
 - name: Configure edge admin
-  hosts: edge
+  hosts: edge_nodes
   become: true
   roles:
     - edge
