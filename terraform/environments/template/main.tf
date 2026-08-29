@@ -4,6 +4,7 @@ module "network" {
   external_network_name = var.external_network_name
   mgmt_cidr             = "10.50.0.0/24"
   k8s_cidr              = "10.51.0.0/24"
+  api_lb_cidr           = "10.51.0.0/24"
   mgmt_gateway_ip       = "10.50.0.1"
   k8s_gateway_ip        = "10.51.0.1"
   mgmt_pool_start       = "10.50.0.50"
@@ -17,8 +18,44 @@ module "security" {
   name_prefix        = "infra-hpc-qc-k8s"
   bootstrap_ssh_cidr = var.bootstrap_ssh_cidr
   vpn_cidr           = "10.60.0.0/24"
+  api_lb_cidr        = "10.51.0.0/24"
   mgmt_cidr          = "10.50.0.0/24"
   k8s_cidr           = "10.51.0.0/24"
+}
+
+module "api_lb_haproxy" {
+  count = var.api_lb_type == "haproxy" ? 1 : 0
+
+  source = "../../modules/api_lb/haproxy"
+
+  name               = var.api_lb_name
+  network_id         = openstack_networking_network_v2.k8s.id
+  subnet_id          = openstack_networking_subnet_v2.k8s.id
+  vip_address        = var.api_lb_address
+  security_group_ids = [module.security.api_lb_security_group_id]
+
+  image_id  = var.api_lb_image_id
+  flavor_id = var.api_lb_flavor_id
+  key_pair  = var.ssh_key_name
+
+  backend_addresses = var.kubernetes_control_plane_addresses
+  backend_port      = var.kubernetes_api_port
+
+  user_data = var.api_lb_user_data
+}
+
+module "api_lb_octavia" {
+  count = var.api_lb_type == "octavia" ? 1 : 0
+
+  source = "../../modules/api_lb/octavia"
+
+  name              = var.api_lb_name
+  vip_subnet_id     = openstack_networking_subnet_v2.k8s.id
+  vip_address       = var.api_lb_address
+  backend_addresses = var.kubernetes_control_plane_addresses
+
+  listener_port = var.kubernetes_api_port
+  backend_port  = var.kubernetes_api_port
 }
 
 locals {
@@ -70,17 +107,17 @@ module "compute" {
   nodes  = local.nodes
 }
 
-module "api_lb" {
-  source        = "../../modules/api_lb"
-  name          = "infra-hpc-qc-k8s-api"
-  vip_subnet_id = module.network.k8s_subnet_id
-  vip_address   = "10.51.0.100"
-  control_plane_ips = {
-    cp01 = "10.51.0.11"
-    cp02 = "10.51.0.12"
-    cp03 = "10.51.0.13"
-  }
-}
+# module "octavia" {
+#   source        = "../../modules/octavia"
+#   name          = "infra-hpc-qc-k8s-api"
+#   vip_subnet_id = module.network.k8s_subnet_id
+#   vip_address   = "10.51.0.100"
+#   control_plane_ips = {
+#     cp01 = "10.51.0.11"
+#     cp02 = "10.51.0.12"
+#     cp03 = "10.51.0.13"
+#   }
+#}
 
 resource "openstack_networking_floatingip_v2" "edge" {
   pool = var.external_network_name

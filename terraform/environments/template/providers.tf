@@ -11,6 +11,6 @@ terraform {
 
 provider "openstack" {
   # Configuration options
-  cloud  = var.openstack_compute_instance_v2
+  cloud  = var.openstack_cloud
   region = var.openstack_region
 }
