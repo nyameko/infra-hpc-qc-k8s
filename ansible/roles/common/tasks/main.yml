@@ -22,5 +22,5 @@
 
 - name: Set timezone
   ansible.builtin.command:
-    cmd: "timedatectl set-timezone {{ timezone }}"
+    cmd: "timedatectl set-timezone Africa/Johannesburg"
   changed_when: false

@@ -13,3 +13,4 @@ vault-password-file
 terraform/environments/private/
 *clouds.yaml
 *.terraform.lock.hcl
+ansible/inventories/private/group_vars/
