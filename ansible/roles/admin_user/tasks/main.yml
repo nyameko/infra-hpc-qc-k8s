@@ -1,0 +1,26 @@
+---
+- name: Create admin user
+  ansible.builtin.user:
+    name: "{{ admin_user_name }}"
+    shell: "{{ admin_user_shell }}"
+    groups:
+      - wheel
+    append: true
+    create_home: true
+    state: present
+
+- name: Install admin SSH key
+  ansible.posix.authorized_key:
+    user: "{{ admin_user_name }}"
+    key: "{{ admin_ssh_public_key }}"
+    state: present
+    exclusive: true
+
+- name: Configure passwordless sudo
+  ansible.builtin.copy:
+    dest: "/etc/sudoers.d/{{ admin_user_name }}"
+    content: "{{ admin_user_name }} ALL=(ALL) NOPASSWD: ALL\n"
+    owner: root
+    group: root
+    mode: "0440"
+    validate: "/usr/sbin/visudo -cf %s"

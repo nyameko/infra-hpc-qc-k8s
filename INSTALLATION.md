@@ -386,6 +386,15 @@ ansible all -i inventories/private/hosts.yml -m command -a "timedatectl show -p 
 # Expected: Africa/Johannesburg (from ansible/group_vars/all.yml)
 ```
 
+TODO: Document addition of sudo user after bootstrap
+i.e. in `ansible/inventories/private/group_vars/all.yml` add
+```yaml
+admin_user_name: nyameko
+admin_user_shell: /bin/bash
+admin_ssh_public_key: "ssh-ed25519 AAAA..."
+```
+
+
 ---
 
 ## Phase 7 — Edge node configuration

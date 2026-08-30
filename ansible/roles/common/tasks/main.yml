@@ -19,3 +19,8 @@
     name: chronyd
     enabled: true
     state: started
+
+- name: Set timezone
+  ansible.builtin.command:
+    cmd: "timedatectl set-timezone {{ timezone }}"
+  changed_when: false

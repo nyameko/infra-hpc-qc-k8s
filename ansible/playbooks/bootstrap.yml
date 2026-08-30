@@ -6,3 +6,4 @@
     - common
     - ssh
     - wazuh_agent
+    - admin_user
