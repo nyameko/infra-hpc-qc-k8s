@@ -14,12 +14,12 @@ table inet filter {
         udp dport 51820 accept
 
         tcp dport 22 ip saddr {{ bootstrap_ssh_cidr }} accept
-        tcp dport 22 ip saddr {{ wireguard_cidr }} accept
+        tcp dport 22 ip saddr {{ vpn_cidr }} accept
 
-        udp dport 53 ip saddr { {{ management_cidr }}, {{ k8s_cidr }}, {{ wireguard_cidr }} } accept
-        tcp dport 53 ip saddr { {{ management_cidr }}, {{ k8s_cidr }}, {{ wireguard_cidr }} } accept
+        udp dport 53 ip saddr { {{ mgmt_cidr }}, {{ k8s_cidr }}, {{ vpn_cidr }} } accept
+        tcp dport 53 ip saddr { {{ mgmt_cidr }}, {{ k8s_cidr }}, {{ vpn_cidr }} } accept
 
-        tcp dport { 1514, 1515 } ip saddr { {{ management_cidr }}, {{ k8s_cidr }} } accept
+        tcp dport { 1514, 1515 } ip saddr { {{ mgmt_cidr }}, {{ k8s_cidr }} } accept
     }
 
     chain forward {
@@ -28,8 +28,8 @@ table inet filter {
 
         ct state established,related accept
 
-        iifname "wg0" oifname "{{ ansible_default_ipv4.interface }}" accept
-        iifname "{{ ansible_default_ipv4.interface }}" oifname "wg0" ct state established,related accept
+        iifname "wg0" oifname "{{ ansible_facts.default_ipv4.interface }}" accept
+        iifname "{{ ansible_facts.default_ipv4.interface }}" oifname "wg0" ct state established,related accept
     }
 
     chain output {
@@ -43,7 +43,7 @@ table ip nat {
         type nat hook postrouting priority srcnat;
         policy accept;
 
-        ip saddr {{ wireguard_cidr }} oifname "{{ ansible_default_ipv4.interface }}" masquerade
+        ip saddr {{ vpn_cidr }} oifname "{{ ansible_facts.default_ipv4.interface }}" masquerade
     }
 }
 
