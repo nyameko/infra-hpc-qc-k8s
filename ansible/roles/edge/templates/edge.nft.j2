@@ -1,0 +1,49 @@
+flush ruleset
+
+table inet filter {
+    chain input {
+        type filter hook input priority filter;
+        policy drop;
+
+        iifname "lo" accept
+        ct state established,related accept
+
+        ip protocol icmp accept
+        ip6 nexthdr icmpv6 accept
+
+        udp dport 51820 accept
+
+        tcp dport 22 ip saddr {{ bootstrap_ssh_cidr }} accept
+        tcp dport 22 ip saddr {{ wireguard_cidr }} accept
+
+        udp dport 53 ip saddr { {{ management_cidr }}, {{ k8s_cidr }}, {{ wireguard_cidr }} } accept
+        tcp dport 53 ip saddr { {{ management_cidr }}, {{ k8s_cidr }}, {{ wireguard_cidr }} } accept
+
+        tcp dport { 1514, 1515 } ip saddr { {{ management_cidr }}, {{ k8s_cidr }} } accept
+    }
+
+    chain forward {
+        type filter hook forward priority filter;
+        policy drop;
+
+        ct state established,related accept
+
+        iifname "wg0" oifname "{{ ansible_default_ipv4.interface }}" accept
+        iifname "{{ ansible_default_ipv4.interface }}" oifname "wg0" ct state established,related accept
+    }
+
+    chain output {
+        type filter hook output priority filter;
+        policy accept;
+    }
+}
+
+table ip nat {
+    chain postrouting {
+        type nat hook postrouting priority srcnat;
+        policy accept;
+
+        ip saddr {{ wireguard_cidr }} oifname "{{ ansible_default_ipv4.interface }}" masquerade
+    }
+}
+
