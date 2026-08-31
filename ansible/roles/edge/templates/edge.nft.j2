@@ -46,4 +46,3 @@ table ip nat {
         ip saddr {{ vpn_cidr }} oifname "{{ ansible_facts.default_ipv4.interface }}" masquerade
     }
 }
-

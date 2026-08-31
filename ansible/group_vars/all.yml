@@ -1,9 +1,6 @@
 ---
 # Non-secret cluster-wide settings. Put secrets in Ansible Vault/SOPS.
 timezone: Africa/Johannesburg
-mgmt_cidr: 10.50.0.0/24
-k8s_cidr: 10.51.0.0/24
-vpn_cidr: 10.60.0.0/24
 kubernetes_minor: "1.36"
 kubernetes_exact_version: "REPLACE_WITH_EXACT_1.36.x"
 containerd_version: "REPLACE_OR_LEAVE_REPO_DEFAULT"
