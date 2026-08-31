@@ -2,4 +2,3 @@
 wireguard_interface: wg0
 wireguard_address: 10.60.0.1/24
 wireguard_listen_port: 51820
-wireguard_peers: []

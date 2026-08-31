@@ -1,0 +1,18 @@
+[Unit]
+Description=Pi-hole
+
+[Container]
+Image={{ pihole_container_image }}
+ContainerName=pihole
+Network=host
+Volume=/opt/pihole/etc-pihole:/etc/pihole
+Environment=TZ={{ timezone }}
+Environment=FTLCONF_webserver_api_password={{ pihole_web_password }}
+Environment=FTLCONF_dns_listeningMode=ALL
+Environment=FTLCONF_dns_upstreams={{ pihole_dns_upstreams | join(';') }}
+
+[Service]
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

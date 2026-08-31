@@ -426,6 +426,19 @@ If you need a working WireGuard tunnel at this stage (recall Phase 4's reachabil
 
 ---
 
+TODO: Add setion to generat wg config on workstation:
+```bash
+[Interface]
+Address = 10.60.0.2/32
+PrivateKey = <client-private-key>
+
+[Peer]
+PublicKey = <edge-public-key>
+PresharedKey = <client-server-psk>
+Endpoint = <EDGE-IP>:51820
+AllowedIPs = 10.50.0.0/24, 10.51.0.0/24
+PersistentKeepalive = 25```
+
 ## Phase 8 — Hermes orchestrator configuration
 
 ```bash
