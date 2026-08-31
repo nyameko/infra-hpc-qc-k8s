@@ -24,9 +24,6 @@ kubernetes_api_backends:
 kube_pod_cidr: "10.244.0.0/16"
 kube_service_cidr: "10.96.0.0/12"
 
-wazuh_manager_address: "10.50.0.12"
-wazuh_agent_enabled: true
-
 slurm_cluster_name: "qc_simulator"
 slurm_control_host: "10.50.0.12"
 slurm_partition_name: "cpu"
