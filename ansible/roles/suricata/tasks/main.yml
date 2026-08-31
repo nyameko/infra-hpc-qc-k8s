@@ -1,10 +1,30 @@
 ---
+- name: Install EPEL repository
+  ansible.builtin.dnf:
+    name: epel-release
+    state: present
+
+- name: Install DNF plugins
+  ansible.builtin.dnf:
+    name: dnf-plugins-core
+    state: present
+
+- name: Enable CRB repository
+  ansible.builtin.command:
+    cmd: dnf config-manager --set-enabled crb
+  changed_when: false
+
+- name: Enable Suricata COPR
+  ansible.builtin.command:
+    cmd: dnf -y copr enable @oisf/suricata-7.0
+    creates: /etc/yum.repos.d/_copr:copr.fedorainfracloud.org:group_oisf:suricata-7.0.repo
+
 - name: Install Suricata
   ansible.builtin.dnf:
     name: suricata
     state: present
 
-- name: Keep Suricata disabled until the correct interface/path is selected
+- name: Enable Suricata
   ansible.builtin.systemd:
     name: suricata
     enabled: true
