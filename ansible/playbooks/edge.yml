@@ -4,6 +4,7 @@
   become: true
   roles:
     - edge
+    - wazuh_manager
     - wireguard
     - pihole
     - suricata

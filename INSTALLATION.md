@@ -394,6 +394,8 @@ admin_user_shell: /bin/bash
 admin_ssh_public_key: "ssh-ed25519 AAAA..."
 ```
 
+TODO: Hardcoded time zone, will bee to fix this 
+
 
 ---
 

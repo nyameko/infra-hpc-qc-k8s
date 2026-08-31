@@ -159,3 +159,43 @@ resource "openstack_networking_secgroup_rule_v2" "hermes_ssh" {
   remote_ip_prefix  = var.vpn_cidr
   security_group_id = openstack_networking_secgroup_v2.this["hermes-orchestrator"].id
 }
+
+resource "openstack_networking_secgroup_rule_v2" "edge_dns_mgmt" {
+  direction         = "ingress"
+  ethertype         = "IPv4"
+  protocol          = "udp"
+  port_range_min    = 53
+  port_range_max    = 53
+  remote_ip_prefix  = var.mgmt_cidr
+  security_group_id = openstack_networking_secgroup_v2.this["edge"].id
+}
+
+resource "openstack_networking_secgroup_rule_v2" "edge_dns_mgmt_tcp" {
+  direction         = "ingress"
+  ethertype         = "IPv4"
+  protocol          = "tcp"
+  port_range_min    = 53
+  port_range_max    = 53
+  remote_ip_prefix  = var.mgmt_cidr
+  security_group_id = openstack_networking_secgroup_v2.this["edge"].id
+}
+
+resource "openstack_networking_secgroup_rule_v2" "edge_dns_k8s" {
+  direction         = "ingress"
+  ethertype         = "IPv4"
+  protocol          = "udp"
+  port_range_min    = 53
+  port_range_max    = 53
+  remote_ip_prefix  = var.k8s_cidr
+  security_group_id = openstack_networking_secgroup_v2.this["edge"].id
+}
+
+resource "openstack_networking_secgroup_rule_v2" "edge_dns_k8s_tcp" {
+  direction         = "ingress"
+  ethertype         = "IPv4"
+  protocol          = "tcp"
+  port_range_min    = 53
+  port_range_max    = 53
+  remote_ip_prefix  = var.k8s_cidr
+  security_group_id = openstack_networking_secgroup_v2.this["edge"].id
+}

@@ -1,9 +1,26 @@
 ---
-- name: Document Pi-hole service point
-  ansible.builtin.copy:
-    dest: /etc/nyameko-pihole.md
-    mode: '0644'
-    content: |
-      Pi-hole will run on edge.
-      Persistent state remains on this VM.
-      Internal DNS records for infrastructure belong here.
+- name: Create Pi-hole directories
+  ansible.builtin.file:
+    path: /opt/pihole/etc-pihole
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Install Pi-hole Quadlet
+  ansible.builtin.template:
+    src: pihole.container.j2
+    dest: /etc/containers/systemd/pihole.container
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Reload systemd
+  ansible.builtin.systemd:
+    daemon_reload: true
+
+- name: Enable Pi-hole
+  ansible.builtin.systemd:
+    name: pihole
+    enabled: true
+    state: started

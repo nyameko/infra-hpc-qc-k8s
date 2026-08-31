@@ -19,23 +19,14 @@
       baseurl=https://packages.wazuh.com/{{ wazuh_version }}/yum/
       priority=1
 
-- name: Install Wazuh agent
+- name: Install Wazuh manager
   ansible.builtin.dnf:
-    name: wazuh-agent
+    name: wazuh-manager
     state: present
     update_cache: true
-  environment:
-    WAZUH_MANAGER: "{{ wazuh_manager_address }}"
 
-- name: Configure Wazuh manager
-  ansible.builtin.replace:
-    path: /var/ossec/etc/ossec.conf
-    regexp: '<address>.*?</address>'
-    replace: '<address>{{ wazuh_manager_address }}</address>'
-  notify: Restart Wazuh agent
-
-- name: Enable Wazuh agent
+- name: Enable Wazuh manager
   ansible.builtin.systemd:
-    name: wazuh-agent
-    enabled: "{{ wazuh_agent_enabled }}"
-    state: "{{ 'started' if wazuh_agent_enabled else 'stopped' }}"
+    name: wazuh-manager
+    enabled: true
+    state: started

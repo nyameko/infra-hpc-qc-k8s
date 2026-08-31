@@ -14,3 +14,4 @@ terraform/environments/private/
 *clouds.yaml
 *.terraform.lock.hcl
 ansible/inventories/private/group_vars/
+ansible/inventories/private/hosts.yml

@@ -1,18 +1,59 @@
 ---
+- name: Install WireGuard
+  ansible.builtin.dnf:
+    name: wireguard-tools
+    state: present
+
 - name: Create WireGuard directory
   ansible.builtin.file:
     path: /etc/wireguard
     state: directory
     owner: root
     group: root
-    mode: '0700'
+    mode: "0700"
 
-- name: Install example WireGuard configuration
-  ansible.builtin.copy:
-    dest: /etc/wireguard/wg0.conf.example
-    mode: '0600'
-    content: |
-      [Interface]
-      Address = 10.60.0.1/24
-      ListenPort = 51820
-      # Real private key and peers go into Ansible Vault/SOPS.
+- name: Generate WireGuard private key
+  ansible.builtin.shell:
+    cmd: umask 077 && wg genkey > /etc/wireguard/{{ wireguard_interface }}.key
+    creates: /etc/wireguard/{{ wireguard_interface }}.key
+  no_log: true
+
+- name: Read WireGuard private key
+  ansible.builtin.slurp:
+    src: /etc/wireguard/{{ wireguard_interface }}.key
+  register: wireguard_private_key_file
+  no_log: true
+
+- name: Set WireGuard private key fact
+  ansible.builtin.set_fact:
+    wireguard_private_key: "{{ wireguard_private_key_file.content | b64decode | trim }}"
+  no_log: true
+
+- name: Generate WireGuard public key
+  ansible.builtin.shell:
+    cmd: "wg pubkey < /etc/wireguard/{{ wireguard_interface }}.key > /etc/wireguard/{{ wireguard_interface }}.pub"
+    creates: "/etc/wireguard/{{ wireguard_interface }}.pub"
+
+- name: Read WireGuard public key
+  ansible.builtin.slurp:
+    src: "/etc/wireguard/{{ wireguard_interface }}.pub"
+  register: wireguard_public_key
+
+- name: Display WireGuard public key
+  ansible.builtin.debug:
+    msg: "WireGuard public key: {{ wireguard_public_key.content | b64decode | trim }}"
+
+- name: Deploy WireGuard configuration
+  ansible.builtin.template:
+    src: wg0.conf.j2
+    dest: /etc/wireguard/{{ wireguard_interface }}.conf
+    owner: root
+    group: root
+    mode: "0600"
+  notify: Restart WireGuard
+
+- name: Enable WireGuard
+  ansible.builtin.systemd:
+    name: "wg-quick@{{ wireguard_interface }}"
+    enabled: true
+    state: started
