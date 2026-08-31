@@ -16,23 +16,16 @@
       gpgkey=https://packages.wazuh.com/key/GPG-KEY-WAZUH
       enabled=1
       name=EL-$releasever - Wazuh
-      baseurl=https://packages.wazuh.com/{{ wazuh_version }}/yum/
+      baseurl=https://packages.wazuh.com/{{ wazuh_base }}/yum/
       priority=1
 
 - name: Install Wazuh agent
   ansible.builtin.dnf:
-    name: wazuh-agent
+    name: "wazuh-agent-{{ wazuh_version }}-1"
     state: present
     update_cache: true
   environment:
     WAZUH_MANAGER: "{{ wazuh_manager_address }}"
-
-- name: Configure Wazuh manager
-  ansible.builtin.replace:
-    path: /var/ossec/etc/ossec.conf
-    regexp: '<address>.*?</address>'
-    replace: '<address>{{ wazuh_manager_address }}</address>'
-  notify: Restart Wazuh agent
 
 - name: Enable Wazuh agent
   ansible.builtin.systemd:

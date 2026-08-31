@@ -16,12 +16,12 @@
       gpgkey=https://packages.wazuh.com/key/GPG-KEY-WAZUH
       enabled=1
       name=EL-$releasever - Wazuh
-      baseurl=https://packages.wazuh.com/{{ wazuh_version }}/yum/
+      baseurl=https://packages.wazuh.com/{{ wazuh_base }}/yum/
       priority=1
 
 - name: Install Wazuh manager
   ansible.builtin.dnf:
-    name: wazuh-manager
+    name: "wazuh-manager-{{ wazuh_version }}-1"
     state: present
     update_cache: true
 
