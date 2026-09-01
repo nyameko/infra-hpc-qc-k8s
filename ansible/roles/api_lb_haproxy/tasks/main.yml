@@ -1,8 +1,16 @@
 ---
 - name: Install HAProxy
   ansible.builtin.dnf:
-    name: haproxy
+    name:
+      - haproxy
+      - policycoreutils-python-utils
     state: present
+
+- name: Allow HAProxy to bind to network ports
+  ansible.posix.seboolean:
+    name: haproxy_connect_any
+    state: true
+    persistent: true
 
 - name: Deploy HAProxy configuration
   ansible.builtin.template:
