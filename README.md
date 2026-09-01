@@ -2,6 +2,28 @@
 
 Infrastructure-as-code for the National Integrated Cyber Infrastructure Systems (NICIS) Quantum Hybrid HPC / AI / ML / QC platform.
 
+## Current Deployment Status
+
+Infrastructure
+  ✓ OpenStack network and VMs
+  ✓ Rocky Linux base configuration
+  ✓ Edge / WireGuard / Pi-hole
+  ✓ Wazuh manager
+  ✓ Suricata IDS
+  ✓ Kubernetes API load balancer
+  ✓ containerd
+  ✓ Kubernetes 1.36.4 prerequisites
+  → kubeadm cluster initialization
+  → Cilium
+  → Cinder CSI
+  → Argo CD
+  → Slurm
+  → Prometheus / Grafana
+  → Hermes Orchestrator
+  → Hermes Researcher
+  → JupyterHub
+  → Astro
+
 ## Initial environment
 
 This first environment is the central personal/admin federation environment. It is **not** the research production cluster. It provides the control/orchestration foundation from which the later production and Purple Team environments will be derived.
