@@ -9,7 +9,6 @@
       - ebtables
       - ethtool
       - iproute-tc
-      - containerd
     state: present
     update_cache: true
 
@@ -53,26 +52,6 @@
 - name: Apply sysctl
   ansible.builtin.command: sysctl --system
   changed_when: false
-
-- name: Generate containerd configuration
-  ansible.builtin.command:
-    cmd: containerd config default
-  register: containerd_config
-  changed_when: false
-
-- name: Configure containerd
-  ansible.builtin.copy:
-    dest: /etc/containerd/config.toml
-    owner: root
-    group: root
-    mode: "0644"
-    content: "{{ containerd_config.stdout | regex_replace('SystemdCgroup = false', 'SystemdCgroup = true') }}"
-
-- name: Enable containerd
-  ansible.builtin.systemd:
-    name: containerd
-    enabled: true
-    state: restarted
 
 - name: Configure Kubernetes package repository
   ansible.builtin.copy:
