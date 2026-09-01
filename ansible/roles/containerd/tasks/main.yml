@@ -46,3 +46,14 @@
     name: containerd
     enabled: true
     state: started
+
+- name: Verify containerd
+  ansible.builtin.command:
+    cmd: containerd --version
+  changed_when: false
+
+- name: Verify containerd service
+  ansible.builtin.systemd:
+    name: containerd
+    state: started
+    enabled: true
