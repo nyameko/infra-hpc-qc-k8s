@@ -1,0 +1,7 @@
+---
+- name: Deploy and validate Cinder CSI
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  roles:
+    - cinder_csi

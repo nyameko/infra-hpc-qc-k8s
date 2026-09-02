@@ -1,0 +1,110 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ cinder_csi_validation_namespace }}
+---
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: cinder-ssd
+  annotations:
+    storageclass.kubernetes.io/is-default-class: "true"
+provisioner: cinder.csi.openstack.org
+volumeBindingMode: WaitForFirstConsumer
+allowVolumeExpansion: true
+reclaimPolicy: Delete
+parameters:
+  type: SSD
+---
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: cinder-hdd
+provisioner: cinder.csi.openstack.org
+volumeBindingMode: WaitForFirstConsumer
+allowVolumeExpansion: true
+reclaimPolicy: Delete
+parameters:
+  type: HDD
+---
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: cinder-default
+provisioner: cinder.csi.openstack.org
+volumeBindingMode: WaitForFirstConsumer
+allowVolumeExpansion: true
+reclaimPolicy: Delete
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: cinder-ssd-pvc
+  namespace: {{ cinder_csi_validation_namespace }}
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: {{ cinder_csi_validation_size }}
+  storageClassName: cinder-ssd
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: cinder-hdd-pvc
+  namespace: {{ cinder_csi_validation_namespace }}
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: {{ cinder_csi_validation_size }}
+  storageClassName: cinder-hdd
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: cinder-default-pvc
+  namespace: {{ cinder_csi_validation_namespace }}
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: {{ cinder_csi_validation_size }}
+  storageClassName: cinder-default
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cinder-csi-validation
+  namespace: {{ cinder_csi_validation_namespace }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cinder-csi-validation
+  template:
+    metadata:
+      labels:
+        app: cinder-csi-validation
+    spec:
+      containers:
+        - name: validation
+          image: {{ cinder_csi_validation_image }}
+          command: ["sh", "-c", "sleep 86400"]
+          volumeMounts:
+            - name: ssd
+              mountPath: /data/ssd
+            - name: hdd
+              mountPath: /data/hdd
+            - name: default
+              mountPath: /data/default
+      volumes:
+        - name: ssd
+          persistentVolumeClaim:
+            claimName: cinder-ssd-pvc
+        - name: hdd
+          persistentVolumeClaim:
+            claimName: cinder-hdd-pvc
+        - name: default
+          persistentVolumeClaim:
+            claimName: cinder-default-pvc
