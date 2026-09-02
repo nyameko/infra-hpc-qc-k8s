@@ -1,846 +1,681 @@
-# 4. Kubernetes Platform
+# Tutorial 4 — Kubernetes Platform: Cilium and Worked Network-Security Debugging
 
-This tutorial documents the Kubernetes platform in `infra-hpc-qc-k8s`, including the implementation decisions, validation steps, failures, and fixes encountered during the deployment of the six-node cluster.
+## 1. Purpose
 
-The goal is not only to reproduce a working cluster, but to show how to diagnose the kinds of problems that commonly appear when Kubernetes is deployed on Rocky Linux inside OpenStack.
+Tutorial 4 begins after the six-node Kubernetes cluster has been bootstrapped and turns it into a functional platform.
 
-## 4.1 Platform topology
-
-The current Kubernetes platform consists of:
+This tutorial is intentionally an incident-driven lab. The target is not merely:
 
 ```text
-                         WireGuard
-                            │
-                            ▼
-                    10.51.0.100:6443
-                         HAProxy
-                            │
-               ┌────────────┼────────────┐
-               │            │            │
-               ▼            ▼            ▼
-          CP1 10.51.0.11 CP2 .12      CP3 .13
-               │            │            │
-               └────────────┼────────────┘
-                            │
-                    Kubernetes API
-                            │
-                    stacked etcd
-                            │
-             ┌──────────────┼──────────────┐
-             ▼              ▼              ▼
-       worker-01 .21  worker-02 .22  worker-03 .23
+"Cilium installed"
 ```
 
-Networks:
-
-| Network | CIDR | Purpose |
-|---|---|---|
-| Management | `10.50.0.0/24` | OpenStack management/service traffic |
-| Kubernetes | `10.51.0.0/24` | Kubernetes API and node-to-node traffic |
-| VPN | `10.60.0.0/24` | WireGuard administrative access |
-
-The Kubernetes API endpoint is deliberately stable:
+The target is:
 
 ```text
-10.51.0.100:6443
+control plane healthy
++ node networking healthy
++ service networking healthy
++ cross-node connectivity healthy
++ security boundaries still restrictive
 ```
 
-Clients should use this address for the life of the cluster regardless of whether HAProxy is eventually replaced by Octavia.
+The deployment exposed a particularly useful real-world failure: Cilium itself became healthy, VXLAN worked, but the Cilium connectivity test failed at a Kubernetes NodePort because the OpenStack security groups did not yet permit the NodePort range. The same testing also exposed ICMP host-health behavior.
 
-## 4.2 Infrastructure ownership
+---
 
-The platform uses explicit ownership boundaries:
+## 2. Starting state
 
-```text
-Terraform
-   │
-   └── OpenStack infrastructure
-       ├── networks
-       ├── ports
-       ├── security groups
-       └── virtual machines
-
-Ansible
-   │
-   ├── Rocky Linux configuration
-   ├── containerd
-   ├── Kubernetes prerequisites
-   ├── HAProxy
-   └── Kubernetes bootstrap
-
-kubeadm
-   │
-   ├── control-plane initialization
-   ├── control-plane joins
-   └── worker joins
-
-Cilium
-   │
-   └── Kubernetes networking / eBPF datapath
-
-Argo CD
-   │
-   └── application delivery and GitOps
-```
-
-This distinction is important for students: Kubernetes does not provision the OpenStack VMs, and kubeadm does not replace Ansible. kubeadm performs Kubernetes bootstrap; Ansible orchestrates that bootstrap.
-
-## 4.3 Kubernetes prerequisites
-
-All six Kubernetes nodes must first receive:
-
-- containerd
-- kubelet
-- kubeadm
-- kubectl
-- cri-tools
-- kernel modules required by Kubernetes
-- Kubernetes sysctl settings
-- the Kubernetes package repository
-
-The authoritative playbook is:
-
-```bash
-ansible-playbook \
-  -i inventories/private/hosts.yml \
-  playbooks/kubernetes-prereqs.yml
-```
-
-The playbook applies:
-
-```text
-containerd
-   │
-   ├── containerd.io
-   ├── /etc/containerd/config.toml
-   └── SystemdCgroup = true
-
-Kubernetes prerequisites
-   │
-   ├── overlay
-   ├── br_netfilter
-   ├── net.bridge.bridge-nf-call-iptables = 1
-   ├── net.bridge.bridge-nf-call-ip6tables = 1
-   └── net.ipv4.ip_forward = 1
-
-Kubernetes packages
-   │
-   ├── kubelet
-   ├── kubeadm
-   ├── kubectl
-   └── cri-tools
-
-CRI
-   │
-   └── /etc/crictl.yaml
-```
-
-Containerd uses the systemd cgroup driver because it matches kubelet and is the recommended Kubernetes configuration for modern systemd-based Linux hosts.
-
-## 4.4 First deployment failure: `containerd` package not found
-
-The first attempt used:
-
-```yaml
-- name: Install containerd
-  ansible.builtin.dnf:
-    name: containerd
-```
-
-This failed on Rocky Linux 9:
-
-```text
-No package containerd available.
-```
-
-The problem was not Kubernetes. Rocky's configured repositories did not provide a package with that name.
-
-The role was corrected to use Docker's EL9 repository and the `containerd.io` package.
-
-The successful deployment now reports:
-
-```text
-containerd containerd v2.3.4
-```
-
-on all six nodes.
-
-The lesson is important: package names and package repositories are distribution-specific. Do not assume that the upstream project name is also the OS package name.
-
-## 4.5 containerd configuration
-
-The containerd role generates the default configuration and enables the systemd cgroup driver.
-
-Validation:
-
-```bash
-ansible control_plane:workers \
-  -i inventories/private/hosts.yml \
-  -m shell \
-  -a 'containerd --version && systemctl is-active containerd'
-```
-
-Expected:
-
-```text
-containerd containerd v2.3.4 ...
-active
-```
-
-The role also configures:
-
-```text
-runtime-endpoint: unix:///run/containerd/containerd.sock
-image-endpoint: unix:///run/containerd/containerd.sock
-```
-
-in `/etc/crictl.yaml`.
-
-## 4.6 CRI validation and a misleading permission error
-
-A later test was run with:
-
-```bash
-ansible control_plane:workers \
-  -i inventories/private/hosts.yml \
-  -m shell \
-  -a 'systemctl is-active containerd; systemctl is-active kubelet; crictl info >/dev/null && echo CRI_OK'
-```
-
-This failed with:
-
-```text
-connect: permission denied
-```
-
-The initial suspicion was an OpenStack security-group problem.
-
-It was not.
-
-`/run/containerd/containerd.sock` is a privileged Unix-domain socket. The ad-hoc Ansible command was executed as the normal `nyameko` user, without `become`.
-
-The correct diagnostic is:
-
-```bash
-sudo crictl info
-```
-
-or:
-
-```bash
-ansible control_plane:workers \
-  -i inventories/private/hosts.yml \
-  -b \
-  -m shell \
-  -a 'crictl info >/dev/null && echo CRI_OK'
-```
-
-The `kube_prereqs` role already performs the CRI verification with privilege escalation, so the successful prerequisite play showed that the runtime itself was healthy.
-
-General lesson:
-
-> A local Unix-socket permission failure is not the same thing as a network ACL/security-group failure.
-
-Always identify whether the endpoint is TCP/UDP or a local Unix socket before debugging network policy.
-
-## 4.7 Kubernetes version
-
-The deployed Kubernetes version is:
+Kubernetes:
 
 ```text
 v1.36.4
 ```
 
-The cluster nodes now report:
+Nodes:
 
 ```text
-Kubernetes v1.36.4
-containerd://2.3.4
+CP1 10.51.0.11
+CP2 10.51.0.12
+CP3 10.51.0.13
+W1  10.51.0.21
+W2  10.51.0.22
+W3  10.51.0.23
 ```
 
-The repository should avoid maintaining unused duplicate version variables. The installed versions should be represented by the variables that actually drive the package repository/bootstrap configuration.
-
-## 4.8 API load balancer
-
-The Kubernetes API is exposed through:
+API endpoint:
 
 ```text
 10.51.0.100:6443
 ```
 
-HAProxy runs on `api-lb-01`.
-
-The HAProxy backend is:
+Runtime:
 
 ```text
-CP1 → 10.51.0.11:6443
-CP2 → 10.51.0.12:6443
-CP3 → 10.51.0.13:6443
+containerd 2.3.4
 ```
-
-The HAProxy listener can exist before Kubernetes is initialized. At that point its backend health checks are expected to fail.
-
-Example early state:
-
-```text
-HAProxy: UP
-CP1: DOWN
-CP2: DOWN
-CP3: DOWN
-```
-
-This is not a failure of HAProxy.
-
-Once the control planes come online:
-
-```text
-HAProxy: UP
-CP1: UP
-CP2: UP
-CP3: UP
-```
-
-## 4.9 HAProxy SELinux failure
-
-The initial HAProxy deployment failed even though:
-
-```bash
-haproxy -c -f /etc/haproxy/haproxy.cfg
-```
-
-reported:
-
-```text
-Configuration file is valid
-```
-
-The real runtime error was:
-
-```text
-cannot bind socket (Permission denied) for [10.51.0.100:6443]
-```
-
-Inspection showed:
-
-```text
-SELinux: Enforcing
-haproxy_connect_any --> off
-```
-
-The fix was:
-
-```bash
-sudo setsebool -P haproxy_connect_any on
-```
-
-The fix was then codified in the `api_lb_haproxy` Ansible role using `ansible.posix.seboolean`.
-
-After the fix:
-
-```text
-haproxy.service: active (running)
-10.51.0.100:6443: LISTEN
-```
-
-The lesson is important on Rocky/RHEL-family systems:
-
-> A syntactically valid service configuration can still be blocked by SELinux at runtime.
-
-## 4.10 API security-group model
-
-The intended security model is:
-
-```text
-api-lb
-  TCP 6443 ← vpn_cidr
-  TCP 6443 ← k8s_cidr
-
-k8s-control-plane
-  TCP 6443 ← k8s_cidr
-```
-
-The direct VPN-to-control-plane API rule is intentionally not required.
-
-This means:
-
-```text
-VPN client
-   │
-   ▼
-10.51.0.100:6443
-   │
-   ▼
-HAProxy
-   │
-   ├── CP1
-   ├── CP2
-   └── CP3
-```
-
-rather than exposing the individual control-plane API listeners to VPN clients.
-
-This concentrates the API entry point around one stable endpoint and makes the HAProxy layer a genuine security and availability boundary.
-
-## 4.11 kubeadm initialization
-
-The first control plane is:
-
-```text
-k8s-cp-01 = 10.51.0.11
-```
-
-The cluster uses:
-
-```text
-Control-plane endpoint: 10.51.0.100:6443
-Pod CIDR:               10.244.0.0/16
-Service CIDR:           10.96.0.0/12
-```
-
-The conceptual kubeadm configuration is:
-
-```yaml
-apiVersion: kubeadm.k8s.io/v1beta4
-kind: InitConfiguration
-localAPIEndpoint:
-  advertiseAddress: 10.51.0.11
-  bindPort: 6443
-nodeRegistration:
-  criSocket: unix:///run/containerd/containerd.sock
 
 ---
-apiVersion: kubeadm.k8s.io/v1beta4
-kind: ClusterConfiguration
-kubernetesVersion: v1.36.4
-controlPlaneEndpoint: "10.51.0.100:6443"
-networking:
-  podSubnet: "10.244.0.0/16"
-  serviceSubnet: "10.96.0.0/12"
-```
 
-The CP1 initialization succeeded.
+## 3. Baseline Kubernetes validation
 
-The API server was healthy directly on:
-
-```text
-10.51.0.11:6443
-```
-
-and subsequently through HAProxy:
+Before Cilium, verify:
 
 ```bash
-curl -k https://10.51.0.100:6443/healthz
-```
-
-returned:
-
-```text
-ok
-```
-
-## 4.12 Bootstrap token, CA hash and certificate key
-
-Additional control planes and workers require temporary bootstrap information.
-
-The deployment generates:
-
-```text
-kubeadm token
-CA discovery hash
-control-plane certificate key
-```
-
-These are deliberately not stored in Git, Vault, Terraform state, or persistent inventory.
-
-The worker join form is:
-
-```text
-kubeadm join 10.51.0.100:6443 \
-  --token ... \
-  --discovery-token-ca-cert-hash sha256:...
-```
-
-The control-plane join additionally includes:
-
-```text
---control-plane
---certificate-key ...
-```
-
-The CA discovery hash is not permanent state. It can be derived again from the Kubernetes CA certificate.
-
-The bootstrap token is temporary and can be generated again.
-
-The uploaded control-plane certificates are temporary and can be re-uploaded when necessary.
-
-This is installation-time state, not long-lived infrastructure configuration.
-
-## 4.13 Ansible cluster bootstrap
-
-The Kubernetes lifecycle is intentionally represented by two playbooks:
-
-```text
-playbooks/
-├── kubernetes-prereqs.yml
-└── kubernetes.yml
-```
-
-The cluster playbook orchestrates:
-
-```text
-CP1
- │
- ├── initialize if not already initialized
- │
- ├── configure kubectl
- │
- └── generate temporary join information
-        │
-        ├── CP2
-        ├── CP3
-        │
-        ├── worker-01
-        ├── worker-02
-        └── worker-03
-```
-
-Additional control-plane and worker joins are performed one at a time.
-
-The join roles use:
-
-```text
-/etc/kubernetes/kubelet.conf
-```
-
-as an idempotence guard.
-
-This allows the playbook to be safely rerun without attempting to join an already joined node.
-
-## 4.14 First full automated cluster deployment
-
-The cluster was successfully assembled with:
-
-```bash
-ansible-playbook \
-  -i inventories/private/hosts.yml \
-  playbooks/kubernetes.yml
-```
-
-The result:
-
-```text
-k8s-cp-01       v1.36.4
-k8s-cp-02       v1.36.4
-k8s-cp-03       v1.36.4
-k8s-worker-01   v1.36.4
-k8s-worker-02   v1.36.4
-k8s-worker-03   v1.36.4
-```
-
-The control planes each have:
-
-```text
-etcd
-kube-apiserver
-kube-controller-manager
-kube-scheduler
-```
-
-running as static pods.
-
-## 4.15 Cluster validation
-
-At this stage, the cluster API is healthy but all nodes are expected to be `NotReady` because no CNI has been installed yet.
-
-Validation:
-
-```bash
-kubectl get nodes -o wide
-kubectl get pods -A -o wide
 kubectl cluster-info
 kubectl get --raw='/readyz?verbose'
+kubectl get nodes -o wide
+kubectl get pods -n kube-system -o wide
 ```
 
-The current successful state before Cilium is:
+The expected pre-CNI state is:
 
 ```text
-All six nodes registered
-All three etcd members running
-All three API servers running
-All three controller managers running
-All three schedulers running
-All six kube-proxy pods running
-CoreDNS pending
-Nodes NotReady
+control-plane components → Running
+kube-proxy              → Running
+CoreDNS                 → Pending
+nodes                   → NotReady
 ```
 
-`kubectl cluster-info` reports the API endpoint:
+That `NotReady` condition is expected until a CNI is installed.
+
+---
+
+## 4. HAProxy validation
+
+The API load balancer should be listening:
+
+```bash
+sudo systemctl is-active haproxy
+sudo ss -ltnp | grep ':6443'
+```
+
+And the backend history should show:
 
 ```text
-https://10.51.0.100:6443
+cp1 UP
+cp2 UP
+cp3 UP
 ```
 
-The API `/readyz` endpoint reports all checks healthy.
+This proves that the endpoint used by kubeconfig is backed by three live API servers.
 
-This demonstrates an important Kubernetes distinction:
+The repository history records the transition from initial API-LB debugging to a working three-backend configuration. citeturn154630view0
+
+---
+
+## 5. Cilium baseline
+
+The first installation deliberately keeps kube-proxy.
 
 ```text
-Kubernetes API healthy
-        ≠
-Kubernetes cluster networking ready
+Cilium 1.20.1
+kube-proxy replacement: false
+VXLAN: enabled
+IPv4: enabled
 ```
 
-The latter requires a CNI.
+This is the simplest good baseline for the existing kubeadm cluster.
 
-## 4.16 HAProxy validation after Kubernetes bootstrap
-
-The load balancer logs showed all three control planes transitioning from:
+The live Cilium output from the deployment showed:
 
 ```text
-DOWN
+Kubernetes: Ok 1.36 (v1.36.4)
+Cilium: Ok 1.20.1
+KubeProxyReplacement: False
+Routing: Tunnel [vxlan]
 ```
 
-to:
+Six Cilium agents, six Envoy DaemonSet pods, and one operator were all healthy.
+
+---
+
+## 6. Install Cilium
+
+The CLI used during the deployment was:
 
 ```text
-UP
+cilium-cli v0.20.0
 ```
 
-For example:
+and the cluster image version was:
 
 ```text
-Server kubernetes-control-plane/cp1 is UP
-Server kubernetes-control-plane/cp2 is UP
-Server kubernetes-control-plane/cp3 is UP
+v1.20.1
 ```
 
-Requests are now distributed across all three control planes.
+The baseline installation was:
 
-This validates both:
+```bash
+cilium install 1.20.1
+```
 
-1. the OpenStack security path
-2. the HAProxy backend configuration
+Then:
 
-and proves that the API endpoint is genuinely highly available rather than merely being a VIP pointed at a single node.
+```bash
+cilium status --wait
+```
 
-## 4.17 Kubernetes state before Cilium
-
-The expected state is:
+The successful state was:
 
 ```text
-etcd                         Running
-kube-apiserver               Running
-kube-controller-manager      Running
-kube-scheduler               Running
-kube-proxy                   Running
-CoreDNS                      Pending
-Nodes                        NotReady
+Cilium:             OK
+Operator:           OK
+Envoy DaemonSet:    OK
+Desired: 6
+Ready:   6/6
 ```
 
-Do not interpret the `NotReady` state as a failed kubeadm deployment.
+CoreDNS moved from `Pending` to `Running` as Cilium became available.
 
-The next component is the CNI.
+---
 
-## 4.18 Cilium
+## 7. Cilium architecture in this deployment
 
-Cilium is the selected Kubernetes CNI.
-
-It provides:
-
-- pod networking
-- service networking
-- NetworkPolicy enforcement
-- eBPF-based datapath
-- network observability
-- Hubble integration
-
-The current stable Cilium release is `1.20.1`, and Cilium documents Kubernetes 1.36 as tested and supported.
-
-Cilium system requirements include Linux kernel >= 5.10, and the Rocky Linux 9 kernel used by this cluster satisfies that baseline.
-
-### OpenStack networking requirements
-
-The current OpenStack security-group model must additionally allow the Cilium overlay traffic between Kubernetes nodes.
-
-With Cilium's default VXLAN overlay:
-
-```text
-UDP 8472 ← k8s_cidr
-```
-
-must be allowed among Kubernetes nodes.
-
-For Cilium health monitoring:
-
-```text
-TCP 4240 ← k8s_cidr
-```
-
-should also be allowed.
-
-These rules belong in the Kubernetes node security groups, not in the edge nftables policy.
-
-### Initial Cilium mode
-
-The initial deployment intentionally retains kube-proxy:
+The baseline looks like:
 
 ```text
 Kubernetes
    │
    ├── kube-proxy
+   │
    └── Cilium
+         │
+         ├── CNI
+         ├── eBPF datapath
+         ├── service handling
+         └── NetworkPolicy
 ```
 
-Kube-proxy replacement, native routing, Hubble tuning, encryption and other advanced datapath features should be introduced deliberately rather than all at once.
+Cilium's ClusterPool IPAM currently allocated pod addresses from its own pool, observed as:
 
-### Install and validate
-
-Cilium's official Helm installation is:
-
-```bash
-helm repo add cilium https://helm.cilium.io/
-helm repo update
-
-helm install cilium cilium/cilium \
-  --version 1.20.1 \
-  --namespace kube-system
+```text
+10.0.0.0/24
 ```
 
-After deployment:
+This must not be confused with the kubeadm `--pod-network-cidr` value:
+
+```text
+10.244.0.0/16
+```
+
+Those address spaces represent different layers of the deployment.
+
+---
+
+## 8. Cilium node-to-node transport
+
+The current status showed:
+
+```text
+Routing: Network: Tunnel [vxlan]
+tunnel-port: 8472
+```
+
+Therefore Kubernetes nodes need:
+
+```text
+UDP 8472 ← k8s_cidr
+```
+
+The local socket check was:
 
 ```bash
-kubectl -n kube-system get pods -o wide
-kubectl get nodes
+sudo ss -lunp | grep 8472
+```
+
+A node showed:
+
+```text
+0.0.0.0:8472
+[::]:8472
+```
+
+UDP reachability tests from CP1 reached every Kubernetes node.
+
+This established that VXLAN itself was not the remaining problem.
+
+---
+
+## 9. Cilium health transport
+
+Cilium health uses:
+
+```text
+TCP 4240
+```
+
+and host-level health tests can also use ICMP.
+
+Therefore the Kubernetes OpenStack security groups permit:
+
+```text
+TCP 4240 ← k8s_cidr
+ICMP      ← k8s_cidr
+```
+
+This distinction became important later: the Cilium agent could be reached by HTTP while ICMP to the node stack still timed out.
+
+---
+
+# Worked Example — Debugging the Cilium connectivity test
+
+## 10. Run the real connectivity test
+
+After Cilium reports healthy:
+
+```bash
+cilium connectivity test --debug
+```
+
+The test creates workloads that validate:
+
+- same-node connectivity
+- cross-node connectivity
+- service discovery
+- DNS
+- ClusterIP
+- NodePort
+- NetworkPolicy
+- L7 behavior
+
+Do not accept `cilium status` alone as proof of a healthy platform.
+
+---
+
+## 11. The failure we actually encountered
+
+The test advanced through the normal deployment stages, including:
+
+```text
+Cilium agents
+CoreDNS
+same-node endpoints
+cross-node endpoints
+ClusterIP
+```
+
+and then failed at:
+
+```text
+NodePort 10.51.0.12:31196
+```
+
+In an earlier run it failed against CP1; in the later debug run it selected CP2. The exact node is not important.
+
+The important value is:
+
+```text
+31196
+```
+
+---
+
+## 12. First hypothesis: VXLAN
+
+Because this is a Cilium test, an obvious suspicion is:
+
+```text
+cross-node test fails
+    ↓
+VXLAN is blocked
+```
+
+But the deployment had already established:
+
+```text
+UDP 8472 is present
+UDP 8472 reaches all Kubernetes nodes
+Cilium agents are healthy
+```
+
+The correct response was therefore **not** to keep changing Cilium configuration.
+
+Instead, identify the port.
+
+---
+
+## 13. Identify the NodePort
+
+Kubernetes NodePorts use the default range:
+
+```text
+30000-32767
+```
+
+Therefore:
+
+```text
+31196
+```
+
+is a Kubernetes NodePort.
+
+The test path is roughly:
+
+```text
+client pod
+   ↓
+node IP:31196
+   ↓
+kube-proxy NodePort
+   ↓
+Kubernetes service
+   ↓
+pod
+```
+
+VXLAN port 8472 and NodePort 31196 are completely different traffic paths.
+
+---
+
+## 14. OpenStack security-group fix
+
+The Kubernetes node security groups therefore need:
+
+```text
+TCP 30000-32767 ← k8s_cidr
+UDP 30000-32767 ← k8s_cidr
+```
+
+for both:
+
+```text
+k8s-control-plane
+k8s-worker
+```
+
+Example Terraform:
+
+```hcl
+resource "openstack_networking_secgroup_rule_v2" "k8s_nodeport_tcp_control_plane" {
+  direction         = "ingress"
+  ethertype         = "IPv4"
+  protocol          = "tcp"
+  port_range_min    = 30000
+  port_range_max    = 32767
+  remote_ip_prefix  = var.k8s_cidr
+  security_group_id = openstack_networking_secgroup_v2.this["k8s-control-plane"].id
+}
+
+resource "openstack_networking_secgroup_rule_v2" "k8s_nodeport_tcp_worker" {
+  direction         = "ingress"
+  ethertype         = "IPv4"
+  protocol          = "tcp"
+  port_range_min    = 30000
+  port_range_max    = 32767
+  remote_ip_prefix  = var.k8s_cidr
+  security_group_id = openstack_networking_secgroup_v2.this["k8s-worker"].id
+}
+
+resource "openstack_networking_secgroup_rule_v2" "k8s_nodeport_udp_control_plane" {
+  direction         = "ingress"
+  ethertype         = "IPv4"
+  protocol          = "udp"
+  port_range_min    = 30000
+  port_range_max    = 32767
+  remote_ip_prefix  = var.k8s_cidr
+  security_group_id = openstack_networking_secgroup_v2.this["k8s-control-plane"].id
+}
+
+resource "openstack_networking_secgroup_rule_v2" "k8s_nodeport_udp_worker" {
+  direction         = "ingress"
+  ethertype         = "IPv4"
+  protocol          = "udp"
+  port_range_min    = 30000
+  port_range_max    = 32767
+  remote_ip_prefix  = var.k8s_cidr
+  security_group_id = openstack_networking_secgroup_v2.this["k8s-worker"].id
+}
+```
+
+The source is intentionally restricted to:
+
+```text
+10.51.0.0/24
+```
+
+We do **not** expose NodePorts to `0.0.0.0/0`.
+
+The NodePort/ICMP rules were subsequently committed as a dedicated infrastructure change, preserving the iteration in Git history. citeturn409697view4
+
+---
+
+## 15. Add ICMP for node-health diagnostics
+
+The Cilium debug output also showed:
+
+```text
+Host connectivity to node IP:
+  ICMP to stack: Connection timed out
+  HTTP to agent: OK
+```
+
+That is an important teaching result.
+
+The agent is alive, but a lower-level health probe is blocked.
+
+Permit:
+
+```text
+ICMP ← k8s_cidr
+```
+
+on both Kubernetes security groups.
+
+A minimal Terraform example is:
+
+```hcl
+resource "openstack_networking_secgroup_rule_v2" "k8s_icmp_control_plane" {
+  direction         = "ingress"
+  ethertype         = "IPv4"
+  protocol          = "icmp"
+  remote_ip_prefix  = var.k8s_cidr
+  security_group_id = openstack_networking_secgroup_v2.this["k8s-control-plane"].id
+}
+
+resource "openstack_networking_secgroup_rule_v2" "k8s_icmp_worker" {
+  direction         = "ingress"
+  ethertype         = "IPv4"
+  protocol          = "icmp"
+  remote_ip_prefix  = var.k8s_cidr
+  security_group_id = openstack_networking_secgroup_v2.this["k8s-worker"].id
+}
+```
+
+This change was made as a separate committed iteration after the Cilium baseline. citeturn409697view4
+
+---
+
+## 16. Final Kubernetes SG model
+
+The Kubernetes security-group design is now conceptually:
+
+### Control plane
+
+```text
+SSH 22              ← mgmt_cidr
+API 6443            ← k8s_cidr
+etcd 2379-2380      ← k8s_cidr
+kubelet 10250       ← k8s_cidr
+VXLAN UDP 8472      ← k8s_cidr
+health TCP 4240     ← k8s_cidr
+ICMP                ← k8s_cidr
+NodePort TCP 30000-32767 ← k8s_cidr
+NodePort UDP 30000-32767 ← k8s_cidr
+```
+
+### Worker
+
+```text
+SSH 22              ← mgmt_cidr
+kubelet 10250       ← k8s_cidr
+VXLAN UDP 8472      ← k8s_cidr
+health TCP 4240     ← k8s_cidr
+ICMP                ← k8s_cidr
+NodePort TCP 30000-32767 ← k8s_cidr
+NodePort UDP 30000-32767 ← k8s_cidr
+```
+
+The API load balancer separately allows:
+
+```text
+6443/tcp ← vpn_cidr
+6443/tcp ← k8s_cidr
+```
+
+The individual control planes do not expose their API directly to VPN clients.
+
+---
+
+## 17. Why these rules do not belong in edge nftables
+
+The edge firewall protects:
+
+```text
+edge 10.50.0.10
+```
+
+The OpenStack Kubernetes SG protects:
+
+```text
+10.51.0.11
+10.51.0.12
+10.51.0.13
+10.51.0.21
+10.51.0.22
+10.51.0.23
+```
+
+Therefore NodePort, VXLAN and Kubernetes health rules are cloud-network rules for the Kubernetes VMs.
+
+Do not turn the edge nftables template into a giant shared policy for every service in the environment.
+
+---
+
+## 18. Cilium diagnostics
+
+Useful commands:
+
+```bash
 cilium status --wait
 ```
 
-The official Cilium validation also provides a connectivity test:
-
 ```bash
-cilium connectivity test
+kubectl -n kube-system get ciliumnodes
 ```
 
-A successful connectivity test validates pod-to-pod, service and policy paths rather than only proving that the Cilium pods themselves are running.
-
-## 4.19 Cilium troubleshooting
-
-If Cilium pods are running but cross-node networking fails, check the OpenStack security group first:
-
-```text
-UDP 8472 between Kubernetes nodes
-TCP 4240 between Kubernetes nodes
-```
-
-Then inspect:
-
 ```bash
-cilium status
-cilium connectivity test
 kubectl -n kube-system get pods -o wide
-kubectl -n kube-system logs ds/cilium
 ```
 
-Do not immediately switch to kube-proxy replacement, native routing or other advanced settings. First establish the default overlay datapath.
-
-## 4.20 After Cilium
-
-The target state becomes:
-
-```text
-6/6 nodes Ready
-CoreDNS Running
-Cilium agents Running on all nodes
-Cilium operator Running
-kube-proxy Running
-API HA healthy
+```bash
+kubectl -n kube-system exec ds/cilium -- \
+  cilium-dbg status --verbose
 ```
 
-Only after this point should application infrastructure be introduced.
-
-The planned sequence is:
+The successful baseline showed:
 
 ```text
-Cilium
-   ↓
-Cinder CSI / OpenStack Cloud Controller Manager
-   ↓
-Argo CD
-   ↓
-Prometheus
-   ↓
-Grafana
-   ↓
-Slurm integration
-   ↓
-Hermes Orchestrator
-   ↓
-Hermes Researcher
-   ↓
-JupyterHub
-   ↓
-Astro
+Kubernetes: Ok
+Cilium: Ok 1.20.1
+KubeProxyReplacement: False
+Routing: Tunnel [vxlan]
+Controller Status: 28/28 healthy
 ```
 
-Storage-dependent services such as PostgreSQL, Wazuh indexer, Jupyter user data and application state should wait until Cinder CSI is operational.
+The same report also showed the health discrepancy described above, which made it useful evidence rather than merely a status screen.
 
-## 4.21 Lessons from the deployment
+---
 
-### Package assumptions
+## 19. Re-run the connectivity test after every network change
 
-`containerd` and `containerd.io` are not interchangeable package names.
+After Terraform changes:
 
-### SELinux
-
-A valid configuration file does not prove a service can bind its socket.
-
-### OpenStack security groups
-
-A timeout to a private TCP endpoint can be a cloud firewall problem even when the service is healthy.
-
-### Unix sockets
-
-A `permission denied` error on `/run/containerd/containerd.sock` is a local Unix permission problem, not an OpenStack security-group problem.
-
-### Bootstrap credentials
-
-Kubeadm tokens, CA discovery hashes and temporary certificate keys are operational bootstrap material, not permanent configuration.
-
-### Idempotence
-
-The Kubernetes playbook detects already-initialized or already-joined nodes rather than rebuilding them.
-
-### Layered validation
-
-A successful deployment was verified at several layers:
-
-```text
-OpenStack
-   ↓
-VM/network reachability
-   ↓
-HAProxy listener
-   ↓
-HAProxy backends
-   ↓
-kubeadm control plane
-   ↓
-etcd
-   ↓
-Kubernetes API
-   ↓
-node registration
-   ↓
-CNI
+```bash
+terraform plan
+terraform apply
 ```
 
-This layered model is the recommended troubleshooting approach for future students and collaborators.
+then:
 
-## 4.22 Current state
+```bash
+cilium connectivity test --debug
+```
 
-At the completion of this stage:
+The exact failing test is more important than a generic "Cilium failed" message.
+
+A port such as `31196` should be translated back to the subsystem that owns it.
+
+---
+
+## 20. Deferred Cilium features
+
+The project intentionally starts with:
 
 ```text
-✓ OpenStack networks and VMs
+kube-proxy replacement = false
+Hubble Relay            = disabled
+ClusterMesh             = disabled
+```
+
+That is not an unfinished baseline. It is sequencing.
+
+### Hubble
+
+Hubble should be introduced soon because it is the observability layer we want for:
+
+- flow visibility
+- policy troubleshooting
+- service paths
+- security demonstrations
+
+### kube-proxy replacement
+
+Later, we can deliberately repeat the cluster exercise with kube-proxy replacement and compare the datapath.
+
+It is not a good emergency fix for the current NodePort failure.
+
+### ClusterMesh
+
+ClusterMesh becomes useful when multiple Kubernetes clusters need to communicate. It is not required to make this single cluster healthy.
+
+---
+
+## 21. Educational observability exercise
+
+After Prometheus and Grafana are deployed, repeat:
+
+```bash
+cilium connectivity test
+```
+
+while actively watching the dashboards.
+
+The exercise should correlate:
+
+```text
+connectivity test
+   ↓
+Cilium flows
+   ↓
+packet/service behavior
+   ↓
+Prometheus metrics
+   ↓
+Grafana dashboards
+```
+
+Students should observe how a functional connectivity test maps to metrics and network events.
+
+This is intentionally a later exercise; the baseline should be stable first.
+
+---
+
+## 22. Current platform checkpoint
+
+```text
+✓ OpenStack network and VMs
 ✓ Rocky Linux base configuration
 ✓ Edge / WireGuard / Pi-hole
 ✓ Wazuh manager
@@ -849,12 +684,14 @@ At the completion of this stage:
 ✓ HAProxy SELinux configuration
 ✓ containerd 2.3.4
 ✓ Kubernetes 1.36.4 prerequisites
-✓ CP1 kubeadm initialization
-✓ CP2 control-plane join
-✓ CP3 control-plane join
-✓ Worker joins
-✓ Kubernetes API HA
-→ Cilium
+✓ kubeadm control-plane bootstrap
+✓ 3 control planes
+✓ 3 workers
+✓ kube-proxy
+✓ Cilium 1.20.1
+✓ Cilium VXLAN baseline
+✓ NodePort security-group iteration
+✓ ICMP node-health security-group iteration
 → Cinder CSI
 → Argo CD
 → Prometheus / Grafana
@@ -865,12 +702,17 @@ At the completion of this stage:
 → Astro
 ```
 
-## 4.23 References
+---
 
-- Kubernetes kubeadm: https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/
-- Kubernetes high availability with kubeadm: https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/high-availability/
-- Kubernetes container runtimes: https://kubernetes.io/docs/setup/production-environment/container-runtimes/
-- Kubernetes ports and protocols: https://kubernetes.io/docs/reference/networking/ports-and-protocols/
-- Cilium Helm installation: https://docs.cilium.io/en/stable/installation/k8s-install-helm/
-- Cilium compatibility: https://docs.cilium.io/en/stable/network/kubernetes/compatibility/
+## References
+
+- Kubernetes networking: https://kubernetes.io/docs/concepts/cluster-administration/networking/
+- Kubernetes Services / NodePort: https://kubernetes.io/docs/concepts/services-networking/service/
+- Kubernetes ports: https://kubernetes.io/docs/reference/networking/ports-and-protocols/
+- Cilium installation: https://docs.cilium.io/en/stable/installation/k8s-install-kubeadm/
+- Cilium Helm: https://docs.cilium.io/en/stable/installation/k8s-install-helm/
 - Cilium system requirements: https://docs.cilium.io/en/stable/operations/system_requirements/
+- Cilium routing: https://docs.cilium.io/en/stable/network/concepts/routing/
+- Cilium Hubble: https://docs.cilium.io/en/stable/observability/hubble/
+- Cilium kube-proxy replacement: https://docs.cilium.io/en/stable/network/kubernetes/kubeproxy-free/
+- Cilium ClusterMesh: https://docs.cilium.io/en/stable/network/clustermesh/

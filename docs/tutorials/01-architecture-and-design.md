@@ -1,180 +1,437 @@
-# 1. Architecture & Design
+# Tutorial 1 — Architecture and Design
 
-## 1.1 Scope: this is the personal/admin federation environment
+## 1. Purpose
 
-`infra-hpc-qc-k8s` currently defines **one** environment, and it is deliberately the smallest, lowest-stakes
-one: a personal/admin federation environment used to prove the automation, not the research production
-cluster and not a future Purple Team (attack/defence) range. Everything downstream — how much trust Hermes
-gets, how permissive the firewall is, whether Suricata runs in IDS or IPS mode — is calibrated for that
-scope. When the environment is cloned to stand up the research cluster, every one of those calibrations
-should be re-reviewed, not copied blindly.
+`infra-hpc-qc-k8s` is a teaching-oriented infrastructure-as-code project for building a hybrid research platform spanning OpenStack, Rocky Linux, Kubernetes, HPC/Slurm, AI/ML, security, and quantum-computing workloads.
 
-**Further reading:** [The Twelve-Factor App — config](https://12factor.net/config) for why environment
-separation belongs in infrastructure, not just application code; [NIST SP 800-160 Vol. 1, *Systems Security
-Engineering*](https://csrc.nist.gov/pubs/sp/800/160/v1/r1/final) for the general principle of scoping trust
-to the smallest viable environment first.
+This first environment is the personal/admin federation environment. It exists to prove the automation and architecture before the design is cloned into higher-stakes research and deliberately isolated Purple Team environments.
 
-## 1.2 Design philosophy: strict separation of concerns
+The project is intentionally built so that a learner can answer two questions at every layer:
 
-Four tools, four non-overlapping jobs. This boundary is the single most load-bearing decision in the repo —
-almost every other design choice (idempotent Ansible roles, GitOps for apps, no application logic in
-Terraform) exists to protect it.
+1. **What owns this resource?**
+2. **What is the smallest interface required between layers?**
 
-| Layer | Owns | Must never do |
-|---|---|---|
-| **Terraform** | OpenStack networks, router, security groups, ports, floating IPs, VMs, API load-balancer infrastructure, persistent storage where appropriate | Install OS packages or configure services |
-| **Ansible** | Operating system, SSH, time sync, edge services (WireGuard/Pi-hole/nftables/Wazuh/Suricata), Slurm, Kubernetes prerequisites | Replace the Kubernetes application deployment layer |
-| **kubeadm** | Bootstrapping the Kubernetes control plane and worker join | Anything outside the cluster it is initializing |
-| **Argo CD** | Kubernetes application deployment (the *normal* path for anything running in-cluster after bootstrap) | Touch infrastructure or host configuration |
+Those questions are more important than any individual command.
+
+---
+
+## 2. Separation of concerns
+
+The architecture has four primary control layers:
 
 ```text
-Terraform  ──▶ OpenStack infrastructure
-Ansible    ──▶ operating systems + infrastructure services
-kubeadm    ──▶ Kubernetes cluster
-Argo CD    ──▶ Kubernetes applications
+Terraform
+    │
+    ▼
+OpenStack infrastructure
+
+Ansible
+    │
+    ▼
+Operating systems + infrastructure services
+
+kubeadm
+    │
+    ▼
+Kubernetes cluster bootstrap
+
+Argo CD
+    │
+    ▼
+Kubernetes application lifecycle
 ```
 
-If you ever find yourself writing a `local-exec` provisioner in Terraform to configure a service, or an
-Ansible task that `kubectl apply`s an application manifest, that is the boundary being violated — stop and
-move the logic to the correct layer.
+| Layer | Owns | Does not own |
+|---|---|---|
+| Terraform | networks, routers, ports, security groups, floating IPs, VMs, cloud infrastructure | OS packages and service configuration |
+| Ansible | OS configuration, users, SSH, time, firewalls, WireGuard, Pi-hole, Wazuh, Suricata, Slurm, Kubernetes host prerequisites and bootstrap orchestration | normal Kubernetes application delivery |
+| kubeadm | Kubernetes initialization and node joins | OpenStack or OS provisioning |
+| Argo CD | applications inside Kubernetes | OpenStack or host configuration |
 
-**Further reading:** [Terraform documentation](https://developer.hashicorp.com/terraform/docs) ·
-[Ansible documentation](https://docs.ansible.com/) · [kubeadm docs](https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/) ·
-[Argo CD docs](https://argo-cd.readthedocs.io/) · [OpenGitOps principles](https://opengitops.dev/) for the
-GitOps rationale behind putting Argo CD, not Ansible, in charge of applications.
+A practical rule follows from this:
 
-## 1.3 VM topology
+> If Terraform needs `remote-exec` or `local-exec` to configure a service, the boundary is probably wrong. If Ansible starts deploying long-lived Kubernetes applications with `kubectl apply`, the boundary is probably wrong.
 
-| VM | IP | Role |
+The repository's original architecture tutorial already states this as a load-bearing design rule. citeturn409697view0
+
+---
+
+## 3. Current environment topology
+
+The current OpenStack environment contains:
+
+| VM | IP | Purpose |
 |---|---:|---|
-| `edge` | 10.50.0.10 | WireGuard, Pi-hole, nftables, Suricata IDS, SSH bastion, Wazuh manager + agent |
-| `hermes-orchestrator-01` | 10.50.0.11 | Isolated personal Hermes orchestrator; read/report-only by default |
-| `slurm-controller-01` | 10.50.0.12 | `slurmctld` + `slurmdbd` + initial MariaDB; no user logins |
-| `login1` | 10.50.0.20 | SSH user login, Slurm client |
-| `login2` | 10.50.0.21 | SSH user login, Slurm client |
-| `slurm-cpu-01` | 10.50.0.30 | 64-core pure Slurm compute node |
-| `slurm-cpu-02` | 10.50.0.31 | 64-core pure Slurm compute node |
-| `k8s-cp-01` | 10.51.0.11 | Kubernetes control plane |
-| `k8s-cp-02` | 10.51.0.12 | Kubernetes control plane |
-| `k8s-cp-03` | 10.51.0.13 | Kubernetes control plane |
-| `k8s-worker-01` | 10.51.0.21 | Kubernetes worker |
-| `k8s-worker-02` | 10.51.0.22 | Kubernetes worker |
-| `k8s-worker-03` | 10.51.0.23 | Kubernetes worker |
+| `edge` | `10.50.0.10` | WireGuard, Pi-hole, nftables, Wazuh manager, Suricata, bastion |
+| `hermes-orchestrator-01` | `10.50.0.11` | isolated infrastructure Hermes, read/report first |
+| `slurm-controller-01` | `10.50.0.12` | Slurm controller/accounting services |
+| `login1` | `10.50.0.20` | Slurm login |
+| `login2` | `10.50.0.21` | Slurm login |
+| `slurm-cpu-01` | `10.50.0.30` | Slurm compute |
+| `slurm-cpu-02` | `10.50.0.31` | Slurm compute |
+| `api-lb-01` | `10.51.0.100` | HAProxy Kubernetes API load balancer |
+| `k8s-cp-01` | `10.51.0.11` | Kubernetes control plane |
+| `k8s-cp-02` | `10.51.0.12` | Kubernetes control plane |
+| `k8s-cp-03` | `10.51.0.13` | Kubernetes control plane |
+| `k8s-worker-01` | `10.51.0.21` | Kubernetes worker |
+| `k8s-worker-02` | `10.51.0.22` | Kubernetes worker |
+| `k8s-worker-03` | `10.51.0.23` | Kubernetes worker |
 
-Kubernetes API VIP: **10.51.0.100**. WireGuard client pool: **10.60.0.0/24**.
+The Kubernetes control endpoint is:
 
-> ⚠ **Gap.** This table is 13 VMs. `docs/03` (bootstrap sequence) says Terraform's expected result is "13
-> VMs plus the Kubernetes API load balancer," and other docs describe that load balancer as its own VM
-> (`api-lb-01`, running HAProxy). That VM has no row here and no IP assigned. See `docs/09` for the fix.
-> There is also a naming split worth resolving before you deploy: the live repository's committed
-> `README.md` calls this node `edge-admin`, while the newer draft docs (this pack included) call it `edge`.
-> Pick one and propagate it into the Ansible role name, inventory group, and cloud-init filename together.
+```text
+10.51.0.100:6443
+```
 
-## 1.4 Network segments (summary — full detail in `docs/02`)
+The API endpoint is intentionally independent of any individual control plane.
+
+---
+
+## 4. Network segmentation
+
+The canonical network variables are:
 
 ```yaml
-mgmt_cidr: 10.50.0.0/24   # infrastructure management network
-k8s_cidr:  10.51.0.0/24   # Kubernetes nodes + API load balancer
-vpn_cidr:  10.60.0.0/24   # WireGuard clients
+mgmt_cidr: 10.50.0.0/24
+k8s_cidr:  10.51.0.0/24
+vpn_cidr:  10.60.0.0/24
 ```
 
-Three networks, not one flat `/22`, because a compromise or misconfiguration on the Kubernetes network
-should not automatically expose the Slurm controller or the edge node, and WireGuard clients should never
-be able to route directly to management infrastructure without transiting `edge`.
+The project previously suffered from naming drift (`management_cidr`, `wireguard_cidr`, etc.). That was corrected so Terraform, Ansible, and documentation use the same vocabulary.
 
-## 1.5 Why both Slurm and Kubernetes
-
-This is a genuinely hybrid platform, not "Kubernetes with a Slurm VM bolted on." The two schedulers are
-kept because they solve different problems well and neither solves the other's problem well:
+The current network roles are:
 
 ```text
-Kubernetes  → services, notebooks, APIs, long-running workloads, GitOps-managed platform components
-Slurm       → HPC batch jobs, tightly-coupled MPI jobs, scientific/quantum-simulation workloads
+10.50.0.0/24   Management
+10.51.0.0/24   Kubernetes + API LB
+10.60.0.0/24   WireGuard administration
 ```
 
-Kubernetes' bin-packing scheduler and container model are a poor fit for a 256-rank MPI job that needs
-topology-aware placement and exclusive node access; Slurm's batch scheduler is a poor fit for a
-always-on ingress-fronted web service with rolling updates. Running both, on separate node pools, avoids
-forcing either workload type into the wrong abstraction. This is also why `login1`/`login2` are explicitly
-*not* part of the compute pool — the entry point and the executor are architecturally separate, matching
-standard HPC cluster design.
+The three networks are not one flat subnet because a failure or compromise in one plane should not automatically collapse every other plane.
 
-**Further reading:** [Slurm overview](https://slurm.schedmd.com/overview.html) ·
-[Kubernetes vs. HPC schedulers (Kubernetes blog: batch workloads)](https://kubernetes.io/docs/concepts/workloads/controllers/job/) ·
-[MPI standard](https://www.mpi-forum.org/docs/) for why tightly-coupled parallel jobs have different
-placement requirements than microservices.
+---
 
-## 1.6 Hermes federation (summary — full detail in `docs/06`)
+## 5. Kubernetes HA architecture
+
+The Kubernetes cluster uses three control planes and three workers.
 
 ```text
-Personal Hermes (hermes-orchestrator-01, outside Kubernetes)
-      │
-      ├── Infrastructure Hermes
-      ├── Research Hermes (research-hermes, inside Kubernetes, deployed later)
-      └── future environment agents
+                         VPN / clients
+                              │
+                              ▼
+                     10.51.0.100:6443
+                            HAProxy
+                       /       |       \
+                      ▼        ▼        ▼
+                   CP1 .11   CP2 .12   CP3 .13
+                      │        │        │
+                      └────────┼────────┘
+                               │
+                            stacked
+                              etcd
+                               │
+                ┌──────────────┼──────────────┐
+                ▼              ▼              ▼
+             W1 .21         W2 .22         W3 .23
 ```
 
-The orchestrator lives outside Kubernetes on purpose: a Kubernetes control-plane failure should never be
-able to take the orchestration/reporting root down with it.
+This is stacked-etcd HA: each control-plane node also hosts an etcd member.
 
-## 1.7 Domain plan
+HAProxy was chosen because Octavia was not exposed in the OpenStack service catalog at deployment time. The design intentionally keeps an abstraction around the API load balancer so Octavia can replace HAProxy later without changing the Kubernetes endpoint.
 
-| Domain | Purpose |
-|---|---|
-| `nyameko.com` | Primary/root domain |
-| `research.nyameko.com` | Research cluster (later environment) |
-| `jupyter.research.nyameko.com` | JupyterHub |
-| `grafana.research.nyameko.com` | Observability dashboards |
-| `argo.research.nyameko.com` | Argo CD UI |
-| `hermes.research.nyameko.com` | Research Hermes endpoint |
-| `quantum.nyameko.com` | Astro public site (first end-to-end deployment target) |
-| `omra.nyameko.com` | Future nonprofit, intentionally unrelated to the technical platform |
+---
 
-DNS for the public hostnames sits at Cloudflare; internal resolution runs through Pi-hole on `edge` (see
-`docs/02` §2.6). Keep these two DNS layers mentally separate: Cloudflare answers for the public internet,
-Pi-hole answers for anything inside `mgmt_cidr`/`k8s_cidr`/`vpn_cidr`.
+## 6. Why HAProxy comes before kubeadm
 
-**Further reading:** [Cloudflare DNS docs](https://developers.cloudflare.com/dns/) ·
-[Pi-hole docs](https://docs.pi-hole.net/).
+HAProxy is infrastructure, not an application backend.
 
-## 1.8 Environment evolution roadmap
+It can therefore be deployed before Kubernetes:
 
 ```text
-Initial environment (this repo, today)
-   │  personal/admin federation — proves the automation, minimal trust surface
+HAProxy starts
+    ↓
+backend checks fail
+    ↓
+kubeadm creates API servers
+    ↓
+backend checks become healthy
+```
+
+This exact behavior was observed during deployment. Before kubeadm, HAProxy reported `cp1`, `cp2`, and `cp3` down. After all three control planes came online, HAProxy reported all three up.
+
+That is correct behavior, not a race condition.
+
+---
+
+## 7. Security layers
+
+The infrastructure uses multiple independent security boundaries:
+
+```text
+Internet
+   │
    ▼
-Research production cluster
-   │  same layer boundaries, larger/GPU-capable node pools, hardened Wazuh IPS posture,
-   │  Research Hermes goes live, real user accounts and quotas
+OpenStack security groups
+   │
    ▼
-Purple Team environment(s)
-   │  intentionally vulnerable/instrumented clones for offensive+defensive training;
-   │  should be network-isolated from the above, not just namespace-isolated
+VM host firewall (nftables)
+   │
+   ▼
+WireGuard / service boundaries
+   │
+   ▼
+Cilium
+   │
+   ▼
+Kubernetes workloads
 ```
 
-> ⚠ **Gap.** "Purple Team environments" is named in the root README as a downstream deliverable but nowhere
-> defined — no network isolation model, no data-sensitivity boundary from the research cluster, no stated
-> relationship to Hermes's telemetry access. Treat this as an open design question, not an implementation
-> detail; see `docs/09` recommendation #6 and `COURSE_OUTLINE.md` Module 10 for a proposed way to turn this
-> gap into a capstone exercise instead of leaving it unresolved.
+Each layer has a different scope:
 
-## 1.9 Deployment order
+- **OpenStack SG:** which VM/port may receive traffic.
+- **nftables:** what the Linux host accepts or forwards.
+- **WireGuard:** which administrative peers can enter the private routed network.
+- **Cilium:** workload connectivity and network policy.
+- **Kubernetes RBAC:** who can call the API and which resources they can manipulate.
+- **Slurm accounting/QOS:** which user/job can consume HPC resources.
 
-1. **Terraform** — OpenStack networks, router, security groups, ports, VMs, and the Kubernetes API load
-   balancer.
-2. **Ansible** — OS hardening, SSH, Wazuh agent, edge services, Hermes orchestrator host, Slurm nodes,
-   Kubernetes prerequisites.
-3. **kubeadm** — bootstrap 3 control-plane + 3 worker Kubernetes cluster.
-4. **Cilium + OpenStack CCM + Cinder/shared-storage CSI.**
-5. **Argo CD.**
-6. **Platform services** — ingress, cert-manager, Prometheus/Grafana/Loki, Wazuh indexer/dashboard,
-   JupyterHub, Ollama, llama.cpp.
-7. **Research Hermes**, inside Kubernetes, once the layers above are healthy.
+No layer is a substitute for the others.
 
-Slurm is configured independently of this chain, after the base OS layer — it doesn't depend on Kubernetes
-being up.
+---
 
-**Further reading:** [CNCF Cloud Native Landscape](https://landscape.cncf.io/) for how this stack maps onto
-the broader ecosystem · [Site Reliability Engineering (Google, free online book)](https://sre.google/books/)
-chapters on infrastructure layering, as general background for why ordered, dependency-aware bootstrap
-sequences matter at this scale.
+## 8. Identity model
+
+Two SSH identities are used deliberately:
+
+```text
+rocky
+  ↓
+OpenStack bootstrap / recovery
+
+nyameko
+  ↓
+normal administration
+```
+
+Ansible creates `nyameko`, installs the administrative public key, and grants passwordless sudo.
+
+Normal private-node SSH uses `ProxyJump` through `edge`.
+
+This also supports the eventual hardening step where public bootstrap SSH is removed once WireGuard and recovery access are fully proven.
+
+---
+
+## 9. Edge architecture
+
+`edge` is a deliberately multifunctional but bounded infrastructure node:
+
+```text
+edge
+├── WireGuard
+├── Pi-hole
+├── nftables
+├── Wazuh manager
+└── Suricata IDS
+```
+
+Pi-hole is infrastructure DNS. The intended path is:
+
+```text
+VM / Pod
+   ↓
+CoreDNS
+   ↓
+10.50.0.10:53
+   ↓
+Pi-hole
+   ↓
+upstream DNS
+```
+
+Wazuh is staged: the manager runs on edge first, while the indexer and dashboard will later run in Kubernetes.
+
+Suricata begins in IDS mode instead of inline IPS because visibility should precede enforcement during a new deployment.
+
+---
+
+## 10. Why Kubernetes and Slurm coexist
+
+They solve different problems.
+
+```text
+Kubernetes → long-running services, APIs, notebooks, platform workloads
+Slurm      → HPC batch jobs, MPI, scientific and quantum simulations
+```
+
+The project deliberately avoids forcing MPI-style jobs into a microservice scheduler or forcing always-on web services into an HPC batch scheduler.
+
+The login nodes are not compute nodes. That distinction is part of standard HPC architecture and is worth preserving as a teaching example.
+
+---
+
+## 11. Hermes architecture
+
+The infrastructure Hermes orchestrator is outside Kubernetes on purpose.
+
+```text
+Personal Hermes
+       │
+       ├── infrastructure orchestration
+       ├── reporting / logs
+       └── later → Research Hermes inside Kubernetes
+```
+
+A Kubernetes control-plane failure should not take the infrastructure-level observer/orchestrator down with it.
+
+The first implementation should remain tightly permissioned and human-approved for changes.
+
+---
+
+## 12. Domain strategy
+
+The primary domain is `nyameko.com`.
+
+Planned technical names include:
+
+```text
+research.nyameko.com
+jupyter.research.nyameko.com
+grafana.research.nyameko.com
+argo.research.nyameko.com
+hermes.research.nyameko.com
+quantum.nyameko.com
+```
+
+`omra.nyameko.com` is reserved for the future nonprofit initiative rather than this infrastructure platform.
+
+A future public identity decision remains between the more descriptive `quantum.nyameko.com` naming and the wider project identity. The technical architecture should not depend on that branding decision.
+
+---
+
+## 13. Evolution roadmap
+
+The platform is intentionally being built in layers:
+
+```text
+✓ OpenStack network and VMs
+✓ Rocky Linux base configuration
+✓ Edge / WireGuard / Pi-hole
+✓ Wazuh manager
+✓ Suricata IDS
+✓ Kubernetes API load balancer
+✓ containerd
+✓ Kubernetes 1.36.4 prerequisites
+✓ kubeadm cluster initialization
+✓ 3 control planes
+✓ 3 workers
+✓ Cilium baseline
+→ Cinder CSI
+→ Argo CD
+→ Prometheus / Grafana
+→ Slurm
+→ Hermes Orchestrator
+→ Hermes Researcher
+→ JupyterHub
+→ Astro
+```
+
+Cilium's later feature path is intentionally staged:
+
+```text
+✓ kube-proxy-compatible baseline
+→ Hubble
+→ kube-proxy replacement
+→ ClusterMesh
+```
+
+The later work is deliberately not allowed to obscure the baseline deployment.
+
+---
+
+## 14. Teaching method: document the failure, not only the success
+
+One of the strongest lessons from the build is that a polished infrastructure repository can hide the most useful knowledge.
+
+This project should document:
+
+```text
+expected state
+   ↓
+observed failure
+   ↓
+diagnostic command
+   ↓
+root cause
+   ↓
+minimal correction
+   ↓
+validation
+   ↓
+automation
+```
+
+Real examples from this deployment included:
+
+- OpenStack flavor ID versus flavor name confusion.
+- Ansible variable scope and private inventory issues.
+- Canonical CIDR naming drift.
+- Broken/stale package repositories.
+- WireGuard systemd handler issues.
+- Pi-hole short-image-name resolution.
+- HAProxy SELinux binding denial.
+- Wrong API load-balancer security-group source network.
+- Rocky Linux containerd packaging assumptions.
+- kubeadm temporary bootstrap credential handling.
+- Cilium VXLAN requirements.
+- Cilium NodePort and ICMP security-group requirements.
+- Misinterpreting a privileged Unix socket error as a network firewall error.
+
+Those are the exercises.
+
+---
+
+## 15. Validation philosophy
+
+Do not define success as "the command returned zero."
+
+Validate each dependency layer:
+
+```text
+OpenStack
+   ↓
+VM reachability
+   ↓
+OS services
+   ↓
+HAProxy
+   ↓
+containerd / CRI
+   ↓
+kubeadm
+   ↓
+etcd
+   ↓
+Kubernetes API
+   ↓
+node registration
+   ↓
+CNI
+   ↓
+pod connectivity
+   ↓
+service connectivity
+```
+
+This layered method is both the operating model and the teaching model.
+
+---
+
+## References
+
+- Terraform: https://developer.hashicorp.com/terraform/docs
+- Ansible: https://docs.ansible.com/
+- Kubernetes kubeadm: https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/
+- Kubernetes HA: https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/high-availability/
+- OpenStack: https://docs.openstack.org/
+- OpenGitOps: https://opengitops.dev/
+- NIST SP 800-160: https://csrc.nist.gov/pubs/sp/800/160/v1/r1/final

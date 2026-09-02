@@ -1,8 +1,33 @@
-# 3. Deployment: Terraform & Ansible
+# Tutorial 3 — Deployment with Terraform and Ansible
 
-## 3.1 Local tooling
+## 1. Purpose
 
-Verify before touching OpenStack:
+This tutorial converts the design into a repeatable deployment.
+
+The core operating model is:
+
+```text
+Terraform → provision OpenStack
+Ansible   → configure Linux and services
+kubeadm   → bootstrap Kubernetes
+Argo CD   → deliver applications
+```
+
+The project deliberately uses two Kubernetes playbooks rather than a large collection of tiny wrappers:
+
+```text
+ansible/playbooks/
+├── kubernetes-prereqs.yml
+└── kubernetes.yml
+```
+
+---
+
+## 2. Workstation preparation
+
+The working machine is Arch Linux.
+
+Verify:
 
 ```bash
 terraform version
@@ -12,22 +37,17 @@ kubectl version --client
 helm version
 ```
 
-On an Arch workstation, the toolchain installs with:
+The deployment should be performed from a known Git revision and should keep private inventory and credentials out of the public repository.
 
-```bash
-sudo pacman -Syu ansible terraform python-openstackclient
-```
+---
 
-**Further reading:** [Terraform install docs](https://developer.hashicorp.com/terraform/install) ·
-[Ansible install docs](https://docs.ansible.com/ansible/latest/installation_guide/index.html) ·
-[python-openstackclient](https://docs.openstack.org/python-openstackclient/latest/).
+## 3. OpenStack authentication
 
-## 3.2 OpenStack authentication
+Use `clouds.yaml` or environment variables.
 
-Use `clouds.yaml` or environment variables. **Never** put credentials in a `terraform.tfvars` that gets
-committed to Git — see `docs/08` §8.1 for the full never-commit list.
+Never commit cloud credentials or private environment values.
 
-Verify access once configured:
+Validate authentication before provisioning:
 
 ```bash
 openstack token issue
@@ -36,26 +56,13 @@ openstack image list
 openstack flavor list
 ```
 
-**Further reading:** [OpenStack authentication (`clouds.yaml`)](https://docs.openstack.org/python-openstackclient/latest/configuration/index.html) · [OpenStack API docs](https://docs.openstack.org/).
+The project repeatedly benefited from this basic check during troubleshooting.
 
-## 3.3 Terraform layer
+---
 
-Repository layout (as committed today):
+## 4. Terraform workflow
 
-```text
-terraform/
-├── environments/personal/
-│   ├── main.tf, outputs.tf, providers.tf, variables.tf, versions.tf
-│   ├── terraform.tfvars.example
-│   └── cloud-init-edge.yaml, cloud-init-node.yaml
-└── modules/
-    ├── network/
-    ├── compute/
-    ├── api_lb/
-    └── security/
-```
-
-Workflow:
+The intended workflow is:
 
 ```bash
 cd terraform/environments/personal
@@ -65,186 +72,567 @@ terraform plan
 terraform apply
 ```
 
-...or via the Makefile, which wraps the same commands with `-chdir=terraform/environments/personal`:
+The Makefile wraps these operations where appropriate.
+
+The current infrastructure model includes the Kubernetes API load-balancer VM as well as the 13 other service/compute VMs. The older teaching documents were inconsistent about this; the current topology should always show `api-lb-01` explicitly.
+
+---
+
+## 5. OpenStack flavor failure
+
+An early Terraform error reported a flavor as unavailable even though the flavor was visible in:
 
 ```bash
-make init
-make validate
-make plan
-make apply
+openstack flavor list
 ```
 
-Expected result: **13 VMs, plus the Kubernetes API load balancer.**
+The cause was a mismatch between a human-readable flavor name and the field where the provider expected the flavor ID.
 
-> ⚠ **Gap.** That load balancer is provisioned by the `api_lb` module — a real Terraform module, matching
-> an `api_lb_type` variable described in `docs/08` §8.2 — but it is not listed as a row in the VM topology
-> table (`docs/01` §1.3), and the repository's committed root `README.md` describes it as an *Octavia* load
-> balancer rather than the HAProxy VM the module name and variable imply. Resolve this before teaching it:
-> decide whether `api_lb` provisions an HAProxy VM (matches the module/variable naming) or calls Octavia
-> (matches the committed README's wording), update whichever document is wrong, and add the resulting node
-> to the VM topology table with an IP. `docs/09` recommendation #2 has the full reasoning.
-
-**Further reading:** [Terraform OpenStack provider
-docs](https://registry.terraform.io/providers/terraform-provider-openstack/openstack/latest/docs) ·
-[Terraform style guide](https://developer.hashicorp.com/terraform/language/style) ·
-[HashiCorp: Terraform module composition](https://developer.hashicorp.com/terraform/language/modules/develop/composition).
-
-## 3.4 Ansible layer
-
-Repository layout (as committed today):
+The lesson is:
 
 ```text
-ansible/
-├── ansible.cfg
-├── group_vars/all.yml
-├── inventories/personal/hosts.yml
-├── playbooks/
-│   ├── bootstrap.yml
-│   ├── join-cluster.yml
-│   └── kubernetes.yml
-└── roles/
-    ├── common/
-    ├── containerd/
-    ├── edge/
-    ├── kube_control_plane/
-    ├── kube_join_control_plane/
-    ├── kube_worker/
-    ├── kubernetes_prereqs/
-    ├── pihole/
-    ├── ssh/
-    ├── suricata/
-    ├── wazuh_agent/
-    └── wireguard/
+OpenStack flavor name ≠ flavor ID
 ```
 
-Core commands:
+A failed lookup should therefore not automatically be interpreted as a quota problem.
+
+The repository history preserves the explicit flavor-ID fix. citeturn154630view0
+
+---
+
+## 6. Ansible inventory is authoritative
+
+The actual inventory groups are:
+
+```text
+edge_nodes
+hermes_orchestrator
+slurm_controller
+slurm_login
+slurm_compute
+api_lb
+control_plane
+workers
+```
+
+Always inspect the inventory rather than guessing:
 
 ```bash
-ansible-inventory -i ansible/inventories/personal/hosts.yml --graph
-ansible all -i ansible/inventories/personal/hosts.yml -m ping
-ansible-playbook -i ansible/inventories/personal/hosts.yml ansible/playbooks/bootstrap.yml
+ansible-inventory \
+  -i inventories/private/hosts.yml \
+  --graph
 ```
 
-...or via the Makefile:
+For a particular host:
 
 ```bash
-make ansible-ping
-make bootstrap
+ansible-inventory \
+  -i inventories/private/hosts.yml \
+  --host edge
 ```
 
-> ⚠ **Gap.** The Makefile also defines `edge`, `slurm`, `hermes`, and `k8s-prereqs` targets, pointing at
-> `ansible/playbooks/edge.yml`, `slurm.yml`, `hermes.yml`, and `kubernetes-prereqs.yml` respectively — and
-> the older quick-start guide additionally references `ansible/playbooks/api-lb.yml`, which has no Makefile
-> target at all. None of those five playbook files, nor `roles/slurm/` or `roles/hermes/`, appear in the
-> repository's current file listing. This is expected for a POC/teaching repo at this stage — it is not a
-> broken deployment, it's an *incomplete* one — but it should be tracked explicitly rather than discovered
-> by a confused student running `make hermes` on day one. `docs/09` proposes a `STATUS.md` for exactly this,
-> and `COURSE_OUTLINE.md` Module 10 turns "write the missing role" into the capstone lab.
+This prevented mistaken group names during Kubernetes automation.
 
-**Further reading:** [Ansible best practices
-guide](https://docs.ansible.com/ansible/latest/tips_tricks/ansible_tips_tricks.html) ·
-[Ansible roles](https://docs.ansible.com/ansible/latest/playbook_guide/playbooks_reuse_roles.html).
+---
 
-## 3.5 Variable naming model
+## 7. Private variables and variable scope
 
-Canonical names (repeat from `docs/02` §2.2, since this is where they're enforced):
+Environment-specific values live in:
 
-```yaml
-mgmt_cidr: 10.50.0.0/24
-k8s_cidr:  10.51.0.0/24
-vpn_cidr:  10.60.0.0/24
+```text
+ansible/inventories/private/group_vars/
 ```
 
-Use the same logical names in Terraform and Ansible wherever the underlying concept is the same — this is
-what avoids a translation table (and the drift it inevitably produces) between the two layers.
+The public repository contains reusable defaults/templates rather than the authority for a particular deployment.
 
-Diagnose what Ansible actually resolves for a host:
+This decision emerged from real variable-scope failures: values such as the timezone and network CIDRs were not always being resolved where expected until the private inventory was made authoritative.
+
+Use:
 
 ```bash
-ansible-inventory -i ansible/inventories/personal/hosts.yml --host edge
+ansible-inventory -i inventories/private/hosts.yml --host edge
 ```
 
-Search for naming drift across the codebase:
+to confirm what Ansible actually sees.
 
-```bash
-rg -n 'management_cidr|wireguard_cidr|mgmt_cidr|vpn_cidr|k8s_cidr' ansible/
+A YAML file on disk is not the same thing as a value that Ansible has resolved for the host.
+
+---
+
+## 8. Timezone and time synchronisation
+
+Timezone and clock synchronisation are separate concerns.
+
+The environment uses:
+
+```text
+Africa/Johannesburg
 ```
 
-Target state: `management_cidr` and `wireguard_cidr` return **zero** matches; `mgmt_cidr`, `vpn_cidr`, and
-`k8s_cidr` are the only names present.
+Chrony synchronises the actual clock underneath it.
 
-Normal `group_vars/*.yml` edits do not require a cache flush. `--flush-cache` only matters if fact/inventory
-caching is actually configured:
-
-```bash
-ansible-playbook -i ansible/inventories/personal/hosts.yml ansible/playbooks/bootstrap.yml --flush-cache
-```
-
-`ansible-inventory` is the authoritative diagnostic — trust it over reading YAML files by eye when the two
-disagree.
-
-## 3.6 Bootstrap sequence
-
-1. **Verify local tooling** (§3.1).
-2. **Configure OpenStack** auth via `clouds.yaml`/env vars (§3.2).
-3. **Select environment values**:
-   ```bash
-   cp terraform/environments/personal/example.tfvars terraform/environments/personal/terraform.tfvars
-   $EDITOR terraform/environments/personal/terraform.tfvars
-   ```
-4. **Provision OpenStack**: `make init && make validate && make plan && make apply` → 13 VMs + API LB.
-5. **Validate SSH**: `make ansible-ping`.
-6. **Base OS**: `make bootstrap`.
-7. **Edge, Hermes, Slurm host prep**: `make edge && make hermes && make slurm`.
-8. **Kubernetes prerequisites**: `make k8s-prereqs`.
-9. **Kubernetes bootstrap**: `make k8s-init`.
-
-Do not deploy Argo CD or applications until all six Kubernetes nodes report `Ready` — see `docs/04` §4.1 for
-the validation command.
-
-## 3.7 Time synchronisation
-
-All hosts run `Africa/Johannesburg` as their local timezone; chrony synchronises the actual clock
-underneath it — these are two different concerns and both need checking:
+Validate both:
 
 ```bash
 ansible all -m command -a 'timedatectl show -p Timezone --value'
 ansible all -m command -a 'chronyc tracking'
 ```
 
-A healthy node reports `Leap status : Normal`.
+An early timezone failure was caused by variable placement rather than a broken timezone role. The final fix was to place the value in private group variables instead of hardcoding service configuration into the role.
 
-**Further reading:** [chrony documentation](https://chrony-project.org/documentation.html).
+---
 
-## 3.8 Validation philosophy
+## 9. Base operating-system deployment
 
-Every phase gets a verification step — a successful `apply` or `ansible-playbook` run is evidence the
-*command* succeeded, not proof the *service* works:
+The common/base layer establishes:
+
+- packages
+- time synchronisation
+- timezone
+- SSH hardening
+- `nyameko` administrator
+- Wazuh targeting/agent configuration
+
+The bootstrap identity remains available for recovery until the private access path is proven.
+
+---
+
+## 10. Edge deployment iterations
+
+### WireGuard
+
+The server private key was generated locally on `edge` and left there.
+
+Only public-key material is exchanged.
+
+A handler naming mismatch was corrected so the `wg-quick@wg0` service is restarted correctly.
+
+### Pi-hole
+
+The Podman Quadlet image was changed from the ambiguous short name to:
+
+```text
+docker.io/pihole/pihole:latest
+```
+
+### Wazuh
+
+A stale/broken repository was removed and the 4.x repository was corrected.
+
+### Suricata
+
+EPEL/CRB/OISF packaging was added and the first deployment stays IDS-only.
+
+The repository history contains these separate corrective iterations and is useful evidence of why the final roles look the way they do. citeturn154630view0
+
+---
+
+## 11. HAProxy deployment
+
+The API load balancer is:
+
+```text
+api-lb-01
+10.51.0.100
+```
+
+Backends:
+
+```text
+10.51.0.11:6443
+10.51.0.12:6443
+10.51.0.13:6443
+```
+
+The first service deployment exposed a useful distinction:
+
+```text
+haproxy -c → valid
+systemctl start → failed
+```
+
+The cause was SELinux denying the bind.
+
+The final role sets:
+
+```text
+haproxy_connect_any = on
+```
+
+persistently through Ansible.
+
+---
+
+## 12. Kubernetes prerequisites: containerd failure and correction
+
+The first prerequisite implementation tried to install:
+
+```yaml
+- containerd
+```
+
+from Rocky's regular repositories.
+
+The result was:
+
+```text
+No package containerd available.
+```
+
+The correction was to isolate runtime ownership in the dedicated `containerd` role and install:
+
+```text
+containerd.io
+```
+
+from Docker's EL9 repository.
+
+The containerd role now owns:
+
+```text
+repository
+package
+config.toml
+SystemdCgroup
+service
+```
+
+The Kubernetes prerequisite role owns Kubernetes-specific host state.
+
+This separation was captured in the repository's refinement commit. citeturn154630view0
+
+---
+
+## 13. Kubernetes prerequisite result
+
+The final prerequisite pipeline configures all six Kubernetes nodes with:
+
+```text
+overlay
+br_netfilter
+net.bridge.bridge-nf-call-iptables = 1
+net.bridge.bridge-nf-call-ip6tables = 1
+net.ipv4.ip_forward = 1
+```
+
+and installs:
+
+```text
+kubelet
+kubeadm
+kubectl
+cri-tools
+```
+
+with:
+
+```text
+containerd://2.3.4
+Kubernetes v1.36.4
+```
+
+The containerd release and Kubernetes version were verified across all nodes.
+
+---
+
+## 14. CRI configuration
+
+`crictl` is pointed at:
+
+```yaml
+runtime-endpoint: unix:///run/containerd/containerd.sock
+image-endpoint: unix:///run/containerd/containerd.sock
+timeout: 10
+debug: false
+```
+
+The `kube_prereqs` role validates CRI as root.
+
+A separate ad-hoc test initially failed with `permission denied` because it ran as the normal `nyameko` user. Re-running with `sudo` returned `CRI_OK` on all six nodes.
+
+This is a useful distinction:
+
+```text
+CRI transport works
+    ↓
+Unix socket permissions matter
+```
+
+The repository history captures the addition of `crictl` as an explicit prerequisite. citeturn409697view6turn154630view5
+
+---
+
+## 15. Kubernetes repository and package version
+
+The Kubernetes packages come from the modern per-minor repository:
+
+```text
+https://pkgs.k8s.io/core:/stable:/v1.36/rpm/
+```
+
+The deployed version is:
+
+```text
+v1.36.4
+```
+
+Do not carry unused duplicate version variables. Only keep variables that actually control repository/bootstrap behavior.
+
+---
+
+## 16. kubeadm automation architecture
+
+The actual cluster bootstrap uses Ansible to orchestrate kubeadm.
+
+The playbooks are intentionally:
+
+```text
+kubernetes-prereqs.yml
+kubernetes.yml
+```
+
+and the roles divide responsibilities:
+
+```text
+containerd
+kube_prereqs
+kube_control_plane
+kube_control_plane_join
+kube_worker_join
+```
+
+A redundant `join-cluster.yml` playbook was removed during the naming refactor.
+
+That commit is a good example of the repository being simplified as its architecture became clearer. citeturn154630view6
+
+---
+
+## 17. kubeadm configuration
+
+The cluster bootstrap values are:
+
+```text
+Kubernetes version: 1.36.4
+Control-plane endpoint: 10.51.0.100:6443
+CP1 advertise address: 10.51.0.11
+Pod CIDR: 10.244.0.0/16
+Service CIDR: 10.96.0.0/12
+CRI socket: unix:///run/containerd/containerd.sock
+```
+
+The important point is that control-plane clients use:
+
+```text
+10.51.0.100
+```
+
+rather than hardcoding CP1.
+
+---
+
+## 18. The first kubeadm run was manual — then codified
+
+The first CP1 initialization was deliberately performed manually while debugging the infrastructure boundary.
+
+It succeeded.
+
+The API server reported healthy.
+
+However, `kubectl` through the VIP timed out.
+
+That exposed the API load-balancer security-group problem described in Tutorial 2.
+
+Once the VIP was working, the remaining control-plane and worker joins were moved into Ansible.
+
+This is an important engineering lesson:
+
+> A manual command used to isolate a failing layer is acceptable during diagnosis; leaving a production bootstrap manual is not.
+
+---
+
+## 19. Temporary kubeadm bootstrap credentials
+
+The control-plane role generates temporary:
+
+```text
+token
+CA discovery hash
+control-plane certificate key
+```
+
+They are not persisted into Git, Vault, Terraform state or private inventory.
+
+The CA hash is derived from the cluster CA certificate.
+
+The bootstrap token can be generated again.
+
+The control-plane certificate secret uploaded by `--upload-certs` is temporary and can be re-created when necessary.
+
+Worker join:
+
+```text
+kubeadm join 10.51.0.100:6443 \
+  --token ... \
+  --discovery-token-ca-cert-hash sha256:...
+```
+
+Control-plane join:
+
+```text
+kubeadm join 10.51.0.100:6443 \
+  --token ... \
+  --discovery-token-ca-cert-hash sha256:... \
+  --control-plane \
+  --certificate-key ...
+```
+
+The join-role variable reference bugs discovered during implementation were fixed before the successful automated run. citeturn154630view3
+
+---
+
+## 20. Idempotence
+
+CP1 checks for:
+
+```text
+/etc/kubernetes/admin.conf
+```
+
+before running `kubeadm init`.
+
+Already joined nodes are guarded by Kubernetes node state such as:
+
+```text
+/etc/kubernetes/kubelet.conf
+```
+
+This means the orchestration can be rerun without reinitialising an existing control plane or rejoining an existing node.
+
+A perfect host-state convergence run should eventually report `changed=0` for already-established prerequisites.
+
+Temporary bootstrap credential generation is runtime state rather than persistent infrastructure drift.
+
+---
+
+## 21. Full Kubernetes automation result
+
+The automated cluster deployment successfully produced:
+
+```text
+k8s-cp-01       control-plane
+k8s-cp-02       control-plane
+k8s-cp-03       control-plane
+k8s-worker-01   worker
+k8s-worker-02   worker
+k8s-worker-03   worker
+```
+
+All report:
+
+```text
+v1.36.4
+containerd://2.3.4
+```
+
+Three etcd members, three API servers, three controller managers and three schedulers run as expected.
+
+---
+
+## 22. Validation ladder
+
+At every layer, validate behavior rather than trusting a successful command.
+
+### Terraform
 
 ```bash
 terraform validate
 terraform plan
-ansible all -m ping
-chronyc tracking
-timedatectl
-wg show
-nft list ruleset
-systemctl status haproxy
-kubectl get nodes
-cilium status
-kubectl get storageclass
 ```
 
-## 3.9 Recommended Makefile hygiene
+### OpenStack
 
-- Add a `make filelist` target that runs `git ls-files > FILELIST.txt`, and run it in CI or as a pre-commit
-  hook. `FILELIST.txt` is currently hand-maintained and already lags the Makefile's own targets (§3.4) —
-  automating it removes an entire category of drift.
-- Add a `make api-lb` target (or fold API-LB configuration into `make edge`) so every playbook referenced in
-  the docs has a corresponding, discoverable Makefile entry.
-- `make fmt` (running `terraform fmt -recursive`) already exists — consider a matching `make lint` that runs
-  `ansible-lint` and `tflint`, so style issues surface before a workshop, not during one.
+```bash
+openstack server list
+openstack port list
+openstack security group list
+```
 
-**Further reading:** [`git ls-files`](https://git-scm.com/docs/git-ls-files) · [pre-commit
-framework](https://pre-commit.com/) · [ansible-lint](https://ansible.readthedocs.io/projects/lint/) ·
-[tflint](https://github.com/terraform-linters/tflint).
+### Ansible inventory
+
+```bash
+ansible-inventory -i inventories/private/hosts.yml --graph
+```
+
+### Host services
+
+```bash
+systemctl is-active containerd
+systemctl is-active kubelet
+```
+
+### CRI
+
+```bash
+sudo crictl info
+```
+
+### API load balancer
+
+```bash
+sudo systemctl is-active haproxy
+sudo ss -ltnp | grep ':6443'
+```
+
+### Kubernetes API
+
+```bash
+kubectl cluster-info
+kubectl get --raw='/readyz?verbose'
+```
+
+### Nodes and system pods
+
+```bash
+kubectl get nodes -o wide
+kubectl get pods -A -o wide
+```
+
+---
+
+## 23. What comes after the host/bootstrap layer
+
+Once Kubernetes is assembled:
+
+```text
+Cilium
+   ↓
+Cinder CSI / OpenStack cloud integration
+   ↓
+Argo CD
+   ↓
+Prometheus / Grafana
+   ↓
+Slurm integration
+   ↓
+Hermes
+   ↓
+JupyterHub
+   ↓
+Astro
+```
+
+Applications are not rebuilt through Terraform or kubeadm.
+
+They are higher-level platform state and will ultimately be managed by GitOps.
+
+---
+
+## References
+
+- Terraform OpenStack provider: https://registry.terraform.io/providers/terraform-provider-openstack/openstack/latest/docs
+- Terraform style guide: https://developer.hashicorp.com/terraform/language/style
+- Ansible roles: https://docs.ansible.com/ansible/latest/playbook_guide/playbooks_reuse_roles.html
+- OpenStackClient: https://docs.openstack.org/python-openstackclient/latest/
+- Kubernetes kubeadm: https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/
+- Kubernetes CRI runtimes: https://kubernetes.io/docs/setup/production-environment/container-runtimes/
+- Kubernetes HA: https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/high-availability/
