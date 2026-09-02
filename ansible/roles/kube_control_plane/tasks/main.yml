@@ -35,21 +35,11 @@
     group: "{{ admin_user_name }}"
     mode: "0600"
 
-- name: Generate worker join command
+- name: Generate Kubernetes bootstrap token
   ansible.builtin.command:
-    cmd: kubeadm token create --print-join-command
-  register: kubeadm_worker_join
+    cmd: kubeadm token create
+  register: kubeadm_token
   changed_when: false
-
-- name: Generate control-plane certificate key
-  ansible.builtin.command:
-    cmd: kubeadm init phase upload-certs --upload-certs
-  register: kubeadm_upload_certs
-  changed_when: false
-
-- name: Extract certificate key
-  ansible.builtin.set_fact:
-    kubeadm_certificate_key: "{{ kubeadm_upload_certs.stdout_lines | select('match', '^[0-9a-f]{64}$') | list | last }}"
 
 - name: Generate Kubernetes CA discovery hash
   ansible.builtin.shell:
@@ -62,15 +52,34 @@
   register: kubeadm_ca_hash
   changed_when: false
 
-- name: Store discovery hash
+- name: Generate control-plane certificate key
+  ansible.builtin.command:
+    cmd: kubeadm init phase upload-certs --upload-certs
+  register: kubeadm_upload_certs
+  changed_when: false
+
+- name: Extract certificate key
   ansible.builtin.set_fact:
+    kubeadm_certificate_key: >-
+      {{ kubeadm_upload_certs.stdout_lines
+         | select('match', '^[0-9a-f]{64}$')
+         | list
+         | last }}
+
+- name: Store Kubernetes bootstrap credentials
+  ansible.builtin.set_fact:
+    kubeadm_token_value: "{{ kubeadm_token.stdout }}"
     kubeadm_discovery_ca_cert_hash: "sha256:{{ kubeadm_ca_hash.stdout }}"
 
-- name: Extract worker join command
+- name: Build worker join command
   ansible.builtin.set_fact:
-    kubeadm_worker_join_command: "{{ kubeadm_worker_join.stdout }}"
+    kubeadm_worker_join_command: >-
+      kubeadm join
+      {{ kubernetes_api_endpoint.address }}:{{ kubernetes_api_endpoint.port }}
+      --token {{ kubeadm_token_value }}
+      --discovery-token-ca-cert-hash {{ kubeadm_discovery_ca_cert_hash }}
 
-- name: Generate control-plane join command
+- name: Build control-plane join command
   ansible.builtin.set_fact:
     kubeadm_control_plane_join_command: >-
       {{ kubeadm_worker_join_command }}

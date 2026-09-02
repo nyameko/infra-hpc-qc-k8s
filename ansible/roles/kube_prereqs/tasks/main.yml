@@ -72,6 +72,7 @@
       - kubelet
       - kubeadm
       - kubectl
+      - cri_tools
     state: present
     disable_excludes: kubernetes
 
