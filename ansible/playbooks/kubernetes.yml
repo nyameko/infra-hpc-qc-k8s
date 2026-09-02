@@ -21,6 +21,6 @@
   serial: 1
   vars:
     kubeadm_worker_join_command: >-
-      {{ hostvars[kube_bootstrap_cp].kubeadm_worker_join_command'] }}
+      {{ hostvars[kube_bootstrap_cp].kubeadm_worker_join_command }}
   roles:
     - kube_worker_join
