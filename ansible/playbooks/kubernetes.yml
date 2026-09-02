@@ -11,7 +11,7 @@
   vars:
     kube_control_plane_join_command: "{{ hostvars[groups['control_plane'][0]].kube_cp_join_command }}"
   roles:
-    - kube_join_control_plane
+    - kube_control_plane_join
 
 - name: Join worker nodes
   hosts: workers
@@ -19,4 +19,4 @@
   vars:
     kube_join_command: "{{ hostvars[groups['control_plane'][0]].kube_worker_join_command }}"
   roles:
-    - kube_worker
+    - kube_worker_join

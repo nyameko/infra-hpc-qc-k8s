@@ -4,4 +4,4 @@
   become: true
   roles:
     - containerd
-    - kubernetes_prereqs
+    - kube_prereqs
