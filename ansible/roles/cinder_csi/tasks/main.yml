@@ -15,49 +15,6 @@
   environment:
     KUBECONFIG: "{{ cinder_csi_kubeconfig }}"
 
-- name: Discover OpenStack auth URL when not explicitly supplied
-  ansible.builtin.command:
-    cmd: openstack configuration show -f value -c auth_url
-  register: cinder_csi_discovered_auth_url
-  changed_when: false
-  when: cinder_csi_auth_url | length == 0
-
-- name: Set OpenStack auth URL from CLI discovery
-  ansible.builtin.set_fact:
-    cinder_csi_auth_url: "{{ cinder_csi_discovered_auth_url.stdout | trim }}"
-  when:
-    - cinder_csi_auth_url | length == 0
-    - cinder_csi_discovered_auth_url.stdout | trim | length > 0
-
-- name: Discover OpenStack region when not explicitly supplied
-  ansible.builtin.command:
-    cmd: openstack configuration show -f value -c region_name
-  register: cinder_csi_discovered_region
-  changed_when: false
-  failed_when: false
-  when: cinder_csi_region | length == 0
-
-- name: Set OpenStack region from CLI discovery
-  ansible.builtin.set_fact:
-    cinder_csi_region: "{{ cinder_csi_discovered_region.stdout | trim }}"
-  when:
-    - cinder_csi_region | length == 0
-    - cinder_csi_discovered_region.stdout | trim | length > 0
-
-- name: Discover OpenStack project ID when not explicitly supplied
-  ansible.builtin.command:
-    cmd: openstack token issue -f value -c project_id
-  register: cinder_csi_discovered_project_id
-  changed_when: false
-  when: cinder_csi_project_id | length == 0
-
-- name: Set OpenStack project ID from token discovery
-  ansible.builtin.set_fact:
-    cinder_csi_project_id: "{{ cinder_csi_discovered_project_id.stdout | trim }}"
-  when:
-    - cinder_csi_project_id | length == 0
-    - cinder_csi_discovered_project_id.stdout | trim | length > 0
-
 - name: Validate OpenStack CSI authentication variables
   ansible.builtin.assert:
     that:
