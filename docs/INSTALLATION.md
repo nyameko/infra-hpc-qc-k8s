@@ -1,143 +1,89 @@
-# Installation and Teaching Guide
+# Installation Guide
 
-## 1. What is being built?
-
-The initial environment contains:
-
-```text
-OpenStack project
-|
-+-- Management network: 10.50.0.0/24
-|
-+-- Kubernetes network: 10.51.0.0/24
-|
-+-- WireGuard VPN: 10.60.0.0/24
-|
-+-- edge
-|    +-- Wazuh manager
-|    +-- WireGuard
-|    +-- Pi-hole
-|    +-- nftables
-|    +-- Suricata IDS
-|
-+-- api-lb-01
-|    +-- HAProxy
-|
-+-- Slurm
-|    +-- controller
-|    +-- login1
-|    +-- login2
-|    +-- compute
-|
-+-- Kubernetes
-     +-- 3 control planes
-     +-- 3 workers
-```
-
-The architecture deliberately separates infrastructure creation from machine configuration and application deployment.
+> A complete, hand-held deployment of the `infra-hpc-qc-k8s` platform.
+>
+> The guide deliberately explains **what**, **why**, **trade-offs**, **failure modes** and **acceptance tests**. Commands are written for an Arch Linux workstation deploying Rocky Linux guests in OpenStack.
 
 ---
 
-## 2. Design boundaries
+## 0. Read this first
+
+### What you are building
+
+The target platform is a layered infrastructure stack:
 
 ```text
-Terraform
-    |
-    +--> OpenStack infrastructure
-
-Ansible
-    |
-    +--> operating systems and infrastructure services
-
-kubeadm
-    |
-    +--> Kubernetes cluster
-
-Argo CD
-    |
-    +--> Kubernetes applications
+                     OpenStack
+                         │
+                    Terraform
+                         │
+             networks / ports / SGs / VMs
+                         │
+                      Ansible
+                         │
+        ┌────────────────┼────────────────┐
+        │                │                │
+      Edge             Slurm          Kubernetes
+        │                                 │
+   DNS / VPN /                        kubeadm
+   security                          + Cilium
+                                          │
+                                   CCM + Cinder CSI
+                                          │
+                                      Argo CD
+                                          │
+                                     Applications
 ```
 
-Terraform should not install operating-system packages.
+The project is intentionally neither “just Kubernetes” nor “just OpenStack”. It is an infrastructure laboratory in which each layer has a distinct responsibility.
 
-Ansible should not replace the Kubernetes application deployment layer.
+### The first principle: build in layers
 
-Argo CD should become the normal GitOps path for Kubernetes applications.
+Never begin by installing everything at once.
+
+The intended order is:
+
+```text
+Cloud
+ ↓
+Operating systems
+ ↓
+Network / security
+ ↓
+API endpoint
+ ↓
+Container runtime
+ ↓
+Kubernetes
+ ↓
+CNI
+ ↓
+Cloud integration / storage
+ ↓
+GitOps
+ ↓
+Applications
+```
+
+Every arrow is an acceptance gate.
+
+> **WARNING:** A command succeeding is not proof that the system is healthy. The deployment process therefore contains explicit tests after every significant phase.
 
 ---
 
-## 3. Terraform
+# Part I — Architecture before installation
 
-Terraform creates:
+## 1. Target topology
 
-- networks
-- subnets
-- router
-- security groups
-- ports
-- floating IP
-- virtual machines
-- API load-balancer infrastructure
-- persistent OpenStack storage where appropriate
+### 1.1 Networks
 
-Reference:
+| Network | CIDR | Purpose |
+|---|---|---|
+| Management | `10.50.0.0/24` | VM management and infrastructure services |
+| Kubernetes | `10.51.0.0/24` | Kubernetes nodes and API endpoint |
+| WireGuard | `10.60.0.0/24` | Private administrative VPN |
 
-- https://developer.hashicorp.com/terraform/docs
-
----
-
-## 4. Ansible
-
-Ansible configures:
-
-- Rocky Linux
-- base packages
-- timezone
-- chrony
-- SSH
-- `nyameko`
-- nftables
-- WireGuard
-- Pi-hole
-- Wazuh
-- Suricata
-- HAProxy
-- Slurm
-- Kubernetes prerequisites
-
-Reference:
-
-- https://docs.ansible.com/
-
----
-
-## 5. Network model
-
-### Management
-
-```text
-10.50.0.0/24
-```
-
-Used for infrastructure management and internal services.
-
-### Kubernetes
-
-```text
-10.51.0.0/24
-```
-
-Used for the Kubernetes nodes and API load balancer.
-
-### VPN
-
-```text
-10.60.0.0/24
-```
-
-Used by WireGuard clients.
-
-Canonical names:
+The canonical Ansible variables are:
 
 ```yaml
 mgmt_cidr: 10.50.0.0/24
@@ -145,51 +91,123 @@ k8s_cidr: 10.51.0.0/24
 vpn_cidr: 10.60.0.0/24
 ```
 
-Avoid alternate names such as `management_cidr` and `wireguard_cidr`.
+> **NOTE:** Variable-name consistency matters. During the project's build, `management_cidr` / `wireguard_cidr` drift created avoidable ambiguity. The canonical names above should be used everywhere.
 
----
-
-## 6. Inventory and variables
-
-Ansible variables are read from inventory and variable files during playbook evaluation.
-
-Check what Ansible actually sees:
-
-```bash
-ansible-inventory   -i inventories/private/hosts.yml   --host edge
-```
-
-Search the repository for naming drift:
-
-```bash
-rg -n 'management_cidr|wireguard_cidr|mgmt_cidr|vpn_cidr|k8s_cidr' ansible/
-```
-
-The target state is:
+### 1.2 Hosts
 
 ```text
-management_cidr -> zero active references
-wireguard_cidr  -> zero active references
-mgmt_cidr       -> intentional
-vpn_cidr        -> intentional
-k8s_cidr        -> intentional
+Management network: 10.50.0.0/24
+
+edge                         10.50.0.10
+hermes-orchestrator-01       10.50.0.11
+slurm-controller-01          10.50.0.12
+login1                       10.50.0.20
+login2                       10.50.0.21
+slurm-cpu-01                 10.50.0.30
+slurm-cpu-02                 10.50.0.31
+
+Kubernetes network: 10.51.0.0/24
+
+api-lb-01 / VIP              10.51.0.100
+k8s-cp-01                    10.51.0.11
+k8s-cp-02                    10.51.0.12
+k8s-cp-03                    10.51.0.13
+k8s-worker-01                10.51.0.21
+k8s-worker-02                10.51.0.22
+k8s-worker-03                10.51.0.23
 ```
 
-Normal `group_vars/*.yml` changes do not require a cache flush.
+The apparent address reuse between management and Kubernetes networks is intentional because they are different subnets on different network segments.
 
-If fact or inventory caching is configured, `--flush-cache` can clear it:
+### 1.3 Kubernetes API
 
-```bash
-ansible-playbook   -i inventories/private/hosts.yml   playbooks/bootstrap.yml   --flush-cache
+The cluster's API endpoint is:
+
+```text
+10.51.0.100:6443
 ```
 
-The authoritative diagnostic remains `ansible-inventory`.
+HAProxy fronts three control planes:
+
+```text
+                 10.51.0.100:6443
+                        │
+                     HAProxy
+                  ┌────┼────┐
+                  ▼    ▼    ▼
+                 CP1  CP2  CP3
+```
+
+> **DESIGN CHOICE:** Keep the API endpoint stable even when the implementation of the load balancer changes. Today that implementation is HAProxy; OpenStack Octavia can become a future implementation where available.
 
 ---
 
-## 7. OpenStack credentials
+# Part II — Workstation preparation
 
-Verify OpenStack access:
+## 2. Assumptions
+
+The reference workstation is Arch Linux. The target guests are Rocky Linux.
+
+You need:
+
+- Git
+- Terraform
+- Ansible
+- OpenStack CLI
+- SSH
+- access to the OpenStack project
+- the repository's private environment files
+
+Install the local tools:
+
+```bash
+sudo pacman -Syu git ansible terraform python-openstackclient
+```
+
+Verify:
+
+```bash
+git --version
+terraform version
+ansible --version
+openstack --version
+ssh -V
+```
+
+> **NOTE:** The workstation distribution is not a hard architectural dependency. Arch is simply the current reference environment. The managed guests remain Rocky Linux.
+
+---
+
+## 3. Clone the repository
+
+```bash
+git clone https://github.com/nyameko/infra-hpc-qc-k8s.git
+cd infra-hpc-qc-k8s
+```
+
+Inspect the repository:
+
+```bash
+find terraform ansible docs -maxdepth 2 -type f | sort
+```
+
+Before making changes, inspect the recent project history:
+
+```bash
+git log --oneline --decorate -20
+```
+
+The repository history is intentionally part of the learning material. The recent deployment work contains the evolution of the Cilium, CRI and security-group configuration.
+
+---
+
+# Part III — Credentials and private configuration
+
+## 4. OpenStack credentials
+
+Configure OpenStack using your normal external mechanism (`clouds.yaml`, environment variables, application credentials, etc.). Do not put secrets in the repository.
+
+Validate access:
 
 ```bash
 openstack token issue
@@ -198,75 +216,251 @@ openstack image list
 openstack flavor list
 ```
 
-Keep OpenStack credentials outside Git.
+You should be able to identify:
 
-Reference:
+- the project/network context
+- the target Rocky image
+- the expected VM flavors
+- the networks available to the project
 
-- https://docs.openstack.org/
+> **DANGER:** Never “temporarily” paste an OpenStack password, application credential, private key or token into a tracked YAML file. Temporary secrets have a habit of becoming permanent Git history.
+
+### Why Terraform receives cloud credentials, but Ansible does not
+
+Terraform is the cloud lifecycle tool. It needs OpenStack credentials because it creates cloud resources.
+
+Ansible talks to already-created hosts over SSH. It normally does not need the OpenStack administrative credential.
+
+This reduces the blast radius of the Ansible execution environment.
 
 ---
 
-## 8. SSH identities
+## 5. Private Ansible inventory
 
-Two identities are deliberately used.
+The environment-specific inventory should live outside the public defaults:
 
-### Bootstrap/recovery
+```text
+ansible/inventories/private/
+├── hosts.yml
+└── group_vars/
+    └── all.yml
+```
+
+Inspect the resolved inventory:
+
+```bash
+cd ansible
+ansible-inventory -i inventories/private/hosts.yml --graph
+```
+
+Inspect host variables:
+
+```bash
+ansible-inventory \
+  -i inventories/private/hosts.yml \
+  --host edge
+```
+
+> **IMPORTANT:** `ansible-inventory` is the authoritative diagnostic when a variable appears to have disappeared. Do not guess what Ansible will load.
+
+Validate connectivity before doing any configuration:
+
+```bash
+ansible all -i inventories/private/hosts.yml -m ping
+```
+
+---
+
+# Part IV — Terraform: create the cloud
+
+## 6. Terraform ownership
+
+Terraform should own:
+
+```text
+OpenStack networks
+OpenStack subnets
+routers
+security groups
+ports
+floating IPs
+VMs
+API load-balancer VM/networking
+storage resources where appropriate
+```
+
+It should **not** install packages inside Rocky guests.
+
+This separation means that destroying/recreating a VM does not require Terraform to learn how the guest operating system is configured.
+
+---
+
+## 7. Initialize and validate Terraform
+
+```bash
+cd ../terraform/environments/private
+terraform init
+terraform fmt -check
+terraform validate
+```
+
+Then inspect the plan:
+
+```bash
+terraform plan
+```
+
+Read the plan rather than blindly applying it.
+
+Check particularly:
+
+- networks
+- CIDRs
+- security groups
+- port fixed IPs
+- server flavor IDs
+- image IDs
+- floating IP associations
+- API load-balancer resources
+
+### Flavor-name versus flavor-ID trap
+
+OpenStack APIs often distinguish between the human-friendly flavor name and the resource ID.
+
+A deployment failure previously arose because a resource expected a flavor ID while the configuration supplied a flavor name.
+
+> **WARNING:** Never assume that a field named `flavor` or `flavor_id` accepts the friendly flavor name. Confirm the provider schema and inspect the actual OpenStack resource IDs.
+
+Useful inspection:
+
+```bash
+openstack flavor list
+```
+
+---
+
+## 8. Apply Terraform
+
+```bash
+terraform apply
+```
+
+Then verify:
+
+```bash
+openstack server list
+openstack network list
+openstack subnet list
+openstack port list
+openstack security group list
+```
+
+The important acceptance criterion is not “Terraform returned zero”; it is that the expected topology exists.
+
+### Acceptance gate
+
+You should be able to identify:
+
+```text
+edge
+Hermes VM
+Slurm controller
+Slurm logins
+Slurm compute
+API LB
+3 Kubernetes control planes
+3 Kubernetes workers
+```
+
+---
+
+# Part V — Rocky Linux bootstrap
+
+## 9. Why `rocky` exists
+
+The image/bootstrap account is deliberately distinct from the normal admin account.
 
 ```text
 rocky
-```
+  │
+  └── bootstrap / recovery
 
-Uses the OpenStack-injected bootstrap key.
-
-### Normal administration
-
-```text
 nyameko
+  │
+  └── normal administration
 ```
 
-Uses a separate administrative SSH key installed by Ansible.
+Ansible installs/configures the `nyameko` account and its authorized SSH key.
 
-The bootstrap identity should remain available until recovery has been tested.
-
-Normal private-node access is through `edge` with `ProxyJump`.
+> **DESIGN CHOICE:** The bootstrap account is not a sign that the system is unfinished. It is a deliberate recovery plane until recovery has been tested.
 
 ---
 
-## 9. Time
+## 10. Base bootstrap
 
-All hosts use:
+Run:
+
+```bash
+cd ../../ansible
+ansible-playbook \
+  -i inventories/private/hosts.yml \
+  playbooks/bootstrap.yml
+```
+
+Validate:
+
+```bash
+ansible all -i inventories/private/hosts.yml -m ping
+```
+
+Check hostname/time:
+
+```bash
+ansible all -i inventories/private/hosts.yml -m command \
+  -a 'hostnamectl --static'
+
+ansible all -i inventories/private/hosts.yml -m command \
+  -a 'timedatectl show -p Timezone --value'
+```
+
+The expected local timezone is:
 
 ```text
 Africa/Johannesburg
 ```
 
-The timezone controls local presentation; chrony synchronizes the actual system clock.
+### Timezone versus clock synchronization
 
-Verify:
+These are different concepts:
 
-```bash
-ansible all -m command   -a 'timedatectl show -p Timezone --value'
+```text
+timedatectl timezone
+      = presentation / local civil time
+
+chrony
+      = actual clock synchronization
 ```
 
-Verify synchronization:
+Check chrony:
 
 ```bash
-ansible all -m command   -a 'chronyc tracking'
+ansible all -i inventories/private/hosts.yml -b -m command \
+  -a 'chronyc tracking'
 ```
 
-A healthy node should report:
+Look for a healthy synchronization state such as:
 
 ```text
 Leap status : Normal
 ```
 
-Reference:
-
-- https://chrony-project.org/documentation.html
+> **WARNING:** Distributed systems do not tolerate casual time drift. Kubernetes certificates, TLS, logs, databases and authentication all become harder to reason about when clocks disagree.
 
 ---
 
-## 10. Edge
+# Part VI — Edge security and network access
+
+## 11. Edge responsibilities
 
 The edge node is:
 
@@ -274,475 +468,829 @@ The edge node is:
 10.50.0.10
 ```
 
-Responsibilities:
+It provides:
 
 ```text
-edge
-├── nftables
-├── WireGuard
-├── Pi-hole
-├── Wazuh manager
-└── Suricata IDS
-```
-
-It is the controlled entry point into the private infrastructure.
-
----
-
-## 11. nftables
-
-OpenStack security groups provide the cloud-level network boundary.
-
-nftables provides host-level filtering.
-
-The intended baseline is:
-
-```text
-input   -> drop
-forward -> drop
-output  -> accept
-```
-
-with explicit rules for required traffic.
-
-Stateful filtering uses conntrack:
-
-```nft
-ct state established,related accept
-```
-
-WireGuard client Internet access uses masquerading:
-
-```text
-10.60.0.0/24
-      |
-      v
-     wg0
-      |
-      v
-    edge
-      |
- masquerade
-      |
-      v
-external network
-```
-
-Validate before applying a new ruleset:
-
-```bash
-sudo nft -c -f /etc/nftables.conf
-```
-
-Reference:
-
-- https://wiki.nftables.org/
-
----
-
-## 12. WireGuard
-
-The server runs on edge:
-
-```text
-10.60.0.1/24
-```
-
-The server private key is generated on edge and does not need to leave the host.
-
-The public key is safe to distribute to clients.
-
-A client may use:
-
-```text
-10.60.0.2/32
-```
-
-The client private key remains on the client.
-
-Reference:
-
-- https://www.wireguard.com/
-
----
-
-## 13. Pi-hole
-
-Pi-hole runs on edge because DNS is infrastructure.
-
-```text
-VM / Pod
-   |
-   v
-CoreDNS
-   |
-   v
-10.50.0.10:53
-   |
-   v
+nftables
+WireGuard
 Pi-hole
-   |
-   v
-upstream DNS
-```
-
-It provides DNS resolution, filtering and internal infrastructure records.
-
-Initial persistent state is on edge. Later the storage can be moved to persistent Cinder-backed storage.
-
-Reference:
-
-- https://docs.pi-hole.net/
-
----
-
-## 14. Wazuh
-
-The initial design is:
-
-```text
-other hosts
-    |
-    v
-Wazuh agents
-    |
-    v
-edge / Wazuh manager
-```
-
-The indexer and dashboard are later deployed in Kubernetes:
-
-```text
-Wazuh manager
-      |
-      v
-Wazuh indexer
-      |
-      v
-Wazuh dashboard
-```
-
-The manager can collect and process agent events without the indexer/dashboard being immediately present.
-
-Reference:
-
-- https://documentation.wazuh.com/
-
----
-
-## 15. HAProxy
-
-The Kubernetes API endpoint is:
-
-```text
-10.51.0.100:6443
-```
-
-HAProxy forwards to:
-
-```text
-10.51.0.11:6443
-10.51.0.12:6443
-10.51.0.13:6443
-```
-
-```text
-             10.51.0.100:6443
-                    |
-                 HAProxy
-               /    |                  /     |                 CP1    CP2    CP3
-```
-
-The implementation is replaceable:
-
-```text
-api_lb_type = haproxy
-```
-
-can later become an Octavia implementation without changing the Kubernetes endpoint.
-
-Reference:
-
-- https://www.haproxy.org/
-
----
-
-## 16. Kubernetes prerequisites
-
-The Kubernetes nodes are:
-
-```text
-k8s-cp-01
-k8s-cp-02
-k8s-cp-03
-
-k8s-worker-01
-k8s-worker-02
-k8s-worker-03
-```
-
-Install:
-
-- containerd
-- kubelet
-- kubeadm
-- kubectl
-- required kernel modules
-- sysctl configuration
-
-containerd should use the systemd cgroup driver.
-
-Reference:
-
-- https://kubernetes.io/docs/setup/production-environment/container-runtimes/
-
----
-
-## 17. Kubernetes bootstrap
-
-The API endpoint remains:
-
-```text
-10.51.0.100:6443
-```
-
-Bootstrap:
-
-```text
-CP1
- |
- +-- kubeadm init
- |
- +--> CP2
- +--> CP3
- |
- +--> workers
+Suricata IDS
+Wazuh manager / edge security
+SSH bastion role
 ```
 
 Run:
 
 ```bash
-ansible-playbook   -i inventories/private/hosts.yml   playbooks/kubernetes.yml
+ansible-playbook \
+  -i inventories/private/hosts.yml \
+  playbooks/edge.yml
 ```
-
-Reference:
-
-- https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/
-
----
-
-## 18. Cilium
-
-Cilium provides:
-
-- pod networking
-- service networking
-- NetworkPolicy
-- network observability
 
 Validate:
 
 ```bash
-kubectl get nodes
+ansible edge_nodes -i inventories/private/hosts.yml -b -m shell -a \
+  'systemctl is-active nftables; systemctl is-active wg-quick@wg0; systemctl is-active pihole-FTL; systemctl is-active suricata'
+```
+
+---
+
+## 12. Defense in depth
+
+OpenStack security groups and host firewalls answer different questions.
+
+```text
+OpenStack SG
+  = what traffic may reach the VM?
+
+nftables
+  = what traffic may the operating system accept/forward?
+```
+
+The target nftables model is approximately:
+
+```text
+input   → drop
+forward → drop
+output  → accept
+```
+
+with explicit exceptions and established/related traffic handling.
+
+Validate a new ruleset before applying it:
+
+```bash
+sudo nft -c -f /etc/nftables.conf
+```
+
+Inspect the active policy:
+
+```bash
+sudo nft list ruleset
+```
+
+> **DANGER:** Firewall changes can lock you out. Always keep the recovery/console path available while changing host firewall policy.
+
+---
+
+## 13. WireGuard
+
+The server is on edge:
+
+```text
+edge / wg0
+10.60.0.1/24
+```
+
+A typical client is:
+
+```text
+10.60.0.2/32
+```
+
+The client split tunnel should permit the private infrastructure networks rather than forcing all traffic through the VPN:
+
+```text
+10.50.0.0/24
+10.51.0.0/24
+10.60.0.0/24
+```
+
+Validate on edge:
+
+```bash
+sudo wg show
+ip addr show wg0
+ip route
+```
+
+> **DANGER:** The WireGuard private key stays on the host/client where it was generated. Store or distribute only the public key where needed.
+
+---
+
+## 14. Pi-hole
+
+Pi-hole runs at the edge because DNS is foundational infrastructure.
+
+The conceptual path is:
+
+```text
+host / pod
+    │
+    ▼
+DNS request
+    │
+    ▼
+edge :53
+    │
+    ▼
+Pi-hole
+    │
+    ▼
+upstream DNS
+```
+
+Validate:
+
+```bash
+sudo ss -lunpt | grep ':53'
+```
+
+Where applicable, confirm the container/service is running and that the host can resolve names through it.
+
+> **NOTE:** A DNS service can be “running” while clients still fail because of firewall, listen-address, routing or upstream-resolution problems. Test from a client network, not just the service host.
+
+---
+
+# Part VII — Kubernetes API endpoint
+
+## 15. Why HAProxy comes before kubeadm
+
+The control-plane nodes need a stable endpoint from the moment the cluster is bootstrapped.
+
+The target is:
+
+```text
+10.51.0.100:6443
+```
+
+Run:
+
+```bash
+ansible-playbook \
+  -i inventories/private/hosts.yml \
+  playbooks/api_lb.yml
+```
+
+Validate configuration:
+
+```bash
+ssh api-lb-01
+sudo haproxy -c -f /etc/haproxy/haproxy.cfg
+sudo systemctl is-active haproxy
+sudo ss -lntp | grep 6443
+```
+
+### Why the HAProxy service can fail even when the config syntax is correct
+
+A previous deployment showed:
+
+```text
+cannot bind socket (Permission denied)
+```
+
+The configuration itself parsed successfully. The failure was caused by SELinux policy: HAProxy was not yet permitted to perform the required connection behavior.
+
+The fix was to enable the appropriate SELinux boolean through Ansible rather than weakening SELinux globally.
+
+This is an important lesson:
+
+```text
+Configuration valid ≠ service permitted to perform the action
+```
+
+Useful checks:
+
+```bash
+getenforce
+getsebool haproxy_connect_any
+sudo journalctl -u haproxy -b
+```
+
+> **DESIGN CHOICE:** Fix the specific SELinux control instead of disabling SELinux. Security policy should be adjusted narrowly to the required behavior.
+
+### Before Kubernetes exists
+
+HAProxy backends can legitimately be `DOWN` at this stage because the API servers do not exist yet.
+
+Do not “fix” that by inventing placeholder services.
+
+---
+
+# Part VIII — Kubernetes runtime prerequisites
+
+## 16. containerd
+
+Kubernetes needs a CRI-compatible container runtime.
+
+This project uses containerd.
+
+The Rocky packaging detail matters: the required package is provided as `containerd.io` from the configured Docker repository, not an arbitrary `containerd` package name from the base Rocky repositories.
+
+This distinction fixed a real deployment failure.
+
+Run:
+
+```bash
+ansible-playbook \
+  -i inventories/private/hosts.yml \
+  playbooks/kubernetes-prereqs.yml
+```
+
+Check:
+
+```bash
+ansible control_plane:workers \
+  -i inventories/private/hosts.yml -b -m shell -a \
+  'systemctl is-active containerd; systemctl is-active kubelet'
+```
+
+The runtime should use the systemd cgroup driver.
+
+> **WARNING:** Mismatched cgroup configuration between kubelet and containerd is a classic source of instability. Treat it as a prerequisite, not a cleanup task for later.
+
+---
+
+## 17. CRI validation — run it correctly
+
+The deployment includes `crictl` and `/etc/crictl.yaml` pointing to:
+
+```text
+unix:///run/containerd/containerd.sock
+```
+
+Validate:
+
+```bash
+ansible control_plane:workers \
+  -i inventories/private/hosts.yml -b -m shell -a \
+  'crictl info >/dev/null && echo CRI_OK'
+```
+
+Expected:
+
+```text
+CRI_OK
+```
+
+### A real failure mode: “permission denied”
+
+The CRI test initially produced a socket permission error.
+
+The important diagnosis was not “containerd is broken”. The command had been run as the unprivileged `nyameko` user without sufficient permission to inspect the containerd socket.
+
+This is why the acceptance test above explicitly uses Ansible become (`-b`).
+
+> **TEACHING NOTE:** Always classify an error by layer before changing infrastructure. A Unix socket permission error is different from an OpenStack security-group error, a service failure or a broken runtime.
+
+---
+
+# Part IX — kubeadm cluster
+
+## 18. Bootstrap model
+
+The cluster is formed as:
+
+```text
+                  CP1
+                   │
+             kubeadm init
+             /           \
+           CP2           CP3
+            │             │
+            └──────┬──────┘
+                   │
+             workers 1–3
+```
+
+Control-plane and worker join credentials are short-lived bootstrap material. They do not belong in Git.
+
+The cluster endpoint remains:
+
+```text
+10.51.0.100:6443
+```
+
+Run the complete playbook:
+
+```bash
+ansible-playbook \
+  -i inventories/private/hosts.yml \
+  playbooks/kubernetes.yml
+```
+
+The automation is intentionally idempotent in spirit: an already-initialized control plane should not be reinitialized, and already-joined nodes should not be joined again.
+
+---
+
+## 19. Why kubeadm is separate from Terraform and Ansible
+
+There are three different responsibilities:
+
+```text
+Terraform
+  → create machines
+
+Ansible
+  → prepare machines
+
+kubeadm
+  → form Kubernetes control plane / workers
+```
+
+Could Ansible execute every kubeadm command directly? Yes.
+
+Should Terraform do it? No.
+
+Terraform's reconciliation model is a poor fit for mutating distributed cluster bootstrap state. Kubernetes itself has already solved that problem with kubeadm/bootstrap tooling.
+
+### Bootstrap credentials
+
+The cluster requires:
+
+```text
+bootstrap token
+CA discovery hash
+control-plane certificate key
+```
+
+These should be generated/used during bootstrap, not copied into source control.
+
+---
+
+## 20. Validate the control plane
+
+Before Cilium, expect the cluster to be incomplete.
+
+Useful checks:
+
+```bash
+kubectl cluster-info
+kubectl get nodes -o wide
+kubectl get pods -A
+kubectl get --raw='/readyz?verbose'
+```
+
+You should see the control-plane components and etcd running.
+
+`CoreDNS` being pending before a CNI exists is not automatically a disaster.
+
+> **WARNING:** Do not interpret pre-CNI `NotReady` nodes as a generic kubeadm failure. First distinguish “cluster has no pod network yet” from “control-plane bootstrap failed”.
+
+---
+
+# Part X — Cilium
+
+## 21. Why Cilium is installed after kubeadm
+
+Cilium is the Kubernetes network layer. kubeadm establishes the cluster control plane first.
+
+The conceptual sequence is:
+
+```text
+kubeadm
+   │
+   ▼
+Kubernetes control plane exists
+   │
+   ▼
+Cilium installed
+   │
+   ▼
+Pod networking becomes functional
+   │
+   ▼
+Nodes become Ready
+```
+
+Install the Cilium version pinned for this environment:
+
+```bash
+cilium install <version>
+cilium status --wait
+```
+
+Then:
+
+```bash
+kubectl get nodes -o wide
 cilium status
 ```
 
-All six nodes should eventually report `Ready`.
+---
 
-Reference:
+## 22. Cilium baseline versus advanced features
 
-- https://docs.cilium.io/en/latest/installation/k8s-install-kubeadm/
+The initial deployment intentionally keeps advanced Cilium functionality out of the critical bootstrap path.
+
+Current baseline concepts include:
+
+```text
+CNI
+service networking
+NetworkPolicy foundation
+eBPF-based networking / observability capabilities
+```
+
+Deferred work can later include:
+
+```text
+Hubble / Relay
+kube-proxy replacement
+advanced load balancing
+ClusterMesh
+advanced policy
+```
+
+> **DESIGN CHOICE:** Do not turn on five interacting datapath features while you are still learning whether the basic network works. A known-good baseline is an engineering tool.
 
 ---
 
-## 19. OpenStack integration and storage
+## 23. OpenStack security groups and Cilium
 
-Add OpenStack integration after the cluster is healthy.
+This was one of the most instructive parts of the build.
 
-Important components include:
+A CNI can be completely healthy while the surrounding cloud firewall still prevents specific traffic classes.
+
+The relevant Kubernetes node traffic includes:
 
 ```text
-OpenStack Cloud Controller Manager
-Cinder CSI
+TCP 6443      Kubernetes API
+TCP 2379-2380 etcd
+TCP 10250     kubelet
+UDP 8472      VXLAN
+TCP 4240      Cilium node health
+ICMP          node reachability / health checks
+TCP 30000-32767 NodePort
+UDP 30000-32767 NodePort
 ```
 
-The persistent-storage model is:
+The exact allowed source should remain constrained to the Kubernetes node network where appropriate:
+
+```text
+source: 10.51.0.0/24
+```
+
+### Control plane rules
+
+```text
+22/tcp          ← management CIDR
+6443/tcp        ← k8s CIDR
+2379-2380/tcp   ← k8s CIDR
+10250/tcp       ← k8s CIDR
+8472/udp        ← k8s CIDR
+4240/tcp        ← k8s CIDR
+ICMP            ← k8s CIDR
+30000-32767/tcp ← k8s CIDR
+30000-32767/udp ← k8s CIDR
+```
+
+### Worker rules
+
+```text
+22/tcp          ← management CIDR
+10250/tcp       ← k8s CIDR
+8472/udp        ← k8s CIDR
+4240/tcp        ← k8s CIDR
+ICMP            ← k8s CIDR
+30000-32767/tcp ← k8s CIDR
+30000-32767/udp ← k8s CIDR
+```
+
+### Why VXLAN working does not prove NodePort works
+
+This is a particularly important diagnostic lesson.
+
+The Cilium default tunnel path uses VXLAN traffic such as UDP `8472`.
+
+NodePort traffic uses the Kubernetes NodePort range, by default:
+
+```text
+30000-32767
+```
+
+Therefore:
+
+```text
+UDP 8472 works
+        ≠
+NodePort works
+```
+
+A cluster can have perfectly healthy overlay networking and still fail a NodePort test because the cloud security group blocks the NodePort range.
+
+---
+
+## 24. Cilium health versus NodePort
+
+During troubleshooting, Cilium showed that some health-path traffic was not reaching the expected nodes even though HTTP agent checks worked.
+
+This is exactly why the following should be tested separately:
+
+```text
+control-plane API reachability
+containerd/CRI
+VXLAN
+Cilium health
+NodePort
+ICMP
+pod-to-pod
+service-to-pod
+```
+
+Do not call all of these “networking”. They are different paths.
+
+---
+
+## 25. Run the connectivity test
+
+```bash
+cilium connectivity test --debug
+```
+
+A successful run in the current environment reached:
+
+```text
+82 tests
+780 actions
+all successful
+55 tests skipped
+1 scenario skipped
+```
+
+This is a major milestone: the cloud firewall, node routing and Cilium datapath are now cooperating sufficiently for the full test suite to pass.
+
+> **NOTE:** Skipped tests are not automatically failures. Read the test output and understand which optional scenarios were intentionally unavailable in the baseline configuration.
+
+---
+
+# Part XI — OpenStack cloud integration and storage
+
+## 26. Why cloud integration comes after a healthy cluster
+
+OpenStack CCM and Cinder CSI add additional moving parts:
+
+```text
+Kubernetes API
++ cloud credentials
++ controller integration
++ storage control plane
+```
+
+Do not debug all of these simultaneously with kubeadm and CNI.
+
+Install CCM and Cinder CSI after:
+
+```text
+6 nodes Ready
+Cilium healthy
+connectivity test healthy
+```
+
+---
+
+## 27. Cinder CSI model
+
+Persistent storage follows:
 
 ```text
 Application
-    |
-    v
+   │
+   ▼
 PVC
-    |
-    v
-CSI
-    |
-    v
-Cinder
+   │
+   ▼
+PersistentVolume
+   │
+   ▼
+Cinder CSI
+   │
+   ▼
+OpenStack Cinder
 ```
 
-Persistent storage is planned for:
+Likely consumers include:
 
-- Wazuh indexer
-- Grafana
-- PostgreSQL
-- Jupyter data
-- user data
-- application state
+```text
+Wazuh indexer
+Grafana
+PostgreSQL
+JupyterHub
+user data
+application state
+```
 
-References:
+Validate:
 
-- https://docs.openstack.org/cinder/latest/
-- https://kubernetes.io/docs/concepts/storage/
+```bash
+kubectl get storageclass
+kubectl get csidrivers
+kubectl get pods -A
+```
 
 ---
 
-## 20. Argo CD
+# Part XII — Argo CD and GitOps
 
-Argo CD becomes the Kubernetes application deployment layer:
+## 28. Why Argo CD is a separate layer
+
+Ansible is excellent for operating-system and infrastructure configuration.
+
+Kubernetes-native application reconciliation is a different problem.
+
+```text
+Ansible
+  → host / infrastructure lifecycle
+
+Argo CD
+  → Kubernetes application lifecycle
+```
+
+Use Argo CD as the normal path for application deployment rather than turning Ansible into a giant application installer.
+
+The target model is:
 
 ```text
 Git
- |
- v
+ │
+ ▼
 Argo CD
- |
- v
+ │
+ ▼
 Kubernetes
 ```
 
-Applications include:
+---
 
-- Wazuh indexer
-- Wazuh dashboard
-- Prometheus
-- Grafana
-- ingress
-- cert-manager
-- JupyterHub
-- Astro
-- research services
+## 29. Application dependency order
 
-Reference:
+The platform should grow in roughly this order:
 
-- https://argo-cd.readthedocs.io/
+```text
+Ingress
+    ↓
+cert-manager
+    ↓
+Prometheus / Grafana / Loki
+    ↓
+Wazuh indexer / dashboard
+    ↓
+PostgreSQL
+    ↓
+JupyterHub
+    ↓
+Astro
+    ↓
+Research Hermes
+```
+
+The exact deployment mechanism can evolve; the dependency model should remain understandable.
 
 ---
 
-## 21. Slurm
+# Part XIII — Slurm
 
-Slurm remains the HPC scheduler.
+## 30. Why Slurm remains separate
 
-```text
-slurm-controller
-     |
-     +-- login1
-     +-- login2
-     |
-     +-- slurm-cpu-01
-     +-- slurm-cpu-02
-```
-
-Kubernetes and Slurm are complementary:
+The initial Slurm topology is:
 
 ```text
-Kubernetes
-  -> services, notebooks, APIs, long-running workloads
-
-Slurm
-  -> HPC batch jobs, MPI and scientific workloads
+slurm-controller-01
+        │
+  ┌─────┴─────┐
+  ▼           ▼
+login1      login2
+  │           │
+  └─────┬─────┘
+        ▼
+slurm-cpu-01 / 02
 ```
 
-Reference:
+Slurm is authoritative for HPC scheduling.
 
-- https://slurm.schedmd.com/
+Kubernetes is authoritative for services, long-running platform components and notebook/application orchestration.
+
+Do not force HPC batch scheduling into Kubernetes merely because the Kubernetes cluster exists.
 
 ---
 
-## 22. Wazuh indexer and dashboard in Kubernetes
+## 31. Configure Slurm
 
-The intended architecture is:
+```bash
+ansible-playbook \
+  -i inventories/private/hosts.yml \
+  playbooks/slurm.yml
+```
+
+Validate:
+
+```bash
+sinfo
+squeue
+scontrol show nodes
+```
+
+Then submit a small test job before attempting realistic workloads.
+
+---
+
+# Part XIV — Security services
+
+## 32. Wazuh
+
+The initial arrangement is:
 
 ```text
-Agents
-   |
-   v
+Linux hosts
+    │
+    ▼
+Wazuh agents
+    │
+    ▼
+edge / Wazuh manager
+```
+
+Later:
+
+```text
 Wazuh manager
-   |
-   v
+     │
+     ▼
 Wazuh indexer
-   |
-   v
+     │
+     ▼
 Wazuh dashboard
 ```
 
-The indexer requires persistent storage.
-
-The dashboard provides the web interface.
-
-Wazuh documents the server, indexer and dashboard as separate components.
-
-Reference:
-
-- https://documentation.wazuh.com/current/getting-started/architecture.html
+The indexer requires persistent storage, which is why this component belongs after Cinder CSI is available.
 
 ---
 
-## 23. Observability
+## 33. Suricata
 
-The platform will provide:
+The initial role is IDS rather than an inline IPS dataplane.
+
+That is deliberate.
+
+A monitoring sensor can be introduced without putting the entire network behind a new packet-forwarding control point on day one.
+
+> **DESIGN CHOICE:** Establish visibility first; add inline enforcement only when the traffic architecture and failure/recovery procedure are understood.
+
+---
+
+# Part XV — Observability
+
+## 34. Prometheus and Grafana
+
+The intended observability stack is:
 
 ```text
-Prometheus
-Grafana
-Loki
+Prometheus → metrics
+Grafana    → dashboards
+Loki       → logs
 ```
 
-for:
+Targets include:
 
-- node metrics
-- Kubernetes metrics
-- Slurm metrics
-- application metrics
-- workload telemetry
-- Hermes telemetry
+```text
+Linux nodes
+Kubernetes
+Cilium
+Slurm
+applications
+Hermes
+workloads
+```
 
-Reference:
+### Important learning exercise
 
-- https://prometheus.io/docs/
-- https://grafana.com/docs/
+After Prometheus and Grafana are operational:
+
+```text
+rerun Cilium connectivity tests
+             │
+             ▼
+watch the dashboards
+             │
+             ▼
+correlate network events with metrics
+```
+
+This turns the connectivity test from a pass/fail command into an observability exercise.
 
 ---
 
-## 24. JupyterHub
+# Part XVI — JupyterHub, Astro and research services
 
-The user-facing research interface is:
+## 35. JupyterHub
+
+The target user path is:
 
 ```text
 Browser
-   |
-   v
+   │
+   ▼
 Ingress
-   |
-   v
+   │
+   ▼
 JupyterHub
-   |
-   v
+   │
+   ▼
 JupyterLab
 ```
 
-Research environments can later include:
-
-```text
-PennyLane
-Qiskit
-Qiskit Aer
-CUDA Quantum
-PyTorch
-custom images
-```
-
-Resource selection can eventually include:
+Research environments may expose:
 
 ```text
 CPU
@@ -751,200 +1299,396 @@ GPU
 persistent storage
 ```
 
-Reference:
+and libraries such as:
 
-- https://jupyterhub.readthedocs.io/
+```text
+PyTorch
+PennyLane
+Qiskit
+Qiskit Aer
+CUDA Quantum
+custom research images
+```
 
 ---
 
-## 25. Astro
+## 36. Astro end-to-end milestone
 
-Initial public application:
+The first public application should be intentionally simple.
 
-```text
-quantum.nyameko.com
-```
-
-Architecture:
+The target path is:
 
 ```text
 Cloudflare
-    |
-    v
+    │
+    ▼
+DNS
+    │
+    ▼
 Ingress
-    |
-    v
-Astro service
-    |
-    v
+    │
+    ▼
+Astro Service
+    │
+    ▼
 Astro container
 ```
 
-The first goal is a simple hello page to verify DNS, ingress and application deployment end-to-end.
-
-Reference:
-
-- https://docs.astro.build/
-
----
-
-## 26. PostgreSQL
-
-PostgreSQL is a later persistent application service.
-
-Planned uses include:
-
-- user information
-- research portal data
-- JupyterHub state
-- application metadata
-
-Storage:
+A simple public “hello” page is valuable because it proves all of the following at once:
 
 ```text
-PostgreSQL
-    |
-    v
-PVC
-    |
-    v
-Cinder
+DNS
+TLS / ingress
+Kubernetes service
+container scheduling
+container networking
+public routing
+GitOps
 ```
 
-Reference:
-
-- https://www.postgresql.org/docs/
+Do this before adding sophisticated application behavior.
 
 ---
 
-## 27. Hermes
+# Part XVII — Hermes
 
-The initial infrastructure Hermes agent runs outside Kubernetes:
+## 37. Hermes federation
+
+The personal/federation Hermes stays outside Kubernetes:
 
 ```text
+personal Hermes
+      │
+      ▼
 hermes-orchestrator-01
+      │
+      ├── read/report infrastructure state
+      └── coordinate future agents
 ```
 
-A research Hermes agent later runs inside Kubernetes.
-
-Long-term:
+The future research Hermes runs inside Kubernetes.
 
 ```text
 Personal Hermes
-      |
-      +-- Infrastructure Hermes
-      +-- Research Hermes
-      +-- future environment agents
+      │
+      ├── Infrastructure Hermes
+      └── Research Hermes
 ```
 
-Hermes should operate with explicit capabilities and least privilege.
+> **SECURITY NOTE:** Do not give an orchestration agent unrestricted cluster-admin, root, Git-push and cloud credentials simultaneously. Build explicit capabilities with small, auditable permissions.
 
 ---
 
-## 28. Cloudflare
+# Part XVIII — Final acceptance tests
 
-The initial public hostname is:
-
-```text
-quantum.nyameko.com
-```
-
-Future hostnames may include:
-
-```text
-research.nyameko.com
-blog.nyameko.com
-shop.nyameko.com
-```
-
-The public domain remains:
-
-```text
-nyameko.com
-```
-
-Reference:
-
-- https://developers.cloudflare.com/
-
----
-
-## 29. Complete deployment order
-
-```text
-OpenStack authentication
-        |
-        v
-Terraform
-        |
-        v
-OpenStack infrastructure
-        |
-        v
-Ansible bootstrap
-        |
-        +-- time
-        +-- SSH
-        +-- nyameko
-        +-- Wazuh agents
-        |
-        v
-Edge
-        |
-        +-- nftables
-        +-- WireGuard
-        +-- Pi-hole
-        +-- Wazuh manager
-        +-- Suricata
-        |
-        v
-HAProxy
-        |
-        v
-Kubernetes
-        |
-        +-- kubeadm
-        +-- Cilium
-        +-- OpenStack CCM
-        +-- Cinder CSI
-        |
-        v
-Argo CD
-        |
-        +-- Wazuh indexer/dashboard
-        +-- Prometheus/Grafana
-        +-- ingress
-        +-- JupyterHub
-        +-- Astro
-        |
-        v
-Hermes research services
-```
-
-Slurm can be configured independently after the base operating-system layer.
-
----
-
-## 30. Validation philosophy
-
-Every phase has a verification step.
-
-Examples:
+## 38. Infrastructure
 
 ```bash
-terraform validate
-terraform plan
-ansible all -m ping
-chronyc tracking
-timedatectl
-wg show
-nft list ruleset
-systemctl status haproxy
-kubectl get nodes
-cilium status
-kubectl get storageclass
+openstack server list
+openstack network list
+openstack port list
+openstack security group list
 ```
 
-A successful provisioning command is not itself proof that the service works.
+## 39. Ansible
 
-The goal is a reproducible platform in which every layer has a clear owner, purpose and acceptance test.
+```bash
+ansible-inventory -i inventories/private/hosts.yml --graph
+ansible all -i inventories/private/hosts.yml -m ping
+```
+
+## 40. Edge
+
+```bash
+sudo nft list ruleset
+sudo wg show
+systemctl is-active haproxy
+```
+
+## 41. Runtime
+
+```bash
+ansible control_plane:workers \
+  -i inventories/private/hosts.yml -b -m shell -a \
+  'systemctl is-active containerd; systemctl is-active kubelet; crictl info >/dev/null && echo CRI_OK'
+```
+
+## 42. Kubernetes
+
+```bash
+kubectl cluster-info
+kubectl get nodes -o wide
+kubectl get pods -A
+kubectl get --raw='/readyz?verbose'
+```
+
+## 43. Cilium
+
+```bash
+cilium status --wait
+cilium connectivity test --debug
+```
+
+The current environment's acceptance milestone is:
+
+```text
+82 tests
+780 actions
+all successful
+55 tests skipped
+1 scenario skipped
+```
+
+## 44. Storage
+
+```bash
+kubectl get storageclass
+kubectl get csidrivers
+```
+
+## 45. Slurm
+
+```bash
+sinfo
+squeue
+scontrol show nodes
+```
+
+---
+
+# Part XIX — Troubleshooting method
+
+## 46. Diagnose by layer
+
+When something fails, classify it before changing anything.
+
+```text
+Cloud
+  ↓
+OpenStack networking / SG / port / route
+  ↓
+VM / OS
+  ↓
+service / systemd / SELinux
+  ↓
+TCP / UDP / Unix socket
+  ↓
+container runtime / CRI
+  ↓
+Kubernetes control plane
+  ↓
+CNI / datapath
+  ↓
+Service / application
+```
+
+### Useful first commands
+
+```bash
+# OpenStack
+openstack server show <server>
+openstack port show <port>
+openstack security group rule list <group>
+
+# Linux
+systemctl --failed
+journalctl -u <service> -b
+getenforce
+
+# Network
+ip addr
+ip route
+ss -lntup
+sudo nft list ruleset
+sudo wg show
+
+# Kubernetes
+kubectl get nodes -o wide
+kubectl get pods -A
+kubectl get events -A --sort-by=.lastTimestamp
+
+# Runtime
+sudo systemctl status containerd kubelet
+sudo crictl info
+
+# Cilium
+cilium status
+cilium-dbg status --verbose
+cilium connectivity test --debug
+```
+
+---
+
+# Part XX — Known lessons from the build
+
+## 47. Failures that became teaching material
+
+### OpenStack flavor mismatch
+
+A flavor name was supplied where a resource expected an ID.
+
+**Lesson:** provider schemas matter more than intuition.
+
+### Broken/stale Wazuh repository
+
+An unrelated DNF failure was initially observed during system setup.
+
+**Lesson:** repository configuration can poison unrelated package operations. Check enabled repositories before diagnosing a package as inherently broken.
+
+### Suricata package availability
+
+Suricata was not available in the desired form from the default repositories.
+
+**Lesson:** understand repository provenance and dependency scope; add the minimum required repository sources rather than copying random package commands from the Internet.
+
+### HAProxy SELinux denial
+
+The HAProxy syntax was valid but the process was denied the required network operation.
+
+**Lesson:** syntax validation and policy authorization are separate tests.
+
+### `containerd` package naming
+
+The expected runtime package was not available under the guessed name in the base Rocky repositories.
+
+**Lesson:** the OS package ecosystem and upstream project naming are not always identical.
+
+### CRI socket permission
+
+`crictl` failed when run without sufficient privileges.
+
+**Lesson:** a Unix socket permission error is not automatically a network error.
+
+### Kubernetes API access
+
+The API server was healthy directly, but access through the VIP initially failed because the load-balancer security group source scope was wrong.
+
+**Lesson:** test each hop of the path:
+
+```text
+client
+ → VIP
+ → HAProxy
+ → backend
+ → kube-apiserver
+```
+
+### Cilium connectivity / NodePort
+
+VXLAN health did not imply NodePort health.
+
+**Lesson:** different protocols and ports represent different datapaths. Check the exact traffic the failing test requires.
+
+---
+
+# Part XXI — Production hardening still to do
+
+This environment is an infrastructure lab and a controlled first platform. Before treating it as a production multi-user research service, review at least:
+
+- HA for currently single-instance services
+- backup and restore procedures
+- OpenStack credential rotation
+- stronger secret management
+- Kubernetes certificate/key rotation policy
+- network-policy defaults
+- ingress/TLS hardening
+- database HA and backups
+- Cinder backup strategy
+- Wazuh architecture sizing
+- Prometheus/Grafana persistence and retention
+- Slurm controller/database HA
+- centralized logging retention
+- public DNS and Cloudflare policy
+- disaster-recovery tests
+- account lifecycle and RBAC
+- least-privilege Hermes capabilities
+
+> **WARNING:** “The cluster is healthy” and “the platform is production-ready” are not the same statement.
+
+---
+
+# Part XXII — Final security gate
+
+The project intentionally does **not** remove public SSH access immediately after the VPN works.
+
+Do not remove the public TCP/22 path until all of these are true:
+
+```text
+WireGuard access works
+        │
+        ▼
+private nodes reachable
+        │
+        ▼
+nyameko admin SSH works
+        │
+        ▼
+rocky recovery path tested
+        │
+        ▼
+final Astro/public application milestone complete
+        │
+        ▼
+public TCP/22 can be removed safely
+```
+
+This is a real operational dependency, not merely a documentation preference.
+
+---
+
+# References
+
+## Core infrastructure
+
+- [OpenStack Documentation](https://docs.openstack.org/)
+- [Terraform Documentation](https://developer.hashicorp.com/terraform/docs)
+- [Ansible Documentation](https://docs.ansible.com/)
+- [Rocky Linux](https://docs.rockylinux.org/)
+
+## Kubernetes
+
+- [Kubernetes Documentation](https://kubernetes.io/docs/)
+- [kubeadm](https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/)
+- [Container runtimes](https://kubernetes.io/docs/setup/production-environment/container-runtimes/)
+- [CRI](https://kubernetes.io/docs/concepts/architecture/cri/)
+
+## Networking and security
+
+- [Cilium](https://docs.cilium.io/)
+- [Cilium kubeadm installation](https://docs.cilium.io/en/latest/installation/k8s-install-kubeadm/)
+- [Cilium network policy](https://docs.cilium.io/en/stable/security/policy/)
+- [Hubble](https://docs.cilium.io/en/stable/observability/hubble/intro/)
+- [WireGuard](https://www.wireguard.com/)
+- [nftables Wiki](https://wiki.nftables.org/)
+- [Suricata](https://suricata.io/documentation/)
+- [Wazuh](https://documentation.wazuh.com/)
+- [Pi-hole](https://docs.pi-hole.net/)
+
+## Platform services
+
+- [Cinder](https://docs.openstack.org/cinder/latest/)
+- [Argo CD](https://argo-cd.readthedocs.io/)
+- [Prometheus](https://prometheus.io/docs/)
+- [Grafana](https://grafana.com/docs/)
+- [JupyterHub](https://jupyterhub.readthedocs.io/)
+- [Slurm](https://slurm.schedmd.com/)
+- [Astro](https://docs.astro.build/)
+
+---
+
+# Documentation maintenance rule
+
+The documentation should follow the code, not the other way around.
+
+When infrastructure changes:
+
+```text
+1. change code
+2. validate deployment
+3. update installation procedure
+4. update quick guide if commands changed
+5. update README if architecture changed
+6. add/extend a tutorial when there is a useful teaching lesson
+```
+
+Do not preserve obsolete architecture in documentation merely because an earlier design looked cleaner.
