@@ -10,7 +10,8 @@
   become: true
   serial: 1
   vars:
-    kubeadm_control_plane_join_command: "{{ hostvars['k8s-cp-01']['kubeadm_control_plane_join_command'] }}"
+    kubeadm_control_plane_join_command: >-
+      {{ hostvars[kube_bootstrap_cp].kubeadm_control_plane_join_command }}
   roles:
     - kube_control_plane_join
 
@@ -19,6 +20,7 @@
   become: true
   serial: 1
   vars:
-    kubeadm_worker_join_command: "{{ hostvars['k8s-cp-01']['kubeadm_worker_join_command'] }}"
+    kubeadm_worker_join_command: >-
+      {{ hostvars[kube_bootstrap_cp].kubeadm_worker_join_command'] }}
   roles:
     - kube_worker_join
