@@ -5,24 +5,24 @@ Infrastructure-as-code for the National Integrated Cyber Infrastructure Systems 
 ## Current Deployment Status
 
 Infrastructure
-  ✓ OpenStack network and VMs
-  ✓ Rocky Linux base configuration
-  ✓ Edge / WireGuard / Pi-hole
-  ✓ Wazuh manager
-  ✓ Suricata IDS
-  ✓ Kubernetes API load balancer
-  ✓ containerd
-  ✓ Kubernetes 1.36.4 prerequisites
-  → kubeadm cluster initialization
-  → Cilium
-  → Cinder CSI
-  → Argo CD
-  → Slurm
-  → Prometheus / Grafana
-  → Hermes Orchestrator
-  → Hermes Researcher
-  → JupyterHub
-  → Astro
+-  ✓ OpenStack network and VMs
+-  ✓ Rocky Linux base configuration
+-  ✓ Edge / WireGuard / Pi-hole
+-  ✓ Wazuh manager
+-  ✓ Suricata IDS
+-  ✓ Kubernetes API load balancer
+-  ✓ containerd
+-  ✓ Kubernetes 1.36.4 prerequisites
+-  ✓ kubeadm cluster initialization
+-  → Cilium
+-  → Cinder CSI
+-  → Argo CD
+-  → Slurm
+-  → Prometheus / Grafana
+-  → Hermes Orchestrator
+-  → Hermes Researcher
+-  → JupyterHub
+-  → Astro
 
 ## Initial environment
 

@@ -120,6 +120,46 @@ resource "openstack_networking_secgroup_rule_v2" "k8s_kubelet_worker" {
   security_group_id = openstack_networking_secgroup_v2.this["k8s-worker"].id
 }
 
+resource "openstack_networking_secgroup_rule_v2" "k8s_cilium_vxlan_control_plane" {
+  direction         = "ingress"
+  ethertype         = "IPv4"
+  protocol          = "udp"
+  port_range_min    = 8472
+  port_range_max    = 8472
+  remote_ip_prefix  = var.k8s_cidr
+  security_group_id = openstack_networking_secgroup_v2.this["k8s-control-plane"].id
+}
+
+resource "openstack_networking_secgroup_rule_v2" "k8s_cilium_vxlan_worker" {
+  direction         = "ingress"
+  ethertype         = "IPv4"
+  protocol          = "udp"
+  port_range_min    = 8472
+  port_range_max    = 8472
+  remote_ip_prefix  = var.k8s_cidr
+  security_group_id = openstack_networking_secgroup_v2.this["k8s-worker"].id
+}
+
+resource "openstack_networking_secgroup_rule_v2" "k8s_cilium_health_control_plane" {
+  direction         = "ingress"
+  ethertype         = "IPv4"
+  protocol          = "tcp"
+  port_range_min    = 4240
+  port_range_max    = 4240
+  remote_ip_prefix  = var.k8s_cidr
+  security_group_id = openstack_networking_secgroup_v2.this["k8s-control-plane"].id
+}
+
+resource "openstack_networking_secgroup_rule_v2" "k8s_cilium_health_worker" {
+  direction         = "ingress"
+  ethertype         = "IPv4"
+  protocol          = "tcp"
+  port_range_min    = 4240
+  port_range_max    = 4240
+  remote_ip_prefix  = var.k8s_cidr
+  security_group_id = openstack_networking_secgroup_v2.this["k8s-worker"].id
+}
+
 resource "openstack_networking_secgroup_rule_v2" "slurm_controller" {
   direction         = "ingress"
   ethertype         = "IPv4"
