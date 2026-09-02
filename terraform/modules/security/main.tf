@@ -160,6 +160,62 @@ resource "openstack_networking_secgroup_rule_v2" "k8s_cilium_health_worker" {
   security_group_id = openstack_networking_secgroup_v2.this["k8s-worker"].id
 }
 
+resource "openstack_networking_secgroup_rule_v2" "k8s_nodeport_tcp_control_plane" {
+  direction         = "ingress"
+  ethertype         = "IPv4"
+  protocol          = "tcp"
+  port_range_min    = 30000
+  port_range_max    = 32767
+  remote_ip_prefix  = var.k8s_cidr
+  security_group_id = openstack_networking_secgroup_v2.this["k8s-control-plane"].id
+}
+
+resource "openstack_networking_secgroup_rule_v2" "k8s_nodeport_tcp_worker" {
+  direction         = "ingress"
+  ethertype         = "IPv4"
+  protocol          = "tcp"
+  port_range_min    = 30000
+  port_range_max    = 32767
+  remote_ip_prefix  = var.k8s_cidr
+  security_group_id = openstack_networking_secgroup_v2.this["k8s-worker"].id
+}
+
+resource "openstack_networking_secgroup_rule_v2" "k8s_nodeport_udp_control_plane" {
+  direction         = "ingress"
+  ethertype         = "IPv4"
+  protocol          = "udp"
+  port_range_min    = 30000
+  port_range_max    = 32767
+  remote_ip_prefix  = var.k8s_cidr
+  security_group_id = openstack_networking_secgroup_v2.this["k8s-control-plane"].id
+}
+
+resource "openstack_networking_secgroup_rule_v2" "k8s_nodeport_udp_worker" {
+  direction         = "ingress"
+  ethertype         = "IPv4"
+  protocol          = "udp"
+  port_range_min    = 30000
+  port_range_max    = 32767
+  remote_ip_prefix  = var.k8s_cidr
+  security_group_id = openstack_networking_secgroup_v2.this["k8s-worker"].id
+}
+
+resource "openstack_networking_secgroup_rule_v2" "k8s_icmp_control_plane" {
+  direction         = "ingress"
+  ethertype         = "IPv4"
+  protocol          = "icmp"
+  remote_ip_prefix  = var.k8s_cidr
+  security_group_id = openstack_networking_secgroup_v2.this["k8s-control-plane"].id
+}
+
+resource "openstack_networking_secgroup_rule_v2" "k8s_icmp_worker" {
+  direction         = "ingress"
+  ethertype         = "IPv4"
+  protocol          = "icmp"
+  remote_ip_prefix  = var.k8s_cidr
+  security_group_id = openstack_networking_secgroup_v2.this["k8s-worker"].id
+}
+
 resource "openstack_networking_secgroup_rule_v2" "slurm_controller" {
   direction         = "ingress"
   ethertype         = "IPv4"
