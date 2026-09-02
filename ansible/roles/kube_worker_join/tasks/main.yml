@@ -1,6 +1,6 @@
 ---
 - name: Join worker
-  ansible.builtin.command: "{{ kube_join_command }}"
+  ansible.builtin.command: "{{ kubeadm_worker_join_command }}"
   args:
     creates: /etc/kubernetes/kubelet.conf
   no_log: true

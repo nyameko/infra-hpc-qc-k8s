@@ -1,22 +1,24 @@
 ---
-- name: Initialize first control plane
-  hosts: control_plane[0]
+- name: Initialize Kubernetes control plane
+  hosts: k8s-cp-01
   become: true
   roles:
     - kube_control_plane
 
-- name: Join remaining control planes
-  hosts: control_plane[1:]
+- name: Join additional control planes
+  hosts: k8s-cp-02:k8s-cp-03
   become: true
+  serial: 1
   vars:
-    kube_control_plane_join_command: "{{ hostvars[groups['control_plane'][0]].kube_cp_join_command }}"
+    kubeadm_control_plane_join_command: "{{ hostvars['k8s-cp-01']['kubeadm_control_plane_join_command'] }}"
   roles:
     - kube_control_plane_join
 
-- name: Join worker nodes
+- name: Join Kubernetes workers
   hosts: workers
   become: true
+  serial: 1
   vars:
-    kube_join_command: "{{ hostvars[groups['control_plane'][0]].kube_worker_join_command }}"
+    kubeadm_worker_join_command: "{{ hostvars['k8s-cp-01']['kubeadm_worker_join_command'] }}"
   roles:
     - kube_worker_join
