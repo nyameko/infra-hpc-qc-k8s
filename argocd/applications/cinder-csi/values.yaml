@@ -1,0 +1,22 @@
+clusterID: kubernetes
+
+secret:
+  enabled: true
+  create: false
+  name: cinder-csi-cloud-config
+  filename: cloud.conf
+
+storageClass:
+  enabled: false
+
+csi:
+  provisioner:
+    topology: true
+  snapshotter:
+    enabled: true
+
+plugin:
+  httpEndpoint:
+    enabled: false
+  controllerPlugin:
+    replicas: 3

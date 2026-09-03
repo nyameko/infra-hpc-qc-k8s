@@ -1,6 +1,0 @@
----
-- name: Deploy and validate Cinder CSI
-  hosts: control_plane[0]
-  gather_facts: false
-  roles:
-    - cinder_csi

@@ -1,0 +1,15 @@
+---
+# Argo CD bootstrap defaults.
+# This role is deliberately small: it bootstraps Argo CD only.
+# Thereafter, Kubernetes applications are managed by Argo CD.
+
+argocd_namespace: argocd
+argocd_version: v3.5.0
+argocd_install_variant: install.yaml
+argocd_manifest_url: >-
+  https://raw.githubusercontent.com/argoproj/argo-cd/{{ argocd_version }}/manifests/{{ argocd_install_variant }}
+
+# kube_control_plane creates this administrator kubeconfig for admin_user_name.
+# The role runs as the normal administrator user, not as root.
+argocd_kubeconfig: "/home/{{ admin_user_name }}/.kube/config"
+argocd_kubectl_binary: kubectl

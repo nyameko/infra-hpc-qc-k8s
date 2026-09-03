@@ -1,0 +1,91 @@
+---
+- name: Validate Argo CD bootstrap prerequisites
+  ansible.builtin.assert:
+    that:
+      - argocd_kubeconfig | length > 0
+      - argocd_version | length > 0
+      - argocd_manifest_url | length > 0
+    fail_msg: >-
+      Argo CD bootstrap variables are incomplete.
+
+- name: Verify administrator kubeconfig exists
+  ansible.builtin.stat:
+    path: "{{ argocd_kubeconfig }}"
+  register: argocd_kubeconfig_stat
+
+- name: Assert administrator kubeconfig is available
+  ansible.builtin.assert:
+    that:
+      - argocd_kubeconfig_stat.stat.exists
+      - argocd_kubeconfig_stat.stat.isreg
+      - argocd_kubeconfig_stat.stat.readable
+    fail_msg: >-
+      {{ argocd_kubeconfig }} is not available to the Ansible execution user.
+      The kube_control_plane role should create the administrator kubeconfig first.
+
+- name: Verify kubectl is available
+  ansible.builtin.command:
+    cmd: "{{ argocd_kubectl_binary }} version --client=true --output=yaml"
+  changed_when: false
+  environment:
+    KUBECONFIG: "{{ argocd_kubeconfig }}"
+
+- name: Verify Kubernetes API access
+  ansible.builtin.command:
+    cmd: >-
+      {{ argocd_kubectl_binary }}
+      --kubeconfig {{ argocd_kubeconfig | quote }}
+      get --raw=/readyz
+  changed_when: false
+
+- name: Create Argo CD namespace
+  ansible.builtin.shell:
+    cmd: >-
+      set -o pipefail &&
+      {{ argocd_kubectl_binary }}
+      --kubeconfig {{ argocd_kubeconfig | quote }}
+      create namespace {{ argocd_namespace }}
+      --dry-run=client -o yaml |
+      {{ argocd_kubectl_binary }}
+      --kubeconfig {{ argocd_kubeconfig | quote }}
+      apply -f -
+  args:
+    executable: /bin/bash
+  register: argocd_namespace_apply
+  changed_when: >-
+    'created' in argocd_namespace_apply.stdout or
+    'configured' in argocd_namespace_apply.stdout
+
+- name: Install Argo CD
+  ansible.builtin.command:
+    cmd: >-
+      {{ argocd_kubectl_binary }}
+      --kubeconfig {{ argocd_kubeconfig | quote }}
+      apply
+      --namespace {{ argocd_namespace }}
+      --server-side
+      --force-conflicts
+      -f {{ argocd_manifest_url | quote }}
+  register: argocd_install
+  changed_when: >-
+    ('created' in argocd_install.stdout) or
+    ('configured' in argocd_install.stdout) or
+    ('serverside-applied' in argocd_install.stdout)
+
+- name: Wait for Argo CD server deployment
+  ansible.builtin.command:
+    cmd: >-
+      {{ argocd_kubectl_binary }}
+      --kubeconfig {{ argocd_kubeconfig | quote }}
+      --namespace {{ argocd_namespace }}
+      rollout status deployment/argocd-server --timeout=10m
+  changed_when: false
+
+- name: Wait for Argo CD application controller deployment
+  ansible.builtin.command:
+    cmd: >-
+      {{ argocd_kubectl_binary }}
+      --kubeconfig {{ argocd_kubeconfig | quote }}
+      --namespace {{ argocd_namespace }}
+      rollout status deployment/argocd-application-controller --timeout=10m
+  changed_when: false

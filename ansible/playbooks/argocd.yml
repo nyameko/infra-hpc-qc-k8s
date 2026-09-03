@@ -1,6 +1,6 @@
 ---
-- name: Verify Cinder CSI deployment
+- name: Bootstrap Argo CD
   hosts: control_plane[0]
   gather_facts: false
   roles:
-    - cinder_csi_verify
+    - argo_cd
