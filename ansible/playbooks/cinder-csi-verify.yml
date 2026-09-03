@@ -1,0 +1,6 @@
+---
+- name: Verify Cinder CSI deployment
+  hosts: control_plane[0]
+  gather_facts: false
+  roles:
+    - cinder_csi_verify

@@ -25,27 +25,14 @@
       - cinder_csi_project_id | length > 0
       - cinder_csi_application_credential_id | length > 0
       - cinder_csi_application_credential_secret | length > 0
+      - cinder_csi_region | length > 0
+      - cinder_csi_kubeconfig | length > 0
+      - cinder_csi_chart_version | length > 0
     fail_msg: >-
-      Cinder CSI requires cinder_csi_auth_url, cinder_csi_project_id,
-      cinder_csi_application_credential_id and
-      cinder_csi_application_credential_secret.
-      Keep the secret in private Ansible variables or Ansible Vault;
-      do not commit it.
+      Required Cinder CSI variables are missing.
+      Keep OpenStack credentials in private inventory variables
+      or Ansible Vault; never commit them.
   no_log: true
-
-- name: Add/update Cinder CSI Helm repository
-  ansible.builtin.command:
-    cmd: >-
-      {{ cinder_csi_helm_binary }}
-      repo add {{ cinder_csi_chart_repo_name }}
-      {{ cinder_csi_chart_repo_url }}
-      --force-update
-  changed_when: false
-
-- name: Update Helm repositories
-  ansible.builtin.command:
-    cmd: "{{ cinder_csi_helm_binary }} repo update"
-  changed_when: false
 
 - name: Create Cinder CSI namespace
   kubernetes.core.k8s:
@@ -84,210 +71,72 @@
   no_log: true
 
 - name: Install/upgrade Cinder CSI
-  ansible.builtin.command:
-    cmd: >-
-      {{ cinder_csi_helm_binary }} upgrade --install
-      {{ cinder_csi_release_name }}
-      {{ cinder_csi_chart_repo_name }}/openstack-cinder-csi
-      --namespace {{ cinder_csi_namespace }}
-      --version {{ cinder_csi_chart_version }}
-      --set secret.enabled=true
-      --set secret.create=false
-      --set secret.name={{ cinder_csi_secret_name | quote }}
-      --set secret.filename={{ cinder_csi_secret_filename | quote }}
-      --set storageClass.enabled=false
-      --set csi.provisioner.topology=true
-      --set snapshotter.enabled=true
-      --set plugin.controllerPlugin.replicas={{ cinder_csi_controller_replicas }}
-      --set clusterID={{ cinder_csi_cluster_id | quote }}
-      --wait
-      --timeout 10m
-  environment:
-    KUBECONFIG: "{{ cinder_csi_kubeconfig }}"
+  kubernetes.core.helm:
+    name: "{{ cinder_csi_release_name }}"
+    chart_ref: openstack-cinder-csi
+    chart_repo_url: "{{ cinder_csi_chart_repo_url }}"
+    chart_version: "{{ cinder_csi_chart_version }}"
+    release_namespace: "{{ cinder_csi_namespace }}"
+    kubeconfig: "{{ cinder_csi_kubeconfig }}"
+    create_namespace: false
+    update_repo_cache: true
+    wait: true
+    timeout: 10m
 
-- name: Wait for Cinder CSI controller deployment
-  ansible.builtin.command:
-    cmd: >-
-      {{ cinder_csi_kubectl_binary }}
-      --kubeconfig {{ cinder_csi_kubeconfig | quote }}
-      -n {{ cinder_csi_namespace }}
-      rollout status
-      deployment/{{ cinder_csi_release_name }}-controllerplugin
-      --timeout=10m
-  changed_when: false
-  environment:
-    KUBECONFIG: "{{ cinder_csi_kubeconfig }}"
+    release_values:
+      clusterID: "{{ cinder_csi_cluster_id }}"
 
-- name: Wait for Cinder CSI node daemonset
-  ansible.builtin.command:
-    cmd: >-
-      {{ cinder_csi_kubectl_binary }}
-      --kubeconfig {{ cinder_csi_kubeconfig | quote }}
-      -n {{ cinder_csi_namespace }}
-      rollout status
-      daemonset/{{ cinder_csi_release_name }}-nodeplugin
-      --timeout=10m
-  changed_when: false
-  environment:
-    KUBECONFIG: "{{ cinder_csi_kubeconfig }}"
+      secret:
+        enabled: true
+        create: false
+        name: "{{ cinder_csi_secret_name }}"
+        filename: "{{ cinder_csi_secret_filename }}"
 
-- name: Verify CSI driver registration
-  ansible.builtin.command:
-    cmd: >-
-      {{ cinder_csi_kubectl_binary }}
-      --kubeconfig {{ cinder_csi_kubeconfig | quote }}
-      get csidriver cinder.csi.openstack.org
-  changed_when: false
-  environment:
-    KUBECONFIG: "{{ cinder_csi_kubeconfig }}"
+      storageClass:
+        enabled: false
 
-- name: Apply Cinder CSI StorageClasses
+      csi:
+        provisioner:
+          topology: true
+
+        snapshotter:
+          enabled: true
+
+      plugin:
+        httpEndpoint:
+          enabled: false
+
+        controllerPlugin:
+          replicas: "{{ cinder_csi_controller_replicas }}"
+
+- name: Create Cinder CSI StorageClasses
   kubernetes.core.k8s:
     kubeconfig: "{{ cinder_csi_kubeconfig }}"
     state: present
-    definition: "{{ lookup('template', 'storageclasses.yaml.j2') | from_yaml_all | list }}"
+    definition:
+      apiVersion: storage.k8s.io/v1
+      kind: StorageClass
+      metadata:
+        name: "{{ item.name }}"
+        annotations:
+          storageclass.kubernetes.io/is-default-class: >-
+            {{ item.default | ternary('true', 'false') }}
+      provisioner: cinder.csi.openstack.org
+      parameters: "{{ item.parameters }}"
+      reclaimPolicy: Delete
+      allowVolumeExpansion: true
+      volumeBindingMode: WaitForFirstConsumer
+  loop:
+    - name: cinder-ssd
+      default: true
+      parameters:
+        type: SSD
 
-- name: Apply Cinder CSI validation workload
-  kubernetes.core.k8s:
-    kubeconfig: "{{ cinder_csi_kubeconfig }}"
-    state: present
-    definition: "{{ lookup('template', 'validation.yaml.j2') | from_yaml_all | list }}"
-  when: cinder_csi_validation_enabled
+    - name: cinder-hdd
+      default: false
+      parameters:
+        type: HDD
 
-- name: Wait for validation deployment
-  ansible.builtin.command:
-    cmd: >-
-      {{ cinder_csi_kubectl_binary }}
-      --kubeconfig {{ cinder_csi_kubeconfig | quote }}
-      -n {{ cinder_csi_validation_namespace }}
-      rollout status
-      deployment/cinder-csi-validation
-      --timeout=15m
-  changed_when: false
-  environment:
-    KUBECONFIG: "{{ cinder_csi_kubeconfig }}"
-  when: cinder_csi_validation_enabled
-
-- name: Get validation pod name
-  ansible.builtin.command:
-    cmd: >-
-      {{ cinder_csi_kubectl_binary }}
-      --kubeconfig {{ cinder_csi_kubeconfig | quote }}
-      -n {{ cinder_csi_validation_namespace }}
-      get pods
-      -l app=cinder-csi-validation
-      -o jsonpath='{.items[0].metadata.name}'
-  register: cinder_csi_validation_pod
-  changed_when: false
-  environment:
-    KUBECONFIG: "{{ cinder_csi_kubeconfig }}"
-  when: cinder_csi_validation_enabled
-
-- name: Write deterministic persistence markers
-  ansible.builtin.command:
-    cmd: >-
-      {{ cinder_csi_kubectl_binary }}
-      --kubeconfig {{ cinder_csi_kubeconfig | quote }}
-      -n {{ cinder_csi_validation_namespace }}
-      exec {{ cinder_csi_validation_pod.stdout | trim }} --
-      sh -c
-      'printf "cinder-ssd-persistent\n" > /data/ssd/proof.txt;
-       printf "cinder-hdd-persistent\n" > /data/hdd/proof.txt;
-       printf "cinder-default-persistent\n" > /data/default/proof.txt'
-  environment:
-    KUBECONFIG: "{{ cinder_csi_kubeconfig }}"
-  when: cinder_csi_validation_enabled
-
-- name: Restart validation pod to test persistence
-  ansible.builtin.command:
-    cmd: >-
-      {{ cinder_csi_kubectl_binary }}
-      --kubeconfig {{ cinder_csi_kubeconfig | quote }}
-      -n {{ cinder_csi_validation_namespace }}
-      delete pod {{ cinder_csi_validation_pod.stdout | trim }}
-      --wait=true
-  environment:
-    KUBECONFIG: "{{ cinder_csi_kubeconfig }}"
-  when: cinder_csi_validation_enabled
-
-- name: Wait for validation deployment after pod recreation
-  ansible.builtin.command:
-    cmd: >-
-      {{ cinder_csi_kubectl_binary }}
-      --kubeconfig {{ cinder_csi_kubeconfig | quote }}
-      -n {{ cinder_csi_validation_namespace }}
-      rollout status
-      deployment/cinder-csi-validation
-      --timeout=15m
-  changed_when: false
-  environment:
-    KUBECONFIG: "{{ cinder_csi_kubeconfig }}"
-  when: cinder_csi_validation_enabled
-
-- name: Verify persistence markers survived pod recreation
-  ansible.builtin.shell: >-
-    POD=$(
-      {{ cinder_csi_kubectl_binary }}
-      --kubeconfig {{ cinder_csi_kubeconfig | quote }}
-      -n {{ cinder_csi_validation_namespace }}
-      get pods
-      -l app=cinder-csi-validation
-      -o jsonpath='{.items[0].metadata.name}'
-    ) &&
-    {{ cinder_csi_kubectl_binary }}
-    --kubeconfig {{ cinder_csi_kubeconfig | quote }}
-    -n {{ cinder_csi_validation_namespace }}
-    exec "$POD" -- sh -c
-    'grep -qx "cinder-ssd-persistent" /data/ssd/proof.txt &&
-     grep -qx "cinder-hdd-persistent" /data/hdd/proof.txt &&
-     grep -qx "cinder-default-persistent" /data/default/proof.txt'
-  args:
-    executable: /bin/bash
-  changed_when: false
-  environment:
-    KUBECONFIG: "{{ cinder_csi_kubeconfig }}"
-  when: cinder_csi_validation_enabled
-
-- name: Expand SSD validation PVC
-  ansible.builtin.command:
-    cmd: >-
-      {{ cinder_csi_kubectl_binary }}
-      --kubeconfig {{ cinder_csi_kubeconfig | quote }}
-      -n {{ cinder_csi_validation_namespace }}
-      patch pvc cinder-ssd-pvc
-      --type merge
-      -p
-      '{"spec":{"resources":{"requests":{"storage":"{{ cinder_csi_validation_expanded_size }}"}}}}'
-  environment:
-    KUBECONFIG: "{{ cinder_csi_kubeconfig }}"
-  when: cinder_csi_validation_enabled
-
-- name: Wait for SSD PVC expansion
-  ansible.builtin.shell: >-
-    {{ cinder_csi_kubectl_binary }}
-    --kubeconfig {{ cinder_csi_kubeconfig | quote }}
-    -n {{ cinder_csi_validation_namespace }}
-    get pvc cinder-ssd-pvc
-    -o jsonpath='{.status.capacity.storage}'
-  args:
-    executable: /bin/bash
-  register: cinder_csi_expanded_size
-  until: cinder_csi_expanded_size.stdout | trim == cinder_csi_validation_expanded_size
-  retries: 30
-  delay: 10
-  changed_when: false
-  environment:
-    KUBECONFIG: "{{ cinder_csi_kubeconfig }}"
-  when: cinder_csi_validation_enabled
-
-- name: Show final Cinder CSI validation state
-  ansible.builtin.command:
-    cmd: >-
-      {{ cinder_csi_kubectl_binary }}
-      --kubeconfig {{ cinder_csi_kubeconfig | quote }}
-      -n {{ cinder_csi_validation_namespace }}
-      get pvc,pv,pods -o wide
-  changed_when: false
-  environment:
-    KUBECONFIG: "{{ cinder_csi_kubeconfig }}"
-  when: cinder_csi_validation_enabled
+    - name: cinder-default
+      default: false
+      parameters: {}
