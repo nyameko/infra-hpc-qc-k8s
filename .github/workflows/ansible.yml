@@ -1,0 +1,47 @@
+name: Ansible CI
+
+on:
+  pull_request:
+    paths:
+      - "ansible/**"
+      - "tests/ansible/**"
+      - ".github/workflows/ansible.yml"
+  push:
+    branches: [main]
+    paths:
+      - "ansible/**"
+      - "tests/ansible/**"
+      - ".github/workflows/ansible.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ansible-static:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Ansible
+        run: python3 -m pip install --user ansible-core ansible-lint
+
+      - name: Syntax check
+        working-directory: ansible
+        run: |
+          for playbook in playbooks/*.yml; do
+            ansible-playbook "$playbook" --syntax-check
+          done
+
+      - name: Ansible lint
+        run: ansible-lint ansible
+
+  ansible-integration:
+    if: ${{ vars.ANSIBLE_INTEGRATION_ENABLED == 'true' }}
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v4
+      - name: Convergence test
+        run: bash tests/ansible/convergence.sh
+      - name: Functional test
+        run: bash tests/ansible/functional.sh
