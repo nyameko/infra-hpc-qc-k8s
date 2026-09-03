@@ -1,0 +1,39 @@
+---
+- name: Install or upgrade Cinder CSI
+  kubernetes.core.helm:
+    name: "{{ cinder_csi_release_name }}"
+    chart_ref: openstack-cinder-csi
+    chart_repo_url: "{{ cinder_csi_chart_repo_url }}"
+    chart_version: "{{ cinder_csi_chart_version }}"
+    release_namespace: "{{ cinder_csi_namespace }}"
+    kubeconfig: "{{ cinder_csi_kubeconfig }}"
+    create_namespace: false
+    update_repo_cache: true
+    wait: true
+    timeout: 10m
+
+    release_values:
+      clusterID: "{{ cinder_csi_cluster_id }}"
+
+      secret:
+        enabled: true
+        create: false
+        name: "{{ cinder_csi_secret_name }}"
+        filename: "{{ cinder_csi_secret_filename }}"
+
+      storageClass:
+        enabled: false
+
+      csi:
+        provisioner:
+          topology: true
+
+        snapshotter:
+          enabled: true
+
+      plugin:
+        httpEndpoint:
+          enabled: false
+
+        controllerPlugin:
+          replicas: "{{ cinder_csi_controller_replicas }}"

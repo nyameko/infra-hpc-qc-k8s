@@ -1,0 +1,47 @@
+---
+- name: Wait for Cinder CSI controller deployment
+  kubernetes.core.k8s_info:
+    kubeconfig: "{{ cinder_csi_kubeconfig }}"
+    api_version: apps/v1
+    kind: Deployment
+    namespace: "{{ cinder_csi_namespace }}"
+    name: "{{ cinder_csi_release_name }}-controllerplugin"
+  register: cinder_csi_controller
+  until:
+    - cinder_csi_controller.resources | length == 1
+    - cinder_csi_controller.resources[0].status.availableReplicas | default(0) |
+      int >= cinder_csi_controller_replicas | int
+  retries: 60
+  delay: 10
+
+- name: Wait for Cinder CSI node daemonset
+  kubernetes.core.k8s_info:
+    kubeconfig: "{{ cinder_csi_kubeconfig }}"
+    api_version: apps/v1
+    kind: DaemonSet
+    namespace: "{{ cinder_csi_namespace }}"
+    name: "{{ cinder_csi_release_name }}-nodeplugin"
+  register: cinder_csi_node
+  until:
+    - cinder_csi_node.resources | length == 1
+    - >
+      cinder_csi_node.resources[0].status.numberReady | default(0) |
+      int ==
+      cinder_csi_node.resources[0].status.desiredNumberScheduled | default(0) |
+      int
+  retries: 60
+  delay: 10
+
+- name: Verify Cinder CSI driver registration
+  kubernetes.core.k8s_info:
+    kubeconfig: "{{ cinder_csi_kubeconfig }}"
+    api_version: storage.k8s.io/v1
+    kind: CSIDriver
+    name: cinder.csi.openstack.org
+  register: cinder_csi_driver
+
+- name: Assert Cinder CSI driver is registered
+  ansible.builtin.assert:
+    that:
+      - cinder_csi_driver.resources | length == 1
+      - cinder_csi_driver.resources[0].metadata.name == "cinder.csi.openstack.org"
