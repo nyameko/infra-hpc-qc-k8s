@@ -3,7 +3,6 @@
   ansible.builtin.command: "{{ item }} version"
   loop:
     - "{{ cinder_csi_helm_binary }}"
-    - "{{ cinder_csi_kubectl_binary }}"
   changed_when: false
   environment:
     KUBECONFIG: "{{ cinder_csi_kubeconfig }}"
