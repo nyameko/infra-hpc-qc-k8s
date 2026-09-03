@@ -20,18 +20,20 @@
       be committed to Git.
   no_log: true
 
-- name: Download Helm repository file
-  ansible.builtin.get_url:
-    url: https://baltocdn.com/helm/stable/rpm/helmsman.repo
-    dest: /etc/yum.repos.d/helmsman.repo
-    mode: '0644'
+- name: Enable EPEL repository
+  ansible.builtin.dnf:
+    name: epel-release
+    state: present
+  become: true
 
 - name: Install Helm
   ansible.builtin.dnf:
     name:
       - helm
+      - python3-kubernetes
     state: present
     update_cache: true
+  become: true
 
 - name: Verify Helm is available
   ansible.builtin.command:
