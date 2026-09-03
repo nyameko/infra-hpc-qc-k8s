@@ -1,0 +1,36 @@
+---
+- name: Delete validation workload
+  kubernetes.core.k8s:
+    kubeconfig: "{{ cinder_csi_kubeconfig }}"
+    api_version: apps/v1
+    kind: Deployment
+    name: cinder-csi-validation
+    namespace: "{{ cinder_csi_validation_namespace }}"
+    state: absent
+
+- name: Delete SSD validation PVC
+  kubernetes.core.k8s:
+    kubeconfig: "{{ cinder_csi_kubeconfig }}"
+    api_version: v1
+    kind: PersistentVolumeClaim
+    name: cinder-ssd-pvc
+    namespace: "{{ cinder_csi_validation_namespace }}"
+    state: absent
+
+- name: Delete HDD validation PVC
+  kubernetes.core.k8s:
+    kubeconfig: "{{ cinder_csi_kubeconfig }}"
+    api_version: v1
+    kind: PersistentVolumeClaim
+    name: cinder-hdd-pvc
+    namespace: "{{ cinder_csi_validation_namespace }}"
+    state: absent
+
+- name: Delete DEFAULT validation PVC
+  kubernetes.core.k8s:
+    kubeconfig: "{{ cinder_csi_kubeconfig }}"
+    api_version: v1
+    kind: PersistentVolumeClaim
+    name: cinder-default-pvc
+    namespace: "{{ cinder_csi_validation_namespace }}"
+    state: absent

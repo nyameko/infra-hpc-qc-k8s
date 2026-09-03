@@ -1,5 +1,5 @@
 ---
-- name: Validate Cinder CSI prerequisites
+- name: Validate Cinder CSI prerequisites and create Namespace
   ansible.builtin.include_tasks:
     file: validate.yml
 
