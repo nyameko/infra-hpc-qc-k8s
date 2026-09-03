@@ -87,5 +87,19 @@
       {{ argocd_kubectl_binary }}
       --kubeconfig {{ argocd_kubeconfig | quote }}
       --namespace {{ argocd_namespace }}
-      rollout status deployment/argocd-application-controller --timeout=10m
+      rollout status statefulset/argocd-application-controller --timeout=10m
   changed_when: false
+
+- name: Verify Argo CD pods are ready
+  ansible.builtin.command:
+    cmd: >-
+      {{ argocd_kubectl_binary }}
+      --kubeconfig {{ argocd_kubeconfig | quote }}
+      --namespace {{ argocd_namespace }}
+      get pods
+  register: argocd_pods
+  changed_when: false
+
+- name: Show Argo CD pod status
+  ansible.builtin.debug:
+    var: argocd_pods.stdout_lines
