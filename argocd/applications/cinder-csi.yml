@@ -5,37 +5,45 @@ metadata:
   namespace: argocd
   finalizers:
     - resources-finalizer.argocd.argoproj.io
+
 spec:
   project: default
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kube-system
+
   sources:
     - repoURL: https://kubernetes.github.io/cloud-provider-openstack
       chart: openstack-cinder-csi
       targetRevision: 2.36.0
+
       helm:
         releaseName: cinder-csi
+
         valuesObject:
           clusterID: kubernetes
+
           secret:
             enabled: true
             create: false
             name: cinder-csi-cloud-config
             filename: cloud.conf
+
           storageClass:
             enabled: false
+
           csi:
             provisioner:
               topology: true
             snapshotter:
               enabled: true
+
           plugin:
             httpEndpoint:
               enabled: false
             controllerPlugin:
               replicas: 3
-
-    - repoURL: https://github.com/nyameko/infra-hpc-qc-k8s.git
-      targetRevision: main
-      path: argocd/applications/cinder-csi/resources
 
     - repoURL: https://github.com/nyameko/infra-hpc-qc-k8s.git
       targetRevision: main
