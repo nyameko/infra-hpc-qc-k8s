@@ -1,0 +1,4 @@
+creation_rules:
+  - path_regex: 'secrets/cinder/cloud-config\.yaml$'
+    age: age15h0ptktk0ny783jvutztsa00kglxryfa6usl62r2kxt4jru49ugqympj87
+

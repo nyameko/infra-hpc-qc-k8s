@@ -15,3 +15,12 @@ terraform/environments/private/
 *.terraform.lock.hcl
 ansible/inventories/private/hosts.yml
 ansible/inventories/private/group_vars/all.yml
+
+# Secrets — never commit plaintext
+secrets/**/*.conf
+secrets/**/cloud-config.yaml
+secrets/**/*.yml
+
+# SOPS/age private material
+*.agekey
+.age/
