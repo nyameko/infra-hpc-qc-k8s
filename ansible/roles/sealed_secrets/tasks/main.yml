@@ -1,19 +1,21 @@
+---
 - name: Install Sealed Secrets controller
   ansible.builtin.command:
     cmd: >-
-      kubectl
-      --kubeconfig {{ admin_kubeconfig }}
+      {{ argocd_kubectl_binary }}
+      --kubeconfig {{ argocd_kubeconfig | quote }}
       apply
       -f https://github.com/bitnami/sealed-secrets/releases/download/v0.39.1/controller.yaml
   register: sealed_secrets_install
-  changed_when: "'configured' in sealed_secrets_install.stdout
-                 or 'created' in sealed_secrets_install.stdout"
+  changed_when: >-
+    'created' in sealed_secrets_install.stdout or
+    'configured' in sealed_secrets_install.stdout
 
 - name: Wait for Sealed Secrets controller
   ansible.builtin.command:
     cmd: >-
-      kubectl
-      --kubeconfig {{ admin_kubeconfig }}
+      {{ argocd_kubectl_binary }}
+      --kubeconfig {{ argocd_kubeconfig | quote }}
       -n kube-system
       rollout status deployment/sealed-secrets-controller
       --timeout=5m
@@ -22,8 +24,8 @@
 - name: Verify Sealed Secrets controller
   ansible.builtin.command:
     cmd: >-
-      kubectl
-      --kubeconfig {{ admin_kubeconfig }}
+      {{ argocd_kubectl_binary }}
+      --kubeconfig {{ argocd_kubeconfig | quote }}
       -n kube-system
       get deployment sealed-secrets-controller
   changed_when: false

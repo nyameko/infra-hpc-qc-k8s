@@ -17,6 +17,7 @@ ansible/inventories/private/hosts.yml
 ansible/inventories/private/group_vars/all.yml
 
 # Secrets — never commit plaintext
+ansible/inventories/private/
 secrets/**/*.conf
 secrets/**/cloud-config.yaml
 secrets/**/*.yml
