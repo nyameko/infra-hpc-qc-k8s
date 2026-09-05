@@ -1,5 +1,6 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
+
 metadata:
   name: cinder-csi
   namespace: argocd
@@ -14,6 +15,8 @@ spec:
     namespace: kube-system
 
   sources:
+
+    # Vendor application
     - repoURL: https://kubernetes.github.io/cloud-provider-openstack
       chart: openstack-cinder-csi
       targetRevision: 2.36.0
@@ -45,6 +48,17 @@ spec:
             controllerPlugin:
               replicas: 3
 
+    # Our Kubernetes resources
+    - repoURL: https://github.com/nyameko/infra-hpc-qc-k8s.git
+      targetRevision: main
+      path: argocd/resources/cinder-csi
+
+    # Our encrypted credentials
     - repoURL: https://github.com/nyameko/infra-hpc-qc-k8s.git
       targetRevision: main
       path: secrets/cinder
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
