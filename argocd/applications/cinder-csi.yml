@@ -31,7 +31,7 @@ spec:
             enabled: true
             create: false
             name: cinder-csi-cloud-config
-            filename: cloud.conf
+            filename: cloud.yaml
 
           storageClass:
             enabled: false
