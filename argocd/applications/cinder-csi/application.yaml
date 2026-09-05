@@ -32,15 +32,11 @@ spec:
               enabled: false
             controllerPlugin:
               replicas: 3
+
     - repoURL: https://github.com/nyameko/infra-hpc-qc-k8s.git
       targetRevision: main
       path: argocd/applications/cinder-csi/resources
-  destination:
-    server: https://kubernetes.default.svc
-    namespace: kube-system
-  syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
-    syncOptions:
-      - CreateNamespace=false
+
+    - repoURL: https://github.com/nyameko/infra-hpc-qc-k8s.git
+      targetRevision: main
+      path: secrets/cinder
