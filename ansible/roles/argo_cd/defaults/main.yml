@@ -4,6 +4,7 @@
 # Thereafter, Kubernetes applications are managed by Argo CD.
 
 argocd_namespace: argocd
+
 argocd_version: v3.5.0
 argocd_install_variant: install.yaml
 argocd_manifest_url: >-
@@ -15,5 +16,6 @@ argocd_kubeconfig: "/home/{{ admin_user_name }}/.kube/config"
 argocd_kubectl_binary: kubectl
 
 # GitOps root application
+# This path is resolved on the Ansible controller/workstation.
 argocd_root_application_manifest: >-
   {{ playbook_dir }}/../../argocd/bootstrap/root-application.yaml

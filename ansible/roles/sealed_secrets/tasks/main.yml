@@ -29,10 +29,3 @@
       -n kube-system
       get deployment sealed-secrets-controller
   changed_when: false
-
-# - name: Apply Root Application
-#   ansible.builtin.command:
-#     cmd: >-
-#       -
-#         kubectl apply \
-#   -f https://raw.githubusercontent.com/nyameko/infra-hpc-qc-k8s/main/argocd/bootstrap/root-application.yaml

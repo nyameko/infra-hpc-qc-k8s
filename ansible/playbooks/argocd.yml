@@ -2,6 +2,49 @@
 - name: Bootstrap Argo CD
   hosts: control_plane[0]
   gather_facts: false
+
   roles:
     - argo_cd
     - sealed_secrets
+
+  tasks:
+    - name: Verify GitOps root Application manifest exists
+      delegate_to: localhost
+      become: false
+      ansible.builtin.stat:
+        path: "{{ argocd_root_application_manifest }}"
+      register: root_application_manifest
+
+    - name: Assert GitOps root Application manifest exists
+      delegate_to: localhost
+      become: false
+      ansible.builtin.assert:
+        that:
+          - root_application_manifest.stat.exists
+          - root_application_manifest.stat.isreg
+        fail_msg: >-
+          GitOps root Application manifest was not found at
+          {{ argocd_root_application_manifest }}
+
+    - name: Copy GitOps root Application manifest to control plane
+      ansible.builtin.copy:
+        src: "{{ argocd_root_application_manifest }}"
+        dest: /tmp/infra-hpc-qc-k8s-root-application.yaml
+        mode: "0600"
+
+    - name: Apply GitOps root Application
+      ansible.builtin.command:
+        cmd: >-
+          {{ argocd_kubectl_binary }}
+          --kubeconfig {{ argocd_kubeconfig | quote }}
+          apply
+          -f /tmp/infra-hpc-qc-k8s-root-application.yaml
+      register: root_application_apply
+      changed_when: >-
+        'created' in root_application_apply.stdout or
+        'configured' in root_application_apply.stdout
+
+    - name: Remove temporary GitOps root Application manifest
+      ansible.builtin.file:
+        path: /tmp/infra-hpc-qc-k8s-root-application.yaml
+        state: absent
