@@ -11,7 +11,7 @@ spec:
   source:
     repoURL: https://github.com/nyameko/infra-hpc-qc-k8s.git
     targetRevision: main
-    path: argocd/bootstrap
+    path: argocd/applications
 
   destination:
     server: https://kubernetes.default.svc
