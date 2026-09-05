@@ -4,3 +4,4 @@
   gather_facts: false
   roles:
     - argo_cd
+    - sealed_secrets
