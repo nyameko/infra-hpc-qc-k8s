@@ -193,39 +193,69 @@ There may be unavoidable bootstrap actions such as creating the initial Argo roo
 
 Secrets must never be committed to this public repository in plaintext.
 
-The current direction is:
+The Kubernetes GitOps path uses **Bitnami Sealed Secrets**. The workstation performs encryption with the client-side `kubeseal` utility and the cluster runs the Sealed Secrets controller, which owns the private sealing key and turns `SealedSecret` resources into ordinary Kubernetes `Secret` objects.
 
 ```text
 Developer workstation
         │
-        ├── SOPS
-        └── age
-             │
-             ▼
-      encrypted Kubernetes
-      Secret manifests
-             │
-             ▼
-           GitHub
-             │
-             ▼
-         Argo CD
-             │
-             ▼
-       Kubernetes Secret
+        │ kubeseal + public certificate
+        ▼
+      SealedSecret
+        │
+        ▼
+      GitHub
+        │
+        ▼
+      Argo CD
+        │
+        ▼
+Sealed Secrets controller
+        │
+        ▼
+ Kubernetes Secret
 ```
 
-The workstation does not need Kubernetes tooling or cluster credentials merely to create encrypted Git artifacts.
+The workstation therefore does **not** need `kubectl`, a Kubernetes kubeconfig, or cluster access merely to create an encrypted secret. Only the public Sealed Secrets certificate is required for offline sealing.
 
-For example, the Cinder CSI credential is represented as an encrypted Kubernetes Secret containing the CSI driver's `cloud.conf`.
+For example, the Cinder CSI credential is represented as a `SealedSecret` containing the CSI driver's `cloud.conf`. The plaintext source file is local-only and ignored by Git.
 
-The plaintext source file is local-only and is ignored by Git. The encrypted `*.sops.yaml` artifact is the object stored in Git.
+The controller's private sealing key is cluster recovery material and must never be committed to Git. A secure backup of the controller key is maintained separately from the repository.
 
-The age public key can be present in `.sops.yaml`. The corresponding private key must never be committed.
+This separation also means production does not depend on a developer laptop remaining online. A local Vault may be used for administrative secret custody, but it is not a runtime dependency of the cluster.
 
-The cluster-side decryption key is a bootstrap secret. It is provisioned separately from the public Git repository and made available to the Argo manifest-rendering path.
+### The SOPS/KSOPS detour
 
-The intent is that production operation does not depend on a developer laptop or a workstation Vault being online. A local Vault may remain useful as an administrative/root-of-trust tool, but it is not a runtime dependency of the platform.
+SOPS + age was investigated first. It is a capable general-purpose encryption system, but integrating decryption into Argo CD's manifest-rendering path through KSOPS added unnecessary complexity to the bootstrap. The `argo_cd` Ansible role started accumulating secret staging, repo-server modification and plugin configuration responsibilities.
+
+The project deliberately backed away from that design:
+
+```text
+SOPS/KSOPS
+    ↓
+Argo manifest-rendering integration
+    ↓
+additional bootstrap complexity
+    ↓
+wrong ownership boundary
+
+Sealed Secrets
+    ↓
+Kubernetes-native SealedSecret resource
+    ↓
+controller owns decryption
+    ↓
+Argo treats it like any other Kubernetes resource
+```
+
+The lesson is architectural rather than ideological: use the simplest mechanism that provides the required security properties without contaminating an unrelated bootstrap responsibility.
+
+### Sealed Secrets recovery
+
+The Sealed Secrets controller's private key is part of the platform's disaster-recovery state. After the controller is first installed, its generated key material is backed up to secure storage outside Git.
+
+The public certificate is copied to the workstation for offline use by `kubeseal`. The certificate is not secret; the private key backup is.
+
+The controller automatically manages its sealing certificates and can have multiple active key Secrets. Offline certificate copies therefore need to be refreshed as the controller's sealing certificates rotate. The project documentation must treat certificate renewal and key backup as operational procedures, not one-time installation details.
 
 ## Cinder CSI: first GitOps-managed platform application
 
@@ -1010,7 +1040,6 @@ tests/README.md
 The tutorials are part of the project architecture, not an afterthought. They should explain both implementation and reasoning, with failures preserved as teaching material.
 
 ## Deployment progression
-
 ```text
 1. Terraform
        ↓
@@ -1020,29 +1049,31 @@ The tutorials are part of the project architecture, not an afterthought. They sh
        ↓
 4. Cilium network validation
        ↓
-5. Argo CD bootstrap
+5. Ansible Argo CD + Sealed Secrets bootstrap
        ↓
-6. SOPS/age bootstrap + encrypted-secret path
+6. Secure backup of Sealed Secrets private key
        ↓
-7. GitOps root Application
+7. Offline public certificate for kubeseal
        ↓
-8. Cinder CSI + StorageClasses
+8. GitOps root Application
        ↓
-9. Prometheus / Grafana
+9. Cinder CSI + StorageClasses
        ↓
-10. Wazuh agents / security telemetry
+10. Prometheus / Grafana
        ↓
-11. Slurm operational deployment
+11. Wazuh agents / security telemetry
        ↓
-12. Hermes + Heretic
+12. Slurm operational deployment
        ↓
-13. JupyterHub
+13. Hermes + Heretic
        ↓
-14. PostgreSQL / platform userdb
+14. JupyterHub
        ↓
-15. Astro research portal
+15. PostgreSQL / platform userdb
        ↓
-16. research and quantum-computing applications
+16. Astro research portal
+       ↓
+17. research and quantum-computing applications
 ```
 
 The stages are capabilities rather than an absolute prohibition on parallel work. Slurm, for example, can be prepared independently once the underlying VMs exist.
@@ -1122,7 +1153,7 @@ Heretic
 
 Plaintext credentials do not belong in the public repository.
 
-Use SOPS/age or an appropriate secret-management workflow, with decryption keys outside the repository.
+Use Sealed Secrets for Kubernetes credentials. The public certificate may be kept on the workstation; the controller's private sealing key stays in the cluster and is backed up separately for disaster recovery.
 
 ### Keep production independent of the workstation
 
@@ -1154,11 +1185,13 @@ A successful deployment is not enough. The repository should make the system und
 ✅ Cilium
 ✅ Cilium connectivity validation
 ✅ Argo CD bootstrap
-✅ SOPS/age encrypted Cinder credential committed
+✅ Sealed Secrets controller bootstrap
+✅ Sealed Secrets private-key backup
+✅ Cinder SealedSecret committed
 
-→ Argo SOPS/age runtime integration
 → GitOps root Application
 → Cinder CSI via Argo CD
+→ Persistent-volume functional test
 → Prometheus / Grafana
 → Wazuh agents / security telemetry
 → Slurm integration / operational deployment
@@ -1171,20 +1204,20 @@ A successful deployment is not enough. The repository should make the system und
 
 ## Immediate objective
 
-The immediate implementation objective is deliberately narrow:
+The immediate implementation objective is to cross the first complete GitOps boundary:
 
 ```text
 Kubernetes
    ↓
-Argo CD
-   ↓
-encrypted secret support
+Argo CD + Sealed Secrets
    ↓
 root GitOps application
    ↓
-Cinder
+Cinder CSI
    ↓
-Prometheus/Grafana
+PVC → Cinder volume
+   ↓
+Prometheus / Grafana
 ```
 
 Once that path works, the platform can stop relying on manual Kubernetes application deployment.
