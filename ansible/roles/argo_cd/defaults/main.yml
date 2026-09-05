@@ -13,3 +13,15 @@ argocd_manifest_url: >-
 # The role runs as the normal administrator user, not as root.
 argocd_kubeconfig: "/home/{{ admin_user_name }}/.kube/config"
 argocd_kubectl_binary: kubectl
+
+# SOPS / age
+argocd_sops_age_key_file: >-
+  {{ lookup('env', 'SOPS_AGE_KEY_FILE')
+     | default(lookup('env', 'HOME') ~ '/.config/sops/age/keys.txt', true) }}
+
+argocd_sops_age_secret_name: sops-age
+argocd_sops_age_key_mount: /etc/sops/age/keys.txt
+
+# GitOps root application
+argocd_root_application_manifest: >-
+  {{ playbook_dir }}/../../argocd/bootstrap/root-application.yaml
