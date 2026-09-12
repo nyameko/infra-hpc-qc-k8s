@@ -1,212 +1,378 @@
 # infra-hpc-qc-k8s
-## Hybrid Quantum-Centric Supercomputing Infrastructure
 
-Infrastructure as Code for a reproducible, provider-adaptable research-computing platform combining cloud infrastructure, Kubernetes, classical HPC, AI/ML, agentic systems, and future quantum-computing workflows.
+Infrastructure-as-Code and GitOps platform for hybrid HPC, Kubernetes, AI/ML and quantum-computing research.
 
-This repository is both a working infrastructure project and a teaching environment. The intended audience is not only the original operator: students, researchers, collaborators, engineers, contributors, and people encountering the repository for the first time should be able to understand it, reproduce it, modify it, break it safely, and recover it.
+The project is designed to be reproducible, teachable and portable: a student, researcher, collaborator or stranger should be able to understand how the platform is built, reproduce it, modify it and eventually recover it from scratch.
 
-## Platform in one picture
+## What this project is
+
+`infra-hpc-qc-k8s` builds the infrastructure and platform underneath a research environment combining:
+
+- OpenStack infrastructure
+- Rocky Linux
+- Kubernetes
+- Cilium
+- OpenStack Cinder CSI
+- Argo CD
+- Prometheus and Grafana
+- Wazuh and Suricata security telemetry
+- Slurm HPC scheduling
+- Hermes intelligent orchestration
+- Heretic controlled execution/research workflows
+- JupyterHub research environments
+- local and cluster LLM inference with llama.cpp and Ollama
+- PostgreSQL-backed platform identity and application data
+- Astro-based user/research portal
+- hybrid classical/HPC/GPU/quantum workloads
+
+The project deliberately separates infrastructure provisioning, host configuration, Kubernetes application lifecycle, HPC scheduling and research workloads.
+
+## Architecture
 
 ```text
-                               Researchers / Users
-                                       │
-                          ┌────────────┴────────────┐
-                          ▼                         ▼
-                     ┌─────────┐              ┌──────────┐
-                     │  Astro  │              │JupyterHub│
-                     │ public / │              │ research │
-                     │ user UX  │              │ gateway  │
-                     └────┬────┘              └────┬─────┘
-                          │                        │
-                          │                 ┌──────┴──────┐
-                          │                 │             │
-                          │                 ▼             ▼
-                          │            Kubernetes       Slurm
-                          │              workloads     HPC jobs
-                          │                 │             │
-                          │                 └──────┬──────┘
-                          │                        │
-                          │                  research plane
-                          │                        │
-                          ▼                        ▼
-                    Application layer       Compute layer
-                               │                  │
-                  ┌────────────┴───────┐          │
-                  │                    │          │
-                  ▼                    ▼          ▼
-              Hermes               Heretic      HPC/GPU
-           orchestration         controlled      resources
-                                   execution
-                  │
-                  └───────────────────────┐
-                                          │
-                                          ▼
-                                Kubernetes platform
-                                          │
-                     ┌────────────────────┼─────────────────────┐
-                     ▼                    ▼                     ▼
-                  Argo CD          Prometheus/Grafana         Cilium
-                 GitOps lifecycle     observability         networking
-                     │
-                     ▼
-                Cinder CSI
-                     │
-                     ▼
-                   Cinder
-                     │
-                     ▼
-                cloud storage
+                                      GitHub
+                                         │
+                         ┌───────────────┴───────────────┐
+                         │                               │
+                    Terraform                        Ansible
+                         │                               │
+                         ▼                               ▼
+                  OpenStack resources             Rocky Linux + base
+                         │                        platform services
+                         └───────────────┬───────────────┘
+                                         │
+                                         ▼
+                                  Kubernetes cluster
+                                         │
+                  ┌──────────────────────┼──────────────────────┐
+                  │                      │                      │
+                Cilium                 Argo CD                Slurm
+                  │                      │                      │
+                  │           ┌──────────┼──────────┐           │
+                  │           │          │          │           │
+                  │        Helm       resources   secrets      HPC
+                  │                    │          │             │
+                  │                    │     Sealed Secrets     │
+                  │                    │                         │
+                  ▼                    ▼                         ▼
+               networking        applications             HPC execution
+
+                                         │
+                              ┌──────────┼───────────┐
+                              │          │           │
+                           Storage   Observability Security
+                              │          │           │
+                           Cinder   Prometheus/Grafana Wazuh/Suricata
+                              │
+                              ▼
+                        Research services
+                              │
+          ┌───────────────────┼──────────────────────┐
+          │                   │                      │
+       JupyterHub         Hermes/Heretic      LLM inference
+          │                   │              llama.cpp/Ollama
+          │                   │
+          └───────────────────┼──────────────────────┘
+                              │
+                              ▼
+                         PostgreSQL
+                              │
+                              ▼
+                         Astro portal
 ```
 
-The ordering and ownership boundaries are intentional. The project uses each tool for the layer it is good at rather than allowing a single tool to become responsible for the entire stack.
+## Ownership model
 
-## Architecture and ownership
+Each system owns one clear layer.
+
+### Terraform
+
+Terraform owns OpenStack infrastructure:
+
+- networks
+- subnets
+- routers
+- ports
+- security groups
+- virtual machines
+- API load-balancer infrastructure
+
+Terraform answers:
+
+> What infrastructure exists?
+
+### Ansible
+
+Ansible owns host and platform bootstrap:
+
+- Rocky Linux configuration
+- users and SSH
+- packages
+- host firewalling
+- containerd
+- Kubernetes prerequisites
+- kubeadm bootstrap
+- Cilium prerequisites/bootstrap where required
+- Slurm
+- Hermes management/orchestrator hosts
+- Argo CD bootstrap
+- Sealed Secrets bootstrap
+
+Ansible does **not** become the long-lived Kubernetes application installer.
+
+### kubeadm
+
+`kubeadm` forms the Kubernetes cluster.
+
+### Cilium
+
+Cilium owns Kubernetes networking and network policy.
+
+### Cinder CSI
+
+Cinder CSI provides the Kubernetes-to-OpenStack block-storage integration.
+
+### Argo CD
+
+Argo CD owns the lifecycle of long-lived Kubernetes applications.
+
+### Prometheus/Grafana
+
+Observability owns metrics, dashboards and alerting.
+
+### Slurm
+
+Slurm remains outside Kubernetes and owns HPC scheduling and execution.
+
+### Hermes
+
+Hermes provides intelligent orchestration and coordination across the platform.
+
+### Heretic
+
+Heretic provides controlled execution/research capabilities complementary to Hermes.
+
+### JupyterHub
+
+JupyterHub provides the researcher-facing interactive computing environment.
+
+### Astro
+
+Astro provides the public/user-facing portal.
+
+### PostgreSQL
+
+PostgreSQL stores platform application data and identity/application metadata. It is not the authority for external provider credentials such as IBM Quantum credentials.
+
+---
+
+# Current platform state
+
+## Kubernetes
+
+The current reference cluster is:
+
+- 3 control planes
+- 3 workers
+- Kubernetes 1.36.4
+- containerd 2.3.4
+- Cilium 1.20.1
+
+The Kubernetes API is exposed through an HAProxy VIP:
 
 ```text
-Terraform
-    ↓
-OpenStack / cloud infrastructure
+10.51.0.100:6443
+```
 
-Ansible
-    ↓
-Rocky Linux + host configuration + base services
+Cilium baseline connectivity testing has already passed.
 
-kubeadm
-    ↓
-Kubernetes cluster bootstrap
+## Network layout
 
-Cilium
-    ↓
-Kubernetes networking
+```text
+Management: 10.50.0.0/24
+Kubernetes: 10.51.0.0/24
+VPN:        10.60.0.0/24
+```
 
+Important systems include:
+
+```text
+edge                  10.50.0.10
+hermes-orchestrator   10.50.0.11
+slurm-controller      10.50.0.12
+login1                10.50.0.20
+login2                10.50.0.21
+slurm-cpu-01          10.50.0.30
+slurm-cpu-02          10.50.0.31
+```
+
+Kubernetes nodes live on `10.51.0.0/24`.
+
+The edge host provides the private access/security boundary, including WireGuard, DNS filtering, host firewalling and security telemetry components.
+
+## Storage
+
+OpenStack Cinder CSI is now fully operational and has passed an end-to-end persistence test.
+
+Current Kubernetes StorageClasses:
+
+```text
+cinder-ssd       default
+cinder-hdd
+cinder-default
+```
+
+Validated path:
+
+```text
+PVC
+ ↓
+StorageClass
+ ↓
 Cinder CSI
-    ↓
-Kubernetes persistent storage integration
-
-Argo CD
-    ↓
-Kubernetes application lifecycle / GitOps
-
-Prometheus + Grafana
-    ↓
-observability
-
-Slurm
-    ↓
-HPC scheduling and execution
-
-Hermes
-    ↓
-intelligent orchestration
-
-Heretic
-    ↓
-controlled execution / research actions
-
-JupyterHub
-    ↓
-researcher interface
-
-Astro
-    ↓
-public/user-facing applications
+ ↓
+OpenStack Cinder volume
+ ↓
+PV
+ ↓
+Pod
+ ↓
+write data
+ ↓
+Pod deleted
+ ↓
+new Pod
+ ↓
+data survives
 ```
 
-The ownership boundary is particularly important:
+The test data survived Pod recreation, proving that this is functional persistent storage rather than merely an installed CSI driver.
+
+---
+
+# Argo CD GitOps model
+
+The final application structure is intentionally simple.
 
 ```text
-Terraform
-  owns cloud resources
+argocd/
+├── applications/
+│   ├── cinder-csi.yml
+│   ├── prometheus.yml
+│   ├── grafana.yml
+│   ├── wazuh.yml
+│   ├── jupyterhub.yml
+│   └── hermes.yml
+│
+├── bootstrap/
+│   └── root-application.yaml
+│
+└── resources/
+    ├── cinder-csi/
+    ├── prometheus/
+    ├── grafana/
+    ├── wazuh/
+    ├── jupyterhub/
+    └── hermes/
 
-Ansible
-  owns machines, host configuration and bootstrap
-
-kubeadm
-  owns the initial Kubernetes control-plane/node bootstrap
-
-Cilium
-  owns Kubernetes networking
-
-Argo CD
-  owns long-lived Kubernetes applications
-
-Slurm
-  owns HPC scheduling and execution
+secrets/
+├── cinder/
+├── prometheus/
+├── grafana/
+├── wazuh/
+├── jupyterhub/
+└── hermes/
 ```
 
-Ansible deliberately does not become a giant Kubernetes application installer. Once the Kubernetes substrate and Argo CD exist, long-lived Kubernetes applications are deployed through GitOps.
+The root Application points directly to the flat `argocd/applications` directory.
 
-## Bootstrap versus application lifecycle
+There is deliberately no Kustomize layer and no ApplicationSet for the application registry.
 
-The project has a small, explicit bootstrap boundary.
+One file represents one child Application.
+
+---
+
+# Canonical application prescription
+
+Cinder CSI established the reference pattern for Argo-managed applications.
+
+Each application should normally consist of three concerns:
 
 ```text
-Terraform
-    ↓
-OpenStack infrastructure
-    ↓
-Ansible
-    ↓
-Rocky Linux + base configuration
-    ↓
-kubeadm
-    ↓
-Kubernetes
-    ↓
-Cilium
-    ↓
-Argo CD bootstrap
-    ↓
-GitOps
+Application definition
+        +
+Repository-owned Kubernetes resources
+        +
+Encrypted secrets
 ```
 
-Ansible is therefore responsible for getting the platform to the point where GitOps can take over.
-
-After that:
+Conceptually:
 
 ```text
-GitHub
-   ↓
-CI validation
-   ↓
-Argo CD
-   ↓
-Kubernetes applications
-```
-
-The first application deployment is deliberately a proof of this boundary:
-
-```text
-Git
- ├── Cinder CSI definition
- ├── StorageClasses
- └── encrypted credentials
-       ↓
-    Argo CD
-       ↓
-    Kubernetes
-```
-
-There may be unavoidable bootstrap actions such as creating the initial Argo root Application and placing a secret-encryption key into the cluster. These are bootstrap operations, not the normal application deployment mechanism.
-
-## Secrets and GitOps
-
-Secrets must never be committed to this public repository in plaintext.
-
-The Kubernetes GitOps path uses **Bitnami Sealed Secrets**. The workstation performs encryption with the client-side `kubeseal` utility and the cluster runs the Sealed Secrets controller, which owns the private sealing key and turns `SealedSecret` resources into ordinary Kubernetes `Secret` objects.
-
-```text
-Developer workstation
+argocd/applications/<app>.yml
         │
-        │ kubeseal + public certificate
+        ├── upstream Helm chart or other vendor source
+        ├── argocd/resources/<app>
+        └── secrets/<app>
+```
+
+This pattern keeps vendor software, local policy/configuration and secrets separate.
+
+## Example: Cinder
+
+```text
+cinder-csi Application
+│
+├── Cinder CSI Helm chart
+├── argocd/resources/cinder-csi
+└── secrets/cinder
+```
+
+The Cinder application uses automated sync with pruning and self-healing.
+
+The same pattern is the starting prescription for:
+
+```text
+Prometheus
+Grafana
+Wazuh
+JupyterHub
+Hermes
+Heretic
+llama.cpp
+Ollama
+Astro portal
+PostgreSQL
+```
+
+Not every application will have all three sources, but the boundary remains the same.
+
+---
+
+# Secrets
+
+The project originally explored SOPS + age and then KSOPS.
+
+That approach was ultimately rejected for this platform because it unnecessarily complicated Argo CD repo-server configuration and Ansible bootstrap.
+
+The chosen solution is Bitnami Sealed Secrets.
+
+The workflow is:
+
+```text
+plaintext Secret on workstation
+        │
         ▼
-      SealedSecret
+     kubeseal
+        │
+        ▼
+  SealedSecret
         │
         ▼
       GitHub
         │
         ▼
-      Argo CD
+     Argo CD
         │
         ▼
 Sealed Secrets controller
@@ -215,525 +381,413 @@ Sealed Secrets controller
  Kubernetes Secret
 ```
 
-The workstation therefore does **not** need `kubectl`, a Kubernetes kubeconfig, or cluster access merely to create an encrypted secret. Only the public Sealed Secrets certificate is required for offline sealing.
+The private sealing key remains with the controller and is backed up securely outside Git.
 
-For example, the Cinder CSI credential is represented as a `SealedSecret` containing the CSI driver's `cloud.conf`. The plaintext source file is local-only and ignored by Git.
+The workstation uses the controller's public certificate for offline sealing.
 
-The controller's private sealing key is cluster recovery material and must never be committed to Git. A secure backup of the controller key is maintained separately from the repository.
+`kubeseal` does not need to be installed on Kubernetes control-plane nodes.
 
-This separation also means production does not depend on a developer laptop remaining online. A local Vault may be used for administrative secret custody, but it is not a runtime dependency of the cluster.
+---
 
-### The SOPS/KSOPS detour
+# Cinder CSI troubleshooting lessons
 
-SOPS + age was investigated first. It is a capable general-purpose encryption system, but integrating decryption into Argo CD's manifest-rendering path through KSOPS added unnecessary complexity to the bootstrap. The `argo_cd` Ansible role started accumulating secret staging, repo-server modification and plugin configuration responsibilities.
+Tutorial 4c documents the complete debugging journey because the failures are valuable training material.
 
-The project deliberately backed away from that design:
+Several tiny configuration errors produced a system that initially looked fundamentally broken:
 
 ```text
-SOPS/KSOPS
+missing Application destination
+wrong Git resources path
+wrong Secret key
+clouds.conf vs cloud.conf
+clouds.yaml vs cloud.conf
+swapped application credential ID and secret
+wrong Helm filename
+```
+
+The final diagnostic chain was:
+
+```text
+Git                         ✅
+Argo CD                     ✅
+Sealed Secrets              ✅
+Kubernetes Secret           ✅
+Helm Deployment             ✅
+OpenStack authentication    ✅
+Cinder CSI                  ✅
+Dynamic provisioning        ✅
+PVC/PV                      ✅
+Volume attach/mount         ✅
+Persistence                 ✅
+```
+
+The most important lesson is:
+
+> Inspect the actual rendered runtime configuration before adding more frameworks.
+
+In particular, always verify agreement between:
+
+```text
+SealedSecret key
+Kubernetes Secret key
+Helm secret.filename
+mounted filename
+container --cloud-config argument
+```
+
+For Cinder the final invariant is:
+
+```text
+cloud.conf
     ↓
-Argo manifest-rendering integration
+/etc/config/cloud.conf
     ↓
-additional bootstrap complexity
-    ↓
-wrong ownership boundary
-
-Sealed Secrets
-    ↓
-Kubernetes-native SealedSecret resource
-    ↓
-controller owns decryption
-    ↓
-Argo treats it like any other Kubernetes resource
+--cloud-config=/etc/config/cloud.conf
 ```
 
-The lesson is architectural rather than ideological: use the simplest mechanism that provides the required security properties without contaminating an unrelated bootstrap responsibility.
-
-### Sealed Secrets recovery
-
-The Sealed Secrets controller's private key is part of the platform's disaster-recovery state. After the controller is first installed, its generated key material is backed up to secure storage outside Git.
-
-The public certificate is copied to the workstation for offline use by `kubeseal`. The certificate is not secret; the private key backup is.
-
-The controller automatically manages its sealing certificates and can have multiple active key Secrets. Offline certificate copies therefore need to be refreshed as the controller's sealing certificates rotate. The project documentation must treat certificate renewal and key backup as operational procedures, not one-time installation details.
-
-## Cinder CSI: first GitOps-managed platform application
-
-The current OpenStack cloud exposes three public Cinder volume types:
+Argo `Synced` and `Healthy` also mean different things:
 
 ```text
-SSD
-HDD
-__DEFAULT__
+Synced  = desired Git state has been applied
+Healthy = the resulting Kubernetes resources are healthy
 ```
 
-Kubernetes exposes three StorageClasses:
+Both conditions matter.
+
+---
+
+# Roadmap
+
+The project now moves from foundational infrastructure into platform services.
+
+## Phase 0 — Foundation
+
+Status: largely complete.
 
 ```text
-cinder-ssd       → Cinder SSD
-cinder-hdd       → Cinder HDD
-cinder-default   → omit type and let Cinder select its configured default
-```
-
-`cinder-ssd` is the Kubernetes default in the reference deployment.
-
-The Cinder CSI application is represented in Git under:
-
-```text
-argocd/applications/cinder-csi/
-```
-
-The application uses the upstream `openstack-cinder-csi` Helm chart together with Git-managed resources.
-
-The OpenStack credential is intentionally not committed in plaintext. The CSI driver consumes a Kubernetes Secret containing the `cloud.conf` configuration.
-
-The intended lifecycle is:
-
-```text
-encrypted cloud.conf Secret
-        ↓
-Argo CD / GitOps
-        ↓
-Cinder CSI
-        ↓
-Kubernetes PVC
-        ↓
-OpenStack Cinder volume
-```
-
-This is deliberately a storage-interface contract rather than an application hard-coded to OpenStack. A different cloud provider can provide a different CSI implementation behind the same Kubernetes PVC/StorageClass abstraction.
-
-## Kubernetes status
-
-The reference cluster uses Kubernetes `1.36.4` with Cilium `1.20.1`.
-
-The Cilium baseline has passed the complete connectivity test suite:
-
-```text
-82 tests
-780 actions
-55 tests skipped
-1 scenario skipped
-0 failed
-```
-
-This establishes a known-good network substrate before persistent storage and higher-level applications are layered on top.
-
-The next validation step is to repeat the Cilium connectivity test while observing the Prometheus/Grafana telemetry stack. This turns network validation into an operational observability exercise rather than a one-time installation check.
-
-## Argo CD
-
-Argo CD is bootstrapped by Ansible, but applications are thereafter intended to be managed by Argo CD.
-
-The architecture is:
-
-```text
-Ansible
-   │
-   │ bootstrap only
-   ▼
-Argo CD
-   │
-   ▼
-Git repository
-   │
-   ▼
-applications
-   │
-   ▼
-Kubernetes
-```
-
-Argo CD itself is a Kubernetes application and therefore becomes part of the bootstrap boundary. Once running, Argo authenticates to the local Kubernetes API through its in-cluster ServiceAccount and RBAC rather than consuming the operator's kubeconfig.
-
-The application controller currently uses a StatefulSet. This is an Argo implementation detail used for controller/sharding identity; it is not an indication that application state is being stored on a persistent disk.
-
-The initial deployment intentionally remains small. High availability of the Argo control plane is a later hardening milestone.
-
-## GitOps root application
-
-The platform uses a root Application to establish the GitOps application tree.
-
-```text
-root
- ├── Cinder CSI
- ├── Prometheus
- ├── Grafana
- ├── Wazuh
- ├── JupyterHub
- ├── Hermes
- └── other platform applications
-```
-
-The root Application is the last explicit application bootstrap step. Once it exists, child applications are created and reconciled by Argo CD.
-
-This keeps the bootstrap responsibility small and makes the Git repository the durable description of the platform's Kubernetes application state.
-
-For the public reference repository, application definitions are generic and provider-aware where necessary. A private deployment repository can later select environment-specific values, credentials and overlays without forking the entire framework.
-
-## CI/CD and the security boundary
-
-CI validates changes. Argo deploys them.
-
-```text
-Hermes / developer
-       ↓
-      Pull Request
-       ↓
-GitHub Actions
-       ↓
-validation / tests
-       ↓
-human review + merge
-       ↓
-Argo CD
-       ↓
-Kubernetes
-```
-
-Hermes and other agents may propose code, configuration or infrastructure changes, but they should not receive direct production deployment authority.
-
-In particular, an agent should not need:
-
-```text
-Kubernetes cluster-admin
-Argo CD admin
-OpenStack admin
-SSH deployment credentials
-direct CI/CD trigger privileges
-```
-
-This creates a deliberate separation between:
-
-```text
-reasoning
-   ↓
-proposed change
-   ↓
-validation
-   ↓
-human-controlled merge
-   ↓
-reconciliation
-```
-
-The same model applies to infrastructure changes where practical.
-
-## Observability
-
-Prometheus/Grafana are intended to become the central observability plane across the whole system, not only Kubernetes.
-
-```text
-                         Grafana
-                            │
-                       Prometheus
-                            │
-       ┌────────────────────┼────────────────────┐
-       ▼                    ▼                    ▼
-   Kubernetes           OpenStack             Management
-   + Cilium             + VM telemetry         + services
-       │                    │                    │
-       │                    │                 Hermes
-       │                    │                 Heretic
-       ▼                    ▼                    ▼
-   workloads            Nova/Cinder        agents / services
-```
-
-The observability layer should eventually cover:
-
-```text
-Kubernetes
+Terraform
+Rocky Linux
+Networking
+Security groups
+VMs
+HAProxy
+kubeadm
+3 control planes
+3 workers
 Cilium
-nodes and VMs
-OpenStack services
-Cinder
-Slurm
-Hermes
-Heretic
-JupyterHub
-Astro
-Wazuh
-Suricata
-application workloads
 ```
 
-Prometheus is the metrics plane. It should not be treated as a raw log store.
+## Phase 1 — GitOps and storage
 
-Security telemetry remains appropriately separated:
-
-```text
-Wazuh
-  → security alerts, FIM, SCA, vulnerability and agent data
-
-Suricata
-  → IDS events and security telemetry
-
-Prometheus
-  → operational metrics
-
-Grafana
-  → unified operational/security visualization
-```
-
-The aim is correlation: cloud resource state, host health, Kubernetes state, scheduler behaviour, security events and application metrics should eventually be observable together.
-
-## Wazuh and Suricata
-
-The edge/security layer remains outside the Kubernetes application lifecycle where appropriate.
-
-The reference edge host provides:
-
-```text
-WireGuard
-Pi-hole
-nftables
-Suricata IDS
-Wazuh manager / security services
-SSH bastion
-```
-
-Wazuh agents can provide endpoint security telemetry from the relevant hosts.
-
-The Kubernetes cluster can run Wazuh agents where that is useful, while Wazuh remains a security platform rather than being forced into a Prometheus-shaped architecture.
-
-Suricata is treated primarily as an IDS/event source, with selected operational metrics exposed to Prometheus where useful.
-
-## Slurm is intentionally outside Kubernetes
-
-Slurm is not another Kubernetes application.
-
-It owns:
-
-- HPC scheduling
-- resource allocation
-- batch execution
-- MPI workloads
-- CPU/GPU scheduling
-
-```text
-                Research platform
-                       │
-          ┌────────────┴────────────┐
-          ▼                         ▼
-     Kubernetes                   Slurm
-     services                    batch/HPC
-     APIs                        MPI
-     notebooks                   scientific jobs
-     portals                     GPU/CPU scheduling
-```
-
-The initial Slurm deployment remains an Ansible-managed host deployment:
-
-```text
-slurm-controller-01
-    ├── slurmctld
-    ├── slurmdbd
-    └── database
-
-login1 / login2
-    └── user access + Slurm clients
-
-slurm-cpu-01 / slurm-cpu-02
-    └── compute
-```
-
-Future GPU/HPC resources can be added without turning Slurm itself into a Kubernetes application.
-
-The important boundary is:
+Status: complete for the current milestone.
 
 ```text
 Argo CD
-  → Kubernetes applications
-
-Ansible / Slurm tooling
-  → HPC execution environment
+Sealed Secrets
+Cinder CSI
+StorageClasses
+PVC/PV validation
+persistent-volume recovery test
 ```
 
-Slurm can therefore be integrated with the research platform without surrendering ownership of scheduling to Kubernetes.
+This phase established the canonical Argo Application prescription.
 
-## Hermes and Heretic
+## Phase 2 — Observability
 
-Hermes is intentionally split across trust boundaries.
+Next critical platform milestone.
 
-```text
-Management / federation Hermes
-        │
-        │ observe / orchestrate
-        ▼
-Infrastructure APIs
-
-Research Hermes
-        │
-        ▼
-Kubernetes research workloads
-
-Heretic
-        │
-        ▼
-controlled execution actions
-```
-
-The management/federation Hermes remains outside Kubernetes so that a Kubernetes outage does not automatically eliminate the management and federation control point.
-
-Research-oriented Hermes services can run inside Kubernetes.
-
-Heretic is a complementary controlled-execution/research component. Its permissions should remain explicit and constrained.
-
-The long-term model is not "AI gets root":
+Deploy in this order:
 
 ```text
-telemetry / APIs
-       ↓
-    Hermes
-       ↓
-inspect → reason → propose/request
-       ↓
-policy / review / controlled execution
-       ↓
-    Heretic
-```
-
-This boundary is especially important as multiple Hermes and Heretic agents begin operating together.
-
-## Researcher interface
-
-JupyterHub is the research gateway.
-
-The intended user experience is:
-
-```text
-Researcher
+Prometheus
     ↓
+Grafana
+    ↓
+Cilium dashboards
+    ↓
+Kubernetes dashboards
+    ↓
+OpenStack/VM metrics
+    ↓
+Slurm metrics
+    ↓
+Wazuh/Suricata operational telemetry
+```
+
+The purpose is to make the platform observable before adding more complex services.
+
+## Phase 3 — Security operations
+
+```text
+Wazuh agents
+Wazuh manager/integration
+Suricata telemetry
+host security visibility
+security dashboards and alerting
+```
+
+The security stack should feed operational visibility into Grafana without confusing metrics with logs/events.
+
+## Phase 4 — Researcher compute environment
+
+```text
 JupyterHub
     ↓
-Python / notebooks / scientific workflows
+per-user environments
+    ↓
+Cinder-backed persistence
+    ↓
+Kubernetes CPU/GPU workloads
+    ↓
+Slurm HPC workloads
+```
+
+JupyterHub becomes the primary interactive research interface.
+
+## Phase 5 — Intelligent orchestration
+
+```text
+PostgreSQL
+    ↓
+platform identity/application metadata
     ↓
 Hermes
     ↓
-Kubernetes / Slurm / GPU / QPU resources
+Heretic
+    ↓
+execution routing
 ```
 
-The researcher should not need to know which infrastructure layer executes a workload.
+Hermes should determine where work should run rather than replacing the underlying schedulers.
 
-The platform should progressively abstract:
+Example decision path:
 
 ```text
-CPU
-GPU
-MPI
-Slurm
-Kubernetes
-QPU
-hybrid workflows
+user request
+    ↓
+Hermes
+    ├── CPU
+    ├── GPU
+    ├── Slurm/HPC
+    ├── simulator
+    └── QPU
 ```
 
-behind a consistent research interface.
+Agents should have bounded permissions. Hermes should not become an unrestricted cluster-admin deployment bot.
 
-## Astro
+## Phase 6 — Local and cluster LLM inference
 
-Astro is the public/user-facing platform layer.
-
-The immediate objective is to build a scientific research portal with:
+Treat llama.cpp and Ollama as applications of the same Argo prescription.
 
 ```text
-public landing page
-research/project discovery
-authentication/login
-user identity
-researcher dashboard
-links into JupyterHub
-links into scientific services
+llama.cpp
+    ↓
+low-level/local inference runtime
+
+Ollama
+    ↓
+managed model runtime/API
 ```
 
-The near-term milestone is to deploy several Astro templates/themes and establish the portal/login experience.
+The desired architecture is to expose inference as a service while retaining explicit GPU/resource boundaries.
 
-Astro is therefore deliberately positioned above the infrastructure and research execution layers:
+Model serving can later feed Hermes and research applications.
+
+## Phase 7 — Platform identity and data
+
+Deploy PostgreSQL before building the full user portal.
+
+PostgreSQL provides the application's durable data layer for things such as:
 
 ```text
-Astro
-  ↓
-research portal / user experience
-  ↓
-JupyterHub / services
-  ↓
-Kubernetes / Slurm / hybrid compute
+platform users
+roles
+projects
+research groups
+provider identity mappings
+execution records
+job metadata
+portal configuration
 ```
 
-The website should not become coupled to OpenStack internals.
+External-provider credentials remain with the provider's identity system rather than becoming arbitrary plaintext database records.
 
-## Identity and PostgreSQL
-
-PostgreSQL is intended to become the platform's application/user state store where a durable relational database is required.
-
-The database should not become an authority over external providers.
-
-For example, quantum-provider integration can maintain references such as:
+For example:
 
 ```text
 platform user
     ↓
-external provider identity
+external-provider identity/reference
     ↓
-provider instance / CRN
-    ↓
-permitted execution context
+provider-controlled credentials
 ```
 
-while credentials remain controlled by the relevant provider and secret-management boundary.
+## Phase 8 — Astro user portal
 
-The same principle applies to other external systems:
+The portal becomes the public and researcher-facing entry point.
 
 ```text
+Astro
+  ↓
+login
+  ↓
+platform identity
+  ↓
+user/projects
+  ↓
+JupyterHub
+  ↓
+Hermes
+  ↓
+HPC / GPU / QPU services
+```
+
+The portal should eventually provide:
+
+- public landing pages
+- scientific/research areas
+- user authentication
+- project/workspace selection
+- job/execution status
+- research resources
+- service entry points
+- documentation
+
+Astro is a user interface, not the infrastructure control plane.
+
+## Phase 9 — Scientific applications
+
+Once the platform is stable, connect the separate scientific/research repositories.
+
+Planned application domains include:
+
+```text
+quantum
+QRMI
+simulators
+quantum finance
+high-energy physics
+variational networks
+hybrid CPU/GPU/QPU workflows
+```
+
+Scientific code should remain separate from infrastructure code where practical.
+
+---
+
+# Target service order
+
+The near-term deployment sequence is:
+
+```text
+Cinder CSI                  ✅
+    ↓
+Prometheus                  next
+    ↓
+Grafana
+    ↓
+Wazuh agents/security
+    ↓
 PostgreSQL
-  → platform state and relationships
+    ↓
+JupyterHub
+    ↓
+Hermes
+    ↓
+Heretic
+    ↓
+llama.cpp
+    ↓
+Ollama
+    ↓
+Astro user portal
+    ↓
+research/scientific services
+```
 
-Provider IAM
-  → provider access authority
+Some services have prerequisites or may be reordered during implementation. The important point is that every Kubernetes service should follow the same GitOps contract established by Cinder.
 
-Kubernetes RBAC
-  → Kubernetes authorization
+---
+
+# Slurm boundary
+
+Slurm is intentionally not moved into the Argo application stack.
+
+Its ownership remains:
+
+```text
+Ansible
+    ↓
+Slurm controller
+login nodes
+compute nodes
+partitions
+accounts
+Munge
+HPC software environment
+```
+
+Kubernetes applications may submit work to Slurm, but Slurm remains the scheduler for HPC resources.
+
+This creates a clean hybrid model:
+
+```text
+Kubernetes
+    ├── services
+    ├── APIs
+    ├── interactive research
+    └── cloud-native workloads
 
 Slurm
-  → HPC scheduling authorization
+    ├── MPI
+    ├── CPU HPC
+    ├── GPU HPC
+    └── batch research
 ```
 
-This avoids turning the application database into a universal credential store.
+---
 
-## Quantum-computing direction
+# Testing philosophy
 
-The infrastructure repository is the systems foundation for a later scientific software stack.
+Infrastructure tests and scientific tests have different jobs.
 
-The expected separation is:
+## Infrastructure
 
 ```text
-infra-hpc-qc-k8s
-    ↓
-infrastructure + platform
-
-UYUYU.africa
-    ↓
-student/research ecosystem
-
-intro-hpc-qc
-    ↓
-educational / introductory workflows
-
-hybrid-hpc-qc
-    ↓
-advanced hybrid HPC/QC platform and research workflows
+tests/
+├── terraform/
+│   ├── policy/
+│   ├── security/
+│   └── infrastructure/
+└── ansible/
+    ├── convergence/
+    └── functional/
 ```
 
-Scientific Python, numerical validation and benchmarks should live in the appropriate scientific/software repositories rather than turning this infrastructure repository into a scientific-code monolith.
+### Policy
 
-A future scientific repository is expected to organise testing separately from infrastructure:
+Is the infrastructure configuration permitted?
+
+### Security
+
+Is the exposure safe?
+
+### Infrastructure
+
+Did the declared resources materialise?
+
+### Convergence
+
+Does repeated Ansible execution converge cleanly?
+
+### Functional
+
+Does the resulting service actually work?
+
+## Scientific/research tests
 
 ```text
 quantum/
-├── qrmi/
-├── simulators/
-├── applications/
-│   ├── finance/
-│   └── hep/
 ├── tests/
 │   ├── unit/
 │   ├── numerical/
@@ -749,481 +803,228 @@ quantum/
     └── hep/
 ```
 
-The infrastructure platform therefore provides the execution substrate while scientific repositories own scientific correctness.
+Tests answer:
 
-## Testing philosophy
+> Is it correct?
 
-Declarative Infrastructure as Code does not remove the need for tests.
+Benchmarks answer:
 
-The project uses a testing pyramid that distinguishes policy, security, materialisation, convergence and functionality.
+> How well does it perform?
 
-```text
-tests/
-├── terraform/
-│   ├── policy/
-│   ├── security/
-│   └── infrastructure/
-└── ansible/
-    ├── convergence/
-    └── functional/
-```
+Scarce H100/H200 resources should not be required for every pull request.
 
-### Terraform policy tests
+---
 
-Ask:
+# Security model
+
+The platform uses multiple independent layers:
 
 ```text
-Is this infrastructure configuration allowed?
+OpenStack security groups
+        +
+host nftables
+        +
+WireGuard private access
+        +
+Cilium network policy
+        +
+Wazuh
+        +
+Suricata
+        +
+application RBAC
+        +
+Sealed Secrets
 ```
 
-Examples:
+The private network is the preferred administrative path.
 
-- required networks exist in configuration
-- forbidden public exposure is rejected
-- naming conventions are respected
-- resource sizes are within policy
+The edge node is the controlled boundary into the platform.
 
-### Terraform security tests
+SSH public exposure should be removed once the VPN/recovery path is fully validated.
 
-Ask:
+---
+
+# Portability
+
+Applications should depend on stable platform contracts rather than provider-specific implementation details.
+
+For storage:
 
 ```text
-Is the proposed infrastructure safely exposed?
+Kubernetes StorageClass
+        ↓
+provider-specific CSI
 ```
 
-Examples:
-
-- security-group rules
-- management-plane exposure
-- Kubernetes API exposure
-- SSH exposure
-- network segmentation
-- public/floating access
-
-### Terraform infrastructure tests
-
-Ask:
+For compute:
 
 ```text
-Did the declared infrastructure actually materialise?
+Kubernetes workload
+        ↓
+Kubernetes scheduler
+or
+Slurm scheduler
 ```
 
-These may require provider-backed integration environments and should not necessarily run destructively on every pull request.
-
-### Ansible convergence tests
-
-Ask:
+For inference:
 
 ```text
-Does repeatedly applying the configuration converge?
+application API
+        ↓
+llama.cpp / Ollama / other runtime
 ```
 
-A correctly written role should not continuously change the system on every run.
-
-### Ansible functional tests
-
-Ask:
+For quantum execution:
 
 ```text
-Does the resulting host/service actually work?
+platform identity
+        ↓
+execution service
+        ↓
+provider-specific QPU integration
 ```
 
-Examples:
+This lets the research environment evolve without rewriting every application when the underlying infrastructure changes.
 
-- service availability
-- ports/listeners
-- authentication
-- configuration correctness
-- integration with dependent services
+---
 
-Scientific tests and performance benchmarks remain distinct:
+# Bootstrap versus day-2 operations
 
-```text
-tests
-  → is it correct?
-
-benchmarks
-  → how well does it perform?
-```
-
-The eventual goal is to connect benchmark results with platform telemetry without making every pull request depend on scarce H100/H200/QPU resources.
-
-## Real-world failure knowledge
-
-This repository intentionally preserves lessons from actual deployment failures.
-
-These include:
-
-- OpenStack flavor name versus flavor ID handling
-- OpenStack service-policy authorization versus service availability
-- Cinder CSI and volume-type semantics
-- Kubernetes kubeconfig placement
-- Cilium node-health and networking requirements
-- Kubernetes API load-balancer security-group scope
-- HAProxy and SELinux interactions
-- containerd package/repository differences
-- CRI socket permissions
-- NodePort/network behaviour
-- stale package repositories
-- separation of host automation from Kubernetes application lifecycle
-- the need for observability before declaring infrastructure healthy
-
-Failures are part of the teaching material. A useful tutorial should explain not only the final command but also why a plausible command failed.
-
-## Portability is an architectural objective
-
-OpenStack is the current reference provider, not a requirement of the platform architecture.
-
-### Provider-neutral layers
-
-```text
-Kubernetes
-Cilium
-Argo CD
-Prometheus/Grafana
-Slurm
-Hermes
-Heretic
-JupyterHub
-Astro
-```
-
-### Provider-specific adapters
-
-```text
-OpenStack Terraform provider
-Nova
-Neutron
-Cinder
-OpenStack application credentials
-OpenStack CCM / CSI
-provider-specific network/security primitives
-```
-
-A different environment may use:
-
-```text
-OpenStack       → another OpenStack / AWS / Azure / GCP / bare metal
-Cinder CSI      → EBS / Azure Disk / GCE Persistent Disk / Ceph CSI / local storage
-Neutron/SG      → VPC/VNet/firewall/physical network
-OpenStack CCM   → cloud-specific integration or none
-Terraform       → another provider or a different IaC engine
-```
-
-The application layer should continue consuming stable platform contracts rather than provider-specific implementation details.
-
-## Current reference environment
-
-The current reference implementation is an OpenStack cloud using Rocky Linux virtual machines.
-
-### Network planes
-
-```text
-Management:    10.50.0.0/24
-Kubernetes:    10.51.0.0/24
-WireGuard/VPN: 10.60.0.0/24
-```
-
-Kubernetes API access uses a stable endpoint:
-
-```text
-10.51.0.100:6443
-        │
-      HAProxy
-     /  |  \
-   CP1  CP2  CP3
-```
-
-The API load balancer is replaceable. The stable endpoint is the contract.
-
-### Reference VM topology
-
-| Node | Address | Purpose |
-|---|---:|---|
-| edge | 10.50.0.10 | WireGuard, Pi-hole, nftables, Suricata IDS, SSH bastion, Wazuh manager/edge security |
-| hermes-orchestrator-01 | 10.50.0.11 | management/federation Hermes outside Kubernetes |
-| slurm-controller-01 | 10.50.0.12 | Slurm controller, accounting and initial database |
-| login1 | 10.50.0.20 | user login and Slurm client |
-| login2 | 10.50.0.21 | user login and Slurm client |
-| slurm-cpu-01 | 10.50.0.30 | 64-core Slurm compute node |
-| slurm-cpu-02 | 10.50.0.31 | 64-core Slurm compute node |
-| api-lb-01 | 10.51.0.100 | Kubernetes API HAProxy endpoint |
-| k8s-cp-01 | 10.51.0.11 | Kubernetes control plane |
-| k8s-cp-02 | 10.51.0.12 | Kubernetes control plane |
-| k8s-cp-03 | 10.51.0.13 | Kubernetes control plane |
-| k8s-worker-01 | 10.51.0.21 | Kubernetes worker |
-| k8s-worker-02 | 10.51.0.22 | Kubernetes worker |
-| k8s-worker-03 | 10.51.0.23 | Kubernetes worker |
-
-## Repository structure
-
-```text
-infra-hpc-qc-k8s/
-├── ansible/                 # hosts + bootstrap/base infrastructure
-│   ├── inventories/
-│   ├── playbooks/
-│   └── roles/
-│
-├── argocd/                  # GitOps applications + bootstrap
-│   ├── bootstrap/
-│   └── applications/
-│
-├── secrets/                 # encrypted GitOps secrets only
-│   └── cinder/
-│
-├── kubernetes/              # provider-facing / cluster resource definitions
-│   └── cinder-csi/
-│
-├── terraform/               # cloud infrastructure
-│   ├── environments/
-│   ├── modules/
-│   └── tests/
-│
-├── tests/
-│   ├── terraform/
-│   │   ├── policy/
-│   │   ├── security/
-│   │   └── infrastructure/
-│   └── ansible/
-│       ├── convergence/
-│       └── functional/
-│
-├── docs/                    # project documentation + tutorials
-├── scripts/                 # helper/validation scripts
-├── Makefile
-└── README.md
-```
-
-The repository intentionally separates:
-
-```text
-infrastructure
-host automation
-GitOps applications
-secrets
-tests
-documentation
-```
-
-rather than creating one undifferentiated automation tree.
-
-## Documentation
-
-```text
-docs/README.md
-    ↓
-project documentation landing page
-
-QUICK GUIDE
-    ↓
-fast command path
-
-INSTALLATION
-    ↓
-full guided deployment
-
-TUTORIALS
-    ↓
-concepts, experiments, failures, design lessons
-```
-
-Directory-specific documentation lives with the code it explains:
-
-```text
-ansible/README.md
-terraform/README.md
-argocd/README.md
-kubernetes/README.md
-tests/README.md
-```
-
-The tutorials are part of the project architecture, not an afterthought. They should explain both implementation and reasoning, with failures preserved as teaching material.
-
-## Deployment progression
-```text
-1. Terraform
-       ↓
-2. Ansible host/base configuration
-       ↓
-3. kubeadm Kubernetes bootstrap
-       ↓
-4. Cilium network validation
-       ↓
-5. Ansible Argo CD + Sealed Secrets bootstrap
-       ↓
-6. Secure backup of Sealed Secrets private key
-       ↓
-7. Offline public certificate for kubeseal
-       ↓
-8. GitOps root Application
-       ↓
-9. Cinder CSI + StorageClasses
-       ↓
-10. Prometheus / Grafana
-       ↓
-11. Wazuh agents / security telemetry
-       ↓
-12. Slurm operational deployment
-       ↓
-13. Hermes + Heretic
-       ↓
-14. JupyterHub
-       ↓
-15. PostgreSQL / platform userdb
-       ↓
-16. Astro research portal
-       ↓
-17. research and quantum-computing applications
-```
-
-The stages are capabilities rather than an absolute prohibition on parallel work. Slurm, for example, can be prepared independently once the underlying VMs exist.
-
-The order exists to make dependencies explicit:
-
-```text
-network
-  ↓
-cluster
-  ↓
-storage
-  ↓
-observability
-  ↓
-execution
-  ↓
-identity/state
-  ↓
-research interface
-```
-
-## Engineering principles
-
-### Prove every layer
-
-```text
-install
-  ↓
-configure
-  ↓
-inspect
-  ↓
-functional test
-  ↓
-observe
-  ↓
-recovery / failure test where appropriate
-```
-
-Infrastructure should not be considered complete merely because an installer exited successfully.
-
-### Separate ownership
-
-Use the tool that owns the problem.
+Bootstrap is intentionally small:
 
 ```text
 Terraform
-  → infrastructure
-
+    ↓
+OpenStack
+    ↓
 Ansible
-  → hosts / bootstrap
+    ↓
+Kubernetes + Argo CD + Sealed Secrets
+```
 
-kubeadm
-  → Kubernetes bootstrap
+Once Argo CD is established:
 
-Cilium
-  → Kubernetes networking
-
+```text
+GitHub
+    ↓
 Argo CD
-  → Kubernetes application lifecycle
-
-Slurm
-  → HPC scheduling
-
-Prometheus/Grafana
-  → observability
-
-Hermes
-  → orchestration
-
-Heretic
-  → controlled execution
+    ↓
+Kubernetes applications
 ```
 
-### Keep secrets out of Git
+The control plane does not need a clone of this repository for ordinary GitOps operation.
 
-Plaintext credentials do not belong in the public repository.
+The workstation owns the repository.
 
-Use Sealed Secrets for Kubernetes credentials. The public certificate may be kept on the workstation; the controller's private sealing key stays in the cluster and is backed up separately for disaster recovery.
+Ansible copies only the small bootstrap artifacts it actually needs.
 
-### Keep production independent of the workstation
+---
 
-A developer laptop should be capable of creating deployment artifacts, but production runtime must not depend on that laptop remaining online.
+# Failure lessons
 
-### Do not give agents unnecessary authority
+This repository is intentionally a record of engineering decisions, including things that did not work.
 
-Automation and AI agents should operate under least privilege and proposal/review boundaries.
+## SOPS + age / KSOPS
 
-### Build for portability
+Attractive in theory, but repo-server plugin configuration and Ansible bootstrap complexity were disproportionate to the requirement.
 
-OpenStack is a reference implementation. Platform contracts should remain portable.
+Final choice: Sealed Secrets.
 
-### Preserve failure knowledge
+## Kustomize
 
-A failed deployment teaches something valuable when the failure, cause and correction are captured.
+Useful elsewhere, but unnecessary for the simple Application registry.
 
-### Build for the next person
+Final choice: flat Argo Directory source.
 
-A successful deployment is not enough. The repository should make the system understandable, reproducible, modifiable, teachable and recoverable.
+## ApplicationSet
 
-## Current milestone
+Powerful, but unnecessary for a small explicit set of applications.
+
+Final choice: one Application manifest per service.
+
+## Giant Ansible Kubernetes installer
+
+Rejected because it blurs infrastructure bootstrap and application lifecycle.
+
+Final choice: Ansible bootstraps; Argo CD reconciles applications.
+
+## Cinder debugging
+
+The Cinder ordeal demonstrated that tiny configuration mismatches can create cascading failures.
+
+The lesson is not to add another framework.
+
+The lesson is to inspect the actual dependency chain.
+
+---
+
+# Tutorials
+
+The tutorials document the platform as a sequence rather than merely a collection of commands.
+
+Key milestones include:
 
 ```text
-✅ OpenStack infrastructure
-✅ Rocky Linux base configuration
-✅ Edge/security baseline
-✅ Kubernetes HA cluster
-✅ Cilium
-✅ Cilium connectivity validation
-✅ Argo CD bootstrap
-✅ Sealed Secrets controller bootstrap
-✅ Sealed Secrets private-key backup
-✅ Cinder SealedSecret committed
-
-→ GitOps root Application
-→ Cinder CSI via Argo CD
-→ Persistent-volume functional test
-→ Prometheus / Grafana
-→ Wazuh agents / security telemetry
-→ Slurm integration / operational deployment
-→ Hermes + Heretic
-→ JupyterHub
-→ PostgreSQL / platform userdb
-→ Astro research portal
-→ scientific / quantum-computing applications
+Tutorial 1 — OpenStack infrastructure
+Tutorial 2 — Rocky Linux + Kubernetes bootstrap
+Tutorial 3 — Argo CD + Sealed Secrets
+Tutorial 4c — Cinder CSI and GitOps troubleshooting
 ```
 
-## Immediate objective
+Tutorial 4c is the current reference example for subsequent Kubernetes applications.
 
-The immediate implementation objective is to cross the first complete GitOps boundary:
+---
+
+# What comes next
+
+The platform has crossed an important boundary.
+
+We are no longer proving that Kubernetes can boot.
+
+We have now proven that Kubernetes can:
 
 ```text
-Kubernetes
-   ↓
-Argo CD + Sealed Secrets
-   ↓
-root GitOps application
-   ↓
-Cinder CSI
-   ↓
-PVC → Cinder volume
-   ↓
-Prometheus / Grafana
+consume OpenStack infrastructure
+        ↓
+manage persistent storage
+        ↓
+receive encrypted credentials
+        ↓
+reconcile declaratively from Git
 ```
 
-Once that path works, the platform can stop relying on manual Kubernetes application deployment.
+The next objective is to make the cluster **observable before making it more complicated**.
 
-The next visible product milestone is the Astro scientific research portal: deploy several themes/templates, establish the public site, and complete the first login experience while keeping the research execution stack behind the platform boundaries described above.
+Therefore the immediate next milestone is:
 
-## License and contribution
+```text
+Prometheus
+    ↓
+Grafana
+    ↓
+platform dashboards
+    ↓
+Cilium validation with observability
+```
 
-See the repository license for current terms. Contributions are welcome, especially improvements that make the platform easier to reproduce, adapt to another provider, teach, validate, operate safely, and extend into advanced HPC/AI/quantum research.
+After that the platform can grow into the full research environment.
+
+---
+
+# Philosophy
+
+This project follows a simple principle:
+
+> Build a platform that is understandable enough to teach, reproducible enough to rebuild, and useful enough to run real research.
+
+Prefer explicit ownership over clever automation.
+
+Prefer stable interfaces over provider-specific coupling.
+
+Prefer boring infrastructure over unnecessary frameworks.
+
+And when something breaks:
+
+> inspect what is actually running before redesigning what you think should be running.
+

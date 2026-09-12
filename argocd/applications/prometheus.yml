@@ -1,0 +1,36 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: prometheus
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+
+spec:
+  project: default
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+
+  sources:
+    # Upstream Prometheus Community Helm chart.
+    - repoURL: https://prometheus-community.github.io/helm-charts
+      chart: prometheus
+      targetRevision: 29.21.0
+      helm:
+        releaseName: prometheus
+        valueFiles:
+          - $values/argocd/resources/prometheus/values.yaml
+
+    # Our GitOps configuration.
+    - repoURL: https://github.com/nyameko/infra-hpc-qc-k8s.git
+      targetRevision: main
+      ref: values
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

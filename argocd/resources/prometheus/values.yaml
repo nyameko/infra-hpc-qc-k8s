@@ -1,0 +1,47 @@
+rbac:
+  create: true
+
+serviceAccounts:
+  server:
+    create: true
+
+alertmanager:
+  enabled: true
+
+kube-state-metrics:
+  enabled: true
+
+prometheus-node-exporter:
+  enabled: true
+
+prometheus-pushgateway:
+  enabled: false
+
+server:
+  enabled: true
+
+  replicaCount: 1
+
+  retention: 15d
+
+  persistentVolume:
+    enabled: true
+    storageClass: cinder-ssd
+    size: 20Gi
+    accessModes:
+      - ReadWriteOnce
+
+  service:
+    type: ClusterIP
+
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: "1"
+      memory: 2Gi
+
+  global:
+    scrape_interval: 30s
+    evaluation_interval: 30s

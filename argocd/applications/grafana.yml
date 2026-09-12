@@ -1,0 +1,41 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: grafana
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+
+spec:
+  project: default
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+
+  sources:
+    # Upstream Grafana Community Helm chart.
+    - repoURL: https://grafana-community.github.io/helm-charts
+      chart: grafana
+      targetRevision: 12.10.0
+      helm:
+        releaseName: grafana
+        valueFiles:
+          - $values/argocd/resources/grafana/values.yaml
+
+    # Our GitOps configuration.
+    - repoURL: https://github.com/nyameko/infra-hpc-qc-k8s.git
+      targetRevision: main
+      ref: values
+
+    # Grafana admin credential.
+    - repoURL: https://github.com/nyameko/infra-hpc-qc-k8s.git
+      targetRevision: main
+      path: secrets/grafana
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
