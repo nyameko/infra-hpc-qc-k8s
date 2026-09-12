@@ -8,8 +8,9 @@ Network=host
 Volume=/opt/pihole/etc-pihole:/etc/pihole
 Environment=TZ={{ timezone }}
 Environment=FTLCONF_webserver_api_password={{ pihole_web_password }}
-Environment=FTLCONF_dns_listeningMode=ALL
-Environment=FTLCONF_dns_upstreams={{ pihole_dns_upstreams | join(';') }}
+Environment=FTLCONF_dns_listeningMode={{ pihole_dns_listening_mode }}
+Environment="FTLCONF_dns_upstreams={{ pihole_dns_upstreams | join(';') }}"
+Environment="FTLCONF_dns_hosts={{ pihole_dns_hosts | join('\n') }}"
 
 [Service]
 Restart=always
