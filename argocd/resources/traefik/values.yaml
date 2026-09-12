@@ -20,20 +20,19 @@ ports:
     port: 80
 
   websecure:
-    port: 443
-    tls:
-      enabled: true
+    http:
+      tls:
+        enabled: true
 
 service:
   enabled: true
   type: LoadBalancer
 
 logs:
-  general:
     level: INFO
 
-  access:
-    enabled: true
+accessLog:
+  enabled: true
 
 metrics:
   prometheus:
