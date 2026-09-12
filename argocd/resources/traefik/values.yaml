@@ -18,9 +18,13 @@ ingressClass:
 ports:
   web:
     port: 8000
+    exposedPort: 80
+    nodePort: 31818
 
   websecure:
     port: 8443
+    exposedPort: 443
+    nodePort: 31924
     http:
       tls:
         enabled: true
