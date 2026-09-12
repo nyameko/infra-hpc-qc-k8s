@@ -5,7 +5,7 @@ Description=Pi-hole
 Image={{ pihole_container_image }}
 ContainerName=pihole
 Network=host
-Volume=/opt/pihole/etc-pihole:/etc/pihole
+Volume=/opt/pihole/etc-pihole:/etc/pihole:Z
 Environment=TZ={{ timezone }}
 Environment=FTLCONF_webserver_api_password={{ pihole_web_password }}
 Environment=FTLCONF_dns_listeningMode={{ pihole_dns_listening_mode }}
