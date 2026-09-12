@@ -6,4 +6,4 @@ api_lb_backends: "{{ kubernetes_api_backends }}"
 api_lb_ingress_workers: "{{ kubernetes_api_workers }}"
 
 api_lb_ingress_http_port: 31818
-api_lb_ingress_https_port: 31924x
+api_lb_ingress_https_port: 31924
