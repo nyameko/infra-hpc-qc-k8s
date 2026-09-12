@@ -36,3 +36,24 @@ spec:
   ports:
     - port: 80
       targetPort: 80
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ingress-test
+  namespace: default
+
+spec:
+  ingressClassName: traefik
+
+  rules:
+    - host: traefik-test.quantum.nyameko.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: ingress-test
+                port:
+                  number: 80
