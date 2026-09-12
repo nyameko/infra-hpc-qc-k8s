@@ -17,9 +17,10 @@ ingressClass:
 
 ports:
   web:
-    port: 80
+    port: 8000
 
   websecure:
+    port: 8443
     http:
       tls:
         enabled: true
@@ -28,8 +29,8 @@ service:
   enabled: true
   type: LoadBalancer
 
-logs:
-    level: INFO
+log:
+  level: INFO
 
 accessLog:
   enabled: true
