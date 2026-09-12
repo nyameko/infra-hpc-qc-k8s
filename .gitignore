@@ -22,6 +22,8 @@ secrets/**/*.conf
 secrets/**/cloud-config.yaml
 secrets/**/*.yml
 
+secrets/
+
 # SOPS/age private material
 *.agekey
 .age/
