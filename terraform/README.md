@@ -2,18 +2,42 @@
 
 Terraform owns the **cloud infrastructure layer** of `infra-hpc-qc-k8s`.
 
-The current reference implementation targets OpenStack, but the architecture is deliberately intended to support other clouds or bare metal by replacing the provider-specific infrastructure layer rather than rewriting the platform.
+Its job is to declare and reconcile the infrastructure that must exist before Ansible, Kubernetes, Argo CD, Slurm, or research applications can operate.
 
-## Responsibility boundary
+The reference implementation targets OpenStack, but OpenStack is an implementation detail of the current environment rather than the definition of the platform.
+
+---
+
+## Terraform's question
+
+Terraform answers one question:
+
+> **What infrastructure exists?**
+
+It should not answer:
+
+> How is the operating system configured?
+
+or:
+
+> What Kubernetes application should be running?
+
+Those questions belong to other layers.
+
+---
+
+## Ownership boundary
 
 ```text
 Terraform
     ↓
-cloud resources
+OpenStack resources
+    ↓
+VMs / networks / security groups / ports
 
 Ansible
     ↓
-operating systems + host services
+Rocky Linux + host services + bootstrap
 
 kubeadm / Cilium
     ↓
@@ -24,14 +48,69 @@ Argo CD
 Kubernetes applications
 ```
 
-Terraform should not become the primary Kubernetes application deployment engine. That would create two competing controllers once Argo CD is active.
+Keeping these boundaries separate prevents multiple tools from fighting over the same state.
 
-## Current layout
+---
+
+## What Terraform owns
+
+In the reference OpenStack environment Terraform is responsible for resources such as:
+
+```text
+Networking
+├── networks
+├── subnets
+├── routers
+├── ports
+└── network attachments
+
+Security
+└── security groups and rules
+
+Compute
+└── VM instances and their infrastructure metadata
+
+External access
+└── api-lb-01 / HAProxy infrastructure
+
+Bootstrap inputs
+└── cloud-init and other machine-creation inputs
+```
+
+The exact resources are provider-specific and should remain isolated in the Terraform modules and environment definitions.
+
+---
+
+## What Terraform does not own
+
+Terraform should not become the long-lived application controller for:
+
+```text
+Kubernetes Deployments
+Helm releases
+Argo CD Applications
+Traefik configuration
+cert-manager Certificates
+Prometheus / Grafana runtime configuration
+JupyterHub
+Astro
+Hermes / Heretic applications
+```
+
+Those resources belong to Argo CD after the Kubernetes/GitOps boundary is established.
+
+Likewise, Terraform should not replace Ansible for host configuration.
+
+---
+
+## Repository structure
+
+The intended shape is:
 
 ```text
 terraform/
 ├── environments/
-│   └── template/
+│   └── <environment>/
 └── modules/
     ├── api_lb/
     ├── compute/
@@ -39,118 +118,176 @@ terraform/
     └── security/
 ```
 
-The current repository exposes separate compute, network, API load-balancer and security modules, with environment-specific configuration under `terraform/environments`. citeturn438820view2turn438820view3
+### Modules
 
-## What Terraform creates
+Modules should express reusable infrastructure concepts:
 
-In the reference OpenStack environment, Terraform is responsible for resources such as:
+- `network` — networks, subnets, routers and related primitives
+- `security` — OpenStack security-group policy
+- `compute` — VM creation and attachment
+- `api_lb` — the external Kubernetes API/load-balancer VM infrastructure
 
-```text
-networks
-subnets
-ports
-security groups
-VM instances
-API load-balancer infrastructure
-cloud-init inputs
-```
+### Environments
 
-The actual resource set is provider-specific and should remain isolated inside the relevant environment/module code.
-
-## What Terraform should not own
-
-Terraform should not permanently own:
+Environment directories should contain the provider-specific and deployment-specific decisions:
 
 ```text
-Kubernetes Deployments
-Helm releases
-Argo CD Applications
-Prometheus/Grafana configuration
-JupyterHub
-Astro
-application lifecycle
+provider credentials
+project IDs
+image IDs
+flavors
+CIDRs
+node counts
+network names
+availability zones
 ```
 
-Those belong to Argo CD after bootstrap.
+Those values should not leak into reusable modules when they can be parameterized cleanly.
 
-## Cinder and storage
+---
 
-Terraform may manage **OpenStack-side storage infrastructure and identity prerequisites** where appropriate, but the Kubernetes Cinder CSI driver is not a Terraform-managed application in the target architecture.
+## Scaling model
 
-The distinction is:
+Terraform should make node-count changes boring.
+
+Adding a Kubernetes worker should be a change to infrastructure intent, not a manual sequence of VM operations.
+
+The intended lifecycle is:
+
+```text
+Change worker count / node declaration
+        ↓
+terraform plan
+        ↓
+review resource delta
+        ↓
+terraform apply
+        ↓
+new OpenStack VM exists
+        ↓
+Ansible configures it
+        ↓
+kubeadm joins the node
+        ↓
+GitOps / HAProxy consume the resulting topology
+```
+
+The important rule is that Terraform creates the machine; it does not need to understand the application's Kubernetes workload running on that machine.
+
+---
+
+## Load balancing boundary
+
+The project intentionally uses an explicit `api-lb-01` VM running HAProxy rather than relying on an OpenStack Octavia controller being available.
+
+Terraform therefore owns the existence and networking of the VM:
+
+```text
+Terraform
+   ↓
+api-lb-01
+10.51.0.100
+   ↓
+Ansible
+   ↓
+HAProxy
+```
+
+HAProxy's configuration belongs to Ansible, not Terraform.
+
+This is a useful example of layered ownership:
+
+```text
+Terraform → VM exists
+Ansible   → HAProxy is configured
+Kubernetes → application endpoints exist
+```
+
+---
+
+## Storage boundary
+
+Terraform may provision OpenStack-side storage prerequisites and identity resources where appropriate, but the Kubernetes Cinder CSI driver belongs to Argo CD.
+
+The separation is:
 
 ```text
 Terraform
     ↓
-OpenStack resource / identity prerequisites
+OpenStack-side infrastructure / identity
 
 Argo CD
     ↓
-Cinder CSI Helm application
+Cinder CSI
     ↓
 StorageClasses
     ↓
 PVCs
 ```
 
-This avoids Terraform and Argo CD both trying to manage the same Kubernetes application resources.
+Do not make Terraform and Argo CD co-own the same Kubernetes storage resources.
 
-## Application credentials
+---
 
-Terraform can technically manage OpenStack application credentials, but credential secrets can become part of Terraform state. For sensitive application credentials, prefer a deliberately secured credential/secret-management workflow.
+## Credentials and state
 
-For the current Cinder CSI bootstrap, an application credential is an OpenStack identity input consumed by the Kubernetes Secret used by the CSI driver. Do not commit the credential secret to Terraform variables or Git.
+Terraform state is infrastructure state and should be treated as sensitive metadata.
 
-## Provider portability
-
-OpenStack is a reference provider, not the platform definition.
-
-The provider-specific boundary is approximately:
+Do not commit:
 
 ```text
-terraform/
-└── environments/<provider-or-environment>/
-      ↓
-provider-specific modules
+*.tfstate
+*.tfstate.backup
+provider credentials
+application credentials
+private cloud files
 ```
 
-Higher-level platform concepts should remain stable:
+Cloud credentials belong outside Git and should be supplied through the normal Terraform/OpenStack authentication mechanism.
+
+Be particularly careful with OpenStack application credentials: if Terraform creates a credential and exposes its secret material in state, the state itself becomes sensitive.
+
+For Kubernetes application credentials, prefer the project's Git-safe Sealed Secrets workflow rather than pushing provider credentials into Terraform variables.
+
+---
+
+## Portability
+
+OpenStack is the current reference provider.
+
+The stable platform contracts above it should remain provider-neutral:
 
 ```text
-Kubernetes
-Cilium
-Argo CD
-Prometheus/Grafana
-Slurm
-Hermes
-Heretic
-JupyterHub
-Astro
+OpenStack / bare metal / future cloud
+                ↓
+         Kubernetes substrate
+                ↓
+        Argo CD applications
+                ↓
+     Slurm / research workloads
 ```
 
-A different cloud would replace the relevant infrastructure modules and provider integration.
+A future cloud implementation should replace the infrastructure provider and related modules without requiring a redesign of Kubernetes applications, Slurm, Hermes, or the research layer.
 
-## Bare metal adaptation
+---
 
-The architecture is also intended to work without a cloud provider:
+## Bare-metal interpretation
+
+The same architecture can be adapted to bare metal:
 
 ```text
-Bare metal
-    ↓
-Ansible / bare-metal provisioning
-    ↓
+Bare metal provisioning
+        ↓
+Ansible / hardware management
+        ↓
 Kubernetes + Slurm
 ```
 
-Nova and Neutron disappear; Kubernetes, Slurm, Cilium, Argo CD and the application architecture do not.
+In that model there is no Nova or Neutron, but the higher-level contracts remain.
 
-## State and environments
+---
 
-Treat Terraform state as sensitive infrastructure metadata. Do not commit local state or secrets. Keep provider credentials outside the repository.
-
-Use the environment structure to isolate cloud/project-specific values from reusable modules.
-
-## Workflow
+## Normal workflow
 
 ```bash
 terraform init
@@ -159,18 +296,45 @@ terraform plan
 terraform apply
 ```
 
-Always inspect the plan before apply in a real environment.
+Use `terraform plan` as the review boundary. A production change should be understandable before it is applied.
+
+Useful discipline:
+
+```text
+edit
+ ↓
+format / validate
+ ↓
+plan
+ ↓
+review
+ ↓
+apply
+ ↓
+verify the actual OpenStack state
+```
+
+---
 
 ## Teaching objective
 
-Terraform should teach the difference between:
+Terraform exists in this project to teach the distinction between:
 
 ```text
-Desired cloud infrastructure
+Infrastructure desired state
         vs.
-Runtime host configuration
+Host/runtime configuration
         vs.
 Kubernetes desired state
 ```
 
-Keeping those concerns separate is one of the core architectural lessons of the project.
+If a Terraform change starts requiring knowledge of a Kubernetes Deployment, a Linux service unit, or an application-level configuration file, stop and re-evaluate the ownership boundary.
+
+---
+
+## Related documentation
+
+- [Project README](../README.md)
+- [Ansible](../ansible/README.md)
+- [Argo CD](../argocd/README.md)
+- [Installation and tutorials](../docs/README.md)

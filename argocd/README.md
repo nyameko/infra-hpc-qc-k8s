@@ -4,297 +4,458 @@ Argo CD is the **Kubernetes application lifecycle and GitOps layer** of `infra-h
 
 It is bootstrapped by Ansible and then becomes the normal owner of long-lived Kubernetes applications.
 
-## The boundary
+The practical rule is:
+
+> **Once the GitOps boundary exists, a Kubernetes application's desired state belongs in Git and is reconciled by Argo CD.**
+
+---
+
+## Argo CD's question
+
+Argo CD answers:
+
+> **What should Kubernetes be running?**
+
+It does not answer:
+
+> What OpenStack resources exist?
+
+or:
+
+> How should Rocky Linux be configured?
+
+Those belong to Terraform and Ansible.
+
+---
+
+## The ownership boundary
 
 ```text
 Terraform
     ↓
-cloud
+OpenStack infrastructure
 
 Ansible
     ↓
-hosts + Kubernetes bootstrap
+Hosts + bootstrap
+
+kubeadm / Cilium / CSI
+    ↓
+Kubernetes substrate
 
 Argo CD
     ↓
-Kubernetes applications
+Long-lived Kubernetes applications
 ```
 
-The transition is intentional:
+This is the central GitOps boundary in the repository.
+
+---
+
+## Why Argo CD is used
+
+Argo CD gives the platform a continuously reconciled desired state:
 
 ```text
-Ansible bootstraps Argo CD
-          ↓
-Argo CD manages Kubernetes
-          ↓
-new Kubernetes applications are Git-managed
+Git
+  ↓
+Argo CD
+  ↓
+render desired state
+  ↓
+compare with cluster
+  ↓
+sync
+  ↓
+Kubernetes converges
 ```
 
-## Why Argo CD is in the architecture
+That provides:
 
-Argo CD provides declarative, version-controlled application definitions and continuous reconciliation. Its application controller continuously compares live state to the desired state defined by the configured source. citeturn523162search4turn883343search9
+- versioned application definitions
+- repeatable deployments
+- drift detection
+- self-healing when enabled
+- explicit ownership
+- a useful audit trail
+- a consistent deployment method for students and collaborators
 
-That makes Git the application declaration and Argo CD the reconciler.
+---
 
 ## Bootstrap
 
-The current bootstrap path is:
+Ansible installs Argo CD into the cluster.
+
+The bootstrap controller should remain intentionally small:
 
 ```text
 Ansible
-   │
-   ▼
-k8s-cp-01
-   │
-   ├── existing kubectl
-   ├── existing administrator kubeconfig
-   └── Kubernetes API access
-             │
-             ▼
-        install Argo CD
+   ↓
+install Argo CD
+   ↓
+wait for core components
+   ↓
+hand application ownership to GitOps
 ```
 
-The role is intentionally small. It is not intended to become a general Kubernetes application installer.
+Argo CD does not need the operator's `/etc/kubernetes/admin.conf` for its in-cluster destination. Its application controller uses its Kubernetes ServiceAccount and RBAC to talk to `https://kubernetes.default.svc`.
 
-The current standard installation is suitable for an Argo CD instance managing the same cluster in which it runs. Argo's documentation describes the standard installation as the normal in-cluster multi-tenant installation pattern and the HA installation as the production-oriented alternative. citeturn523162search1
+---
 
-## How Argo CD authenticates to Kubernetes
+## Repository structure
 
-For the in-cluster destination, **Argo CD does not consume `/etc/kubernetes/admin.conf` and does not consume the operator's kubeconfig**.
-
-Instead:
-
-```text
-Argo CD application-controller
-        │
-        ▼
-Kubernetes ServiceAccount
-        │
-        ▼
-RBAC permissions
-        │
-        ▼
-https://kubernetes.default.svc
-        │
-        ▼
-Kubernetes API
-```
-
-The standard in-cluster configuration uses the service identity available inside the pod. The Argo application controller therefore has the Kubernetes permissions it needs through Kubernetes RBAC, not by receiving a copied administrator kubeconfig. citeturn523162search1turn523162search3
-
-For external clusters, Argo supports storing cluster credentials as Secrets in the `argocd` namespace. That is a different pattern and is not required for this single in-cluster reference deployment. citeturn523162search3
-
-## Application controller: StatefulSet vs Deployment
-
-The current application controller is a StatefulSet:
-
-```text
-argocd-application-controller-0
-```
-
-This is normal.
-
-Argo's controller sharding model has historically used stable replica identity and predictable pod names. The official high-availability documentation describes increasing the StatefulSet replicas to create additional shards. citeturn883343search0turn883343search1
-
-A Deployment instead treats replicas as interchangeable. Argo documents a separate dynamic cluster-distribution feature that can run the controller as a Deployment, but that is a deliberate alternative mechanism rather than something we need to enable for this project. citeturn883343search3
-
-For our current small cluster:
-
-```text
-1 controller replica
-    → sufficient initially
-
-StatefulSet
-    → normal current implementation
-
-No persistent application data
-    → implied by the StatefulSet choice
-```
-
-We do not need to modify it merely because it is a StatefulSet.
-
-## Repository layout
+The preferred structure is application-oriented:
 
 ```text
 argocd/
-└── applications/
-    ├── cinder-csi/
-    │   ├── application.yaml
-    │   ├── values.yaml
-    │   ├── README.md
-    │   └── resources/
-    │       └── storageclasses.yaml
-    │
-    └── <future applications>/
+├── applications/
+│   ├── <application>.yml
+│   ├── <application>-config.yml
+│   └── ...
+│
+└── resources/
+    ├── <application>/
+    └── platform resources
 ```
 
-The current Cinder application is already represented this way. citeturn438820view0turn662409view4
+For an application using an upstream Helm chart, separate:
 
-## Cinder CSI: first GitOps application
+```text
+upstream package
+        +
+project-specific values/resources
+        +
+Argo CD reconciliation
+```
 
-The current Cinder Application uses two sources:
+Do not assume that placing arbitrary YAML beside a Helm `values.yaml` makes Argo render it. A Git source used as a Helm values source is still only a values source. If a resource needs its own lifecycle, give it an Argo Application or include it through a deliberate multi-source/application structure.
+
+This distinction was important when introducing the Traefik test route.
+
+---
+
+## Platform application versus application configuration
+
+A useful split is:
+
+```text
+cert-manager
+    → installs the cert-manager platform/controller
+
+cert-manager-config
+    → owns the Cloudflare Secret + ClusterIssuer
+
+traefik
+    → installs/configures Traefik
+
+traefik-test
+    → owns the demonstration Deployment + Service + Ingress
+```
+
+This is a good general pattern.
+
+The controller and the application's configuration are different concerns and do not need to be forced into one Application.
+
+---
+
+## Sync waves
+
+Sync waves are useful where one application depends on another capability existing first.
+
+The current pattern is:
+
+```text
+wave 0
+cert-manager
+     ↓
+wave 1
+cert-manager-config
+     ↓
+wave 2
+traefik-test
+```
+
+The purpose is not to create a complicated dependency graph. It is to express a small number of real prerequisites.
+
+Use waves when the ordering is meaningful; do not assign arbitrary waves to everything.
+
+---
+
+## Helm versus Git resources
+
+Many applications naturally have two sources:
 
 ```text
 Source 1
   upstream Helm chart
-  openstack-cinder-csi
 
 Source 2
-  this Git repository
-  StorageClasses
+  project-specific Git resources / values
 ```
 
-This gives a useful distinction:
+This is particularly useful for platform components where the upstream chart is maintained by another project but the deployment policy is local to this repository.
+
+For example:
 
 ```text
-Helm
-  → package/vendor application
+cert-manager
+  → upstream chart
 
-Git repository
-  → project-specific configuration and policy
+project configuration
+  → ClusterIssuer
+  → SealedSecret
 
-Argo CD
-  → reconciliation
+traefik
+  → upstream chart
+
+project resources
+  → Ingress / test application / other Kubernetes objects
 ```
 
-The Application targets:
+Keep the local resources explicit enough that a reader can see what this project is adding to the upstream package.
+
+---
+
+## Secrets
+
+The platform uses Bitnami Sealed Secrets.
+
+Argo CD should reconcile only encrypted representations such as:
 
 ```yaml
-server: https://kubernetes.default.svc
+kind: SealedSecret
 ```
 
-and syncs into `kube-system`. citeturn662409view4
+The runtime Kubernetes Secret is produced by the Sealed Secrets controller.
 
-## Cinder credentials
-
-Cinder CSI needs OpenStack credentials, not Kubernetes credentials.
+For example:
 
 ```text
+Cloudflare API token
+       ↓
+local plaintext Secret
+       ↓
+kubeseal
+       ↓
+SealedSecret in Git
+       ↓
 Argo CD
-   │
-   └── Kubernetes ServiceAccount
-
-Cinder CSI
-   │
-   └── OpenStack application credential
+       ↓
+cert-manager Secret
+       ↓
+Cloudflare DNS-01
 ```
 
-The OpenStack credential is supplied through a Kubernetes Secret containing `cloud.conf`. The secret is deliberately not stored in plaintext in Git. The current Cinder application documentation explicitly calls out the Secret as a prerequisite. citeturn438820view0
+The same boundary applies to other application credentials.
 
-## StorageClasses
+---
 
-The reference cloud exposes:
+## Ingress and certificate management
 
-```text
-SSD
-HDD
-__DEFAULT__
+The repository intentionally lets applications request certificates through their Ingress rather than hand-authoring a `Certificate` for every application.
+
+The pattern is:
+
+```yaml
+annotations:
+  cert-manager.io/cluster-issuer: letsencrypt-cloudflare
 ```
 
-The Kubernetes policy is:
+and:
 
-```text
-cinder-ssd
-    → SSD
-    → Kubernetes default
-
-cinder-hdd
-    → HDD
-
-cinder-default
-    → no explicit volume type
-    → Cinder chooses its configured default
+```yaml
+tls:
+  - hosts:
+      - example.quantum.nyameko.com
+    secretName: example-tls
 ```
 
-StorageClasses live under the Git-managed application resources.
+cert-manager's ingress-shim observes the Ingress and creates the appropriate Certificate resource.
 
-## Sync model
+This gives the application an explicit contract:
 
-The project currently uses automated synchronization with pruning and self-healing for the Cinder Application. citeturn662409view4
+> "I need TLS for this hostname."
 
-The intended lifecycle is:
+The platform's ClusterIssuer then determines how that certificate is obtained.
+
+---
+
+## External load balancer versus Kubernetes `LoadBalancer`
+
+This project deliberately uses an external HAProxy VM rather than requiring Kubernetes to own the external load-balancer lifecycle.
+
+The Kubernetes path is therefore:
 
 ```text
-Git change
+Traefik Service
+    ↓
+NodePorts
+    ↓
+worker nodes
+```
+
+while the external path is:
+
+```text
+HAProxy VM
+10.51.0.100
+    ↓
+worker NodePorts
+```
+
+Kubernetes may therefore show a `LoadBalancer` Service or Ingress with an empty `status.loadBalancer`, even though the service is operational through the external HAProxy layer.
+
+Do not introduce MetalLB or Octavia merely to make the Kubernetes status field look conventional. The external LB is an intentional architecture decision.
+
+If the repository later wants a cleaner Argo dashboard, add an explicit custom health interpretation rather than changing the network architecture just to satisfy a generic health heuristic.
+
+---
+
+## Worker scaling and HAProxy
+
+HAProxy backend membership should come from inventory-driven worker topology.
+
+The desired chain is:
+
+```text
+Terraform
    ↓
-Argo detects drift
+new worker VM
    ↓
-render desired state
+Ansible inventory
    ↓
+Kubernetes worker
+   ↓
+HAProxy backend rendering
+```
+
+For Traefik:
+
+```text
+worker inventory
+    ↓
+HTTP NodePort 31818
+HTTPS NodePort 31924
+```
+
+The role should generate all worker backends instead of hard-coding worker01/02/03.
+
+This keeps cluster scaling from becoming a documentation or configuration trap.
+
+---
+
+## Application lifecycle
+
+The normal application lifecycle should be:
+
+```text
+developer/operator change
+        ↓
+Git commit
+        ↓
+Argo detects new desired state
+        ↓
+render
+        ↓
 sync
-   ↓
+        ↓
+health assessment
+        ↓
 Kubernetes converges
 ```
 
-## What should move here next
+Automated sync, pruning, and self-healing are useful defaults for infrastructure applications once the repository has established confidence in its manifests.
 
-After Cinder:
-
-```text
-Prometheus / Grafana
-Slurm integration services that actually run in K8s, where applicable
-Hermes research deployment
-Heretic components
-JupyterHub
-Astro
-research applications
-```
-
-Slurm itself remains outside Argo because the scheduler and compute nodes are not Kubernetes workloads.
-
-## What should not move here
-
-Do not put these under Argo CD:
-
-```text
-Terraform cloud infrastructure
-Rocky Linux host configuration
-OpenStack VM lifecycle
-Slurm compute-node operating systems
-host firewall configuration
-WireGuard host configuration
-```
-
-Those remain with Terraform and Ansible.
+---
 
 ## App-of-Apps / ApplicationSet
 
-The current Cinder Application is intentionally applied explicitly while the GitOps foundation is being established.
+The repository already has a root Argo application model.
 
-Once several applications exist, a root Application or ApplicationSet can become the single GitOps entry point:
+A useful future target is:
 
 ```text
-root application
-      │
-      ├── Cinder CSI
-      ├── Prometheus
-      ├── Grafana
-      ├── JupyterHub
-      ├── Hermes
-      └── Astro
+root
+ ├── cert-manager
+ ├── cert-manager-config
+ ├── traefik
+ ├── prometheus
+ ├── grafana
+ ├── wazuh
+ ├── jupyterhub
+ ├── hermes
+ └── research applications
 ```
 
-That should be introduced once there is enough application inventory to justify it, rather than adding another abstraction before the first few applications are proven.
+ApplicationSet becomes attractive when the number of applications, environments, or repeated application patterns is large enough that explicit Application objects become cumbersome.
+
+Do not add ApplicationSet simply because it exists. The repository should earn that abstraction through real repetition.
+
+---
+
+## What should not be managed by Argo CD
+
+Do not move these resources into GitOps just because they are related to Kubernetes:
+
+```text
+OpenStack VM lifecycle
+Rocky Linux configuration
+nftables host firewall
+WireGuard host configuration
+HAProxy service installation
+Slurm operating systems
+Terraform state
+```
+
+They belong to Terraform and/or Ansible.
+
+---
+
+## Validation model
+
+Argo status must be interpreted together with runtime evidence.
+
+```text
+Synced
+  ≠
+Healthy
+
+Healthy
+  ≠
+End-to-end reachable from the user
+```
+
+For the Traefik milestone we validated all three layers separately:
+
+```text
+Argo desired state
+        ↓
+Kubernetes resources
+        ↓
+worker NodePort
+        ↓
+TLS certificate
+        ↓
+HTTP response
+```
+
+This is the standard the rest of the project should follow.
+
+---
 
 ## Teaching objective
 
-Argo CD should demonstrate:
+Argo CD is where the repository teaches GitOps as a control system rather than as a YAML format.
 
-```text
-Git
-  = desired application state
+The important lesson is:
 
-Argo CD
-  = reconciliation engine
+> **Git contains desired state; Argo CD reconciles it; Kubernetes executes it; runtime validation proves whether the platform actually works.**
 
-Kubernetes
-  = runtime platform
+---
 
-Helm
-  = packaging mechanism
+## Related documentation
 
-Secrets
-  = separate trust domain
-```
-
-This is the key architectural transition point of the project.
+- [Project README](../README.md)
+- [Terraform](../terraform/README.md)
+- [Ansible](../ansible/README.md)
+- [Documentation](../docs/README.md)
