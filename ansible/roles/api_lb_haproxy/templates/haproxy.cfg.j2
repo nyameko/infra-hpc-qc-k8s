@@ -41,3 +41,8 @@ backend traefik-https
 {% for worker in api_lb_ingress_workers %}
     server {{ worker.name }} {{ worker.address }}:{{ api_lb_ingress_https_port }} check
 {% endfor %}
+
+frontend prometheus
+    bind {{ api_lb_listen_address }}:{{ api_lb_prometheus_port }}
+    mode http
+    http-request use-service prometheus-exporter if { path /metrics }
