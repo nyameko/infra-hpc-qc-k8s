@@ -46,8 +46,8 @@ server:
     scrape_interval: 30s
     evaluation_interval: 30s
 
-  extraScrapeConfigs: |
-    - job_name: haproxy
-      static_configs:
-        - targets:
-            - 10.51.0.100:8404
+extraScrapeConfigs: |
+  - job_name: haproxy
+    static_configs:
+      - targets:
+          - 10.51.0.100:8404
