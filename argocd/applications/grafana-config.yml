@@ -11,13 +11,13 @@ spec:
   source:
     repoURL: https://github.com/nyameko/infra-hpc-qc-k8s.git
     targetRevision: main
-    path: argocd/resources/grafana
+    path: argocd/resources/grafana/config
     directory:
       recurse: true
 
   destination:
     server: https://kubernetes.default.svc
-    namespace: grafana
+    namespace: monitoring
 
   syncPolicy:
     automated:
