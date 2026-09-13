@@ -108,7 +108,7 @@ data:
           "targets": [
             {
               "refId": "A",
-              "expr": "sum(haproxy_server_up)",
+              "expr": "sum(haproxy_backend_agg_server_status{state="UP"})",
               "legendFormat": ""
             }
           ],
@@ -204,7 +204,7 @@ data:
           "targets": [
             {
               "refId": "A",
-              "expr": "haproxy_server_up",
+              "expr": "haproxy_backend_agg_server_status{state="UP"}",
               "legendFormat": "{{proxy}} / {{server}}"
             }
           ],
