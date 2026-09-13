@@ -228,7 +228,7 @@ data:
           "targets": [
             {
               "refId": "A",
-              "expr": "up{job=~\".*cilium.*\"}",
+              "expr": "sum(up{job=\"kubernetes-pods\",namespace=\"kube-system\",app_kubernetes_io_name=\"cilium-agent\",instance=~\".*:9962\"})",
               "legendFormat": "{{job}} / {{instance}}"
             }
           ],
@@ -252,7 +252,7 @@ data:
           "targets": [
             {
               "refId": "A",
-              "expr": "up{job=~\".*envoy.*\"}",
+              "expr": "sum(up{job=\"kubernetes-pods\",namespace=\"kube-system\",app_kubernetes_io_name=\"cilium-agent\",instance=~\".*:9964\"})",
               "legendFormat": "{{job}} / {{instance}}"
             }
           ],

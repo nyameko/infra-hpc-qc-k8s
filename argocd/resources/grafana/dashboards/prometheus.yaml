@@ -192,7 +192,7 @@ data:
         },
         {
           "id": 8,
-          "title": "Scrape Sample Limit Usage",
+          "title": "Scrape Samples",
           "type": "timeseries",
           "gridPos": {
             "h": 7,
@@ -203,7 +203,7 @@ data:
           "targets": [
             {
               "refId": "A",
-              "expr": "scrape_samples_post_metric_relabeling / scrape_sample_limit",
+              "expr": "scrape_samples_scraped",
               "legendFormat": "{{job}} / {{instance}}"
             }
           ],
