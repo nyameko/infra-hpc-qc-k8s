@@ -246,7 +246,7 @@ resource "openstack_networking_secgroup_rule_v2" "k8s_icmp_worker" {
   security_group_id = openstack_networking_secgroup_v2.this["k8s-worker"].id
 }
 
-resource "openstack_networking_secgroup_rule_v2" "k8s_monitoring_metrics" {
+resource "openstack_networking_secgroup_rule_v2" "k8s_control_plane_monitoring_metrics" {
   direction         = "ingress"
   ethertype         = "IPv4"
   protocol          = "tcp"
@@ -256,7 +256,7 @@ resource "openstack_networking_secgroup_rule_v2" "k8s_monitoring_metrics" {
   security_group_id = openstack_networking_secgroup_v2.this["k8s-control-plane"].id
 }
 
-resource "openstack_networking_secgroup_rule_v2" "k8s_cilium_metrics" {
+resource "openstack_networking_secgroup_rule_v2" "k8s_control_plane_cilium_metrics" {
   direction         = "ingress"
   ethertype         = "IPv4"
   protocol          = "tcp"
@@ -266,7 +266,7 @@ resource "openstack_networking_secgroup_rule_v2" "k8s_cilium_metrics" {
   security_group_id = openstack_networking_secgroup_v2.this["k8s-control-plane"].id
 }
 
-resource "openstack_networking_secgroup_rule_v2" "k8s_monitoring_metrics" {
+resource "openstack_networking_secgroup_rule_v2" "k8s_workers_monitoring_metrics" {
   direction         = "ingress"
   ethertype         = "IPv4"
   protocol          = "tcp"
@@ -276,7 +276,7 @@ resource "openstack_networking_secgroup_rule_v2" "k8s_monitoring_metrics" {
   security_group_id = openstack_networking_secgroup_v2.this["k8s-worker"].id
 }
 
-resource "openstack_networking_secgroup_rule_v2" "k8s_cilium_metrics" {
+resource "openstack_networking_secgroup_rule_v2" "k8s_workers_cilium_metrics" {
   direction         = "ingress"
   ethertype         = "IPv4"
   protocol          = "tcp"
