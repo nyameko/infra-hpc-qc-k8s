@@ -1,15 +1,15 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: grafana-dashboard-platform-overview
+  name: grafana-dashboard-cilium
   namespace: monitoring
   labels:
     grafana_dashboard: "1"
 data:
-  platform-overview.json: |
+  cilium.json: |
     {
-      "title": "Platform Overview",
-      "uid": "platform-overview",
+      "title": "Cilium",
+      "uid": "cilium",
       "schemaVersion": 39,
       "version": 1,
       "refresh": "30s",
@@ -18,14 +18,14 @@ data:
         "to": "now"
       },
       "tags": [
-        "platform",
-        "admin",
-        "infrastructure"
+        "cilium",
+        "network",
+        "kubernetes"
       ],
       "panels": [
         {
           "id": 1,
-          "title": "Nodes Up",
+          "title": "Cilium Agents Up",
           "type": "stat",
           "gridPos": {
             "h": 5,
@@ -36,7 +36,7 @@ data:
           "targets": [
             {
               "refId": "A",
-              "expr": "count(up{job=~\".*node.*|node-exporter\"})",
+              "expr": "sum(up{job=~\".*cilium.*\"})",
               "legendFormat": ""
             }
           ],
@@ -49,7 +49,7 @@ data:
         },
         {
           "id": 2,
-          "title": "Running Pods",
+          "title": "Cilium Endpoints",
           "type": "stat",
           "gridPos": {
             "h": 5,
@@ -60,7 +60,7 @@ data:
           "targets": [
             {
               "refId": "A",
-              "expr": "count(kube_pod_status_phase{phase=\"Running\"})",
+              "expr": "sum(cilium_endpoint_state)",
               "legendFormat": ""
             }
           ],
@@ -73,7 +73,7 @@ data:
         },
         {
           "id": 3,
-          "title": "Prometheus Targets Up",
+          "title": "Forward Drops / s",
           "type": "stat",
           "gridPos": {
             "h": 5,
@@ -84,20 +84,20 @@ data:
           "targets": [
             {
               "refId": "A",
-              "expr": "sum(up)",
+              "expr": "sum(rate(cilium_drop_count_total[5m]))",
               "legendFormat": ""
             }
           ],
           "fieldConfig": {
             "defaults": {
-              "unit": "short"
+              "unit": "ops"
             },
             "overrides": []
           }
         },
         {
           "id": 4,
-          "title": "HAProxy Exporter",
+          "title": "Forward Packets / s",
           "type": "stat",
           "gridPos": {
             "h": 5,
@@ -108,68 +108,92 @@ data:
           "targets": [
             {
               "refId": "A",
-              "expr": "up{job=\"haproxy\"}",
+              "expr": "sum(rate(cilium_forward_count_total[5m]))",
               "legendFormat": ""
             }
           ],
           "fieldConfig": {
             "defaults": {
-              "unit": "short"
+              "unit": "ops"
             },
             "overrides": []
           }
         },
         {
           "id": 5,
-          "title": "CPU Utilisation",
+          "title": "Endpoint State",
           "type": "timeseries",
           "gridPos": {
             "h": 7,
-            "w": 24,
+            "w": 12,
             "x": 0,
             "y": 5
           },
           "targets": [
             {
               "refId": "A",
-              "expr": "100 * (1 - avg by(instance) (rate(node_cpu_seconds_total{mode=\"idle\"}[5m])))",
-              "legendFormat": "{{instance}}"
+              "expr": "sum by(endpoint_state) (cilium_endpoint_state)",
+              "legendFormat": "{{endpoint_state}}"
             }
           ],
           "fieldConfig": {
             "defaults": {
-              "unit": "percent"
+              "unit": "short"
             },
             "overrides": []
           }
         },
         {
           "id": 6,
-          "title": "Memory Utilisation",
+          "title": "Drop Rate by Reason",
           "type": "timeseries",
           "gridPos": {
             "h": 7,
             "w": 12,
-            "x": 0,
-            "y": 12
+            "x": 12,
+            "y": 5
           },
           "targets": [
             {
               "refId": "A",
-              "expr": "100 * (1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)",
-              "legendFormat": "{{instance}}"
+              "expr": "sum by(reason) (rate(cilium_drop_count_total[5m]))",
+              "legendFormat": "{{reason}}"
             }
           ],
           "fieldConfig": {
             "defaults": {
-              "unit": "percent"
+              "unit": "ops"
             },
             "overrides": []
           }
         },
         {
           "id": 7,
-          "title": "Node Availability",
+          "title": "Forward Rate",
+          "type": "timeseries",
+          "gridPos": {
+            "h": 7,
+            "w": 12,
+            "x": 0,
+            "y": 12
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "sum(rate(cilium_forward_count_total[5m]))",
+              "legendFormat": "forward"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ops"
+            },
+            "overrides": []
+          }
+        },
+        {
+          "id": 8,
+          "title": "Agent Scrape Health",
           "type": "timeseries",
           "gridPos": {
             "h": 7,
@@ -180,103 +204,7 @@ data:
           "targets": [
             {
               "refId": "A",
-              "expr": "up{job=~\".*node.*|node-exporter\"}",
-              "legendFormat": "{{job}} / {{instance}}"
-            }
-          ],
-          "fieldConfig": {
-            "defaults": {
-              "unit": "short"
-            },
-            "overrides": []
-          }
-        },
-        {
-          "id": 8,
-          "title": "Pod Restarts (1h)",
-          "type": "timeseries",
-          "gridPos": {
-            "h": 7,
-            "w": 12,
-            "x": 0,
-            "y": 19
-          },
-          "targets": [
-            {
-              "refId": "A",
-              "expr": "sum by(namespace) (increase(kube_pod_container_status_restarts_total[1h]))",
-              "legendFormat": "{{namespace}}"
-            }
-          ],
-          "fieldConfig": {
-            "defaults": {
-              "unit": "short"
-            },
-            "overrides": []
-          }
-        },
-        {
-          "id": 9,
-          "title": "Cilium Agent Scrape",
-          "type": "timeseries",
-          "gridPos": {
-            "h": 7,
-            "w": 12,
-            "x": 12,
-            "y": 19
-          },
-          "targets": [
-            {
-              "refId": "A",
               "expr": "up{job=~\".*cilium.*\"}",
-              "legendFormat": "{{job}} / {{instance}}"
-            }
-          ],
-          "fieldConfig": {
-            "defaults": {
-              "unit": "short"
-            },
-            "overrides": []
-          }
-        },
-        {
-          "id": 10,
-          "title": "Envoy Scrape",
-          "type": "timeseries",
-          "gridPos": {
-            "h": 7,
-            "w": 12,
-            "x": 0,
-            "y": 26
-          },
-          "targets": [
-            {
-              "refId": "A",
-              "expr": "up{job=~\".*envoy.*\"}",
-              "legendFormat": "{{job}} / {{instance}}"
-            }
-          ],
-          "fieldConfig": {
-            "defaults": {
-              "unit": "short"
-            },
-            "overrides": []
-          }
-        },
-        {
-          "id": 11,
-          "title": "HAProxy Scrape",
-          "type": "timeseries",
-          "gridPos": {
-            "h": 7,
-            "w": 12,
-            "x": 12,
-            "y": 26
-          },
-          "targets": [
-            {
-              "refId": "A",
-              "expr": "up{job=\"haproxy\"}",
               "legendFormat": "{{instance}}"
             }
           ],

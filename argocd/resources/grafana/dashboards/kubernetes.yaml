@@ -1,15 +1,15 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: grafana-dashboard-platform-overview
+  name: grafana-dashboard-kubernetes
   namespace: monitoring
   labels:
     grafana_dashboard: "1"
 data:
-  platform-overview.json: |
+  kubernetes.json: |
     {
-      "title": "Platform Overview",
-      "uid": "platform-overview",
+      "title": "Kubernetes",
+      "uid": "kubernetes-platform",
       "schemaVersion": 39,
       "version": 1,
       "refresh": "30s",
@@ -18,43 +18,18 @@ data:
         "to": "now"
       },
       "tags": [
-        "platform",
-        "admin",
-        "infrastructure"
+        "kubernetes",
+        "platform"
       ],
       "panels": [
         {
           "id": 1,
-          "title": "Nodes Up",
-          "type": "stat",
-          "gridPos": {
-            "h": 5,
-            "w": 6,
-            "x": 0,
-            "y": 0
-          },
-          "targets": [
-            {
-              "refId": "A",
-              "expr": "count(up{job=~\".*node.*|node-exporter\"})",
-              "legendFormat": ""
-            }
-          ],
-          "fieldConfig": {
-            "defaults": {
-              "unit": "short"
-            },
-            "overrides": []
-          }
-        },
-        {
-          "id": 2,
           "title": "Running Pods",
           "type": "stat",
           "gridPos": {
             "h": 5,
             "w": 6,
-            "x": 6,
+            "x": 0,
             "y": 0
           },
           "targets": [
@@ -72,8 +47,32 @@ data:
           }
         },
         {
+          "id": 2,
+          "title": "Pending Pods",
+          "type": "stat",
+          "gridPos": {
+            "h": 5,
+            "w": 6,
+            "x": 6,
+            "y": 0
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "count(kube_pod_status_phase{phase=\"Pending\"})",
+              "legendFormat": ""
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short"
+            },
+            "overrides": []
+          }
+        },
+        {
           "id": 3,
-          "title": "Prometheus Targets Up",
+          "title": "Failed Pods",
           "type": "stat",
           "gridPos": {
             "h": 5,
@@ -84,7 +83,7 @@ data:
           "targets": [
             {
               "refId": "A",
-              "expr": "sum(up)",
+              "expr": "count(kube_pod_status_phase{phase=\"Failed\"})",
               "legendFormat": ""
             }
           ],
@@ -97,7 +96,7 @@ data:
         },
         {
           "id": 4,
-          "title": "HAProxy Exporter",
+          "title": "Pod Restarts (1h)",
           "type": "stat",
           "gridPos": {
             "h": 5,
@@ -108,7 +107,7 @@ data:
           "targets": [
             {
               "refId": "A",
-              "expr": "up{job=\"haproxy\"}",
+              "expr": "sum(increase(kube_pod_container_status_restarts_total[1h]))",
               "legendFormat": ""
             }
           ],
@@ -121,31 +120,55 @@ data:
         },
         {
           "id": 5,
-          "title": "CPU Utilisation",
+          "title": "CPU by Namespace",
           "type": "timeseries",
           "gridPos": {
             "h": 7,
-            "w": 24,
+            "w": 12,
             "x": 0,
             "y": 5
           },
           "targets": [
             {
               "refId": "A",
-              "expr": "100 * (1 - avg by(instance) (rate(node_cpu_seconds_total{mode=\"idle\"}[5m])))",
-              "legendFormat": "{{instance}}"
+              "expr": "sum by(namespace) (rate(container_cpu_usage_seconds_total{container!=\"\",container!=\"POD\"}[5m]))",
+              "legendFormat": "{{namespace}}"
             }
           ],
           "fieldConfig": {
             "defaults": {
-              "unit": "percent"
+              "unit": "cores"
             },
             "overrides": []
           }
         },
         {
           "id": 6,
-          "title": "Memory Utilisation",
+          "title": "Memory by Namespace",
+          "type": "timeseries",
+          "gridPos": {
+            "h": 7,
+            "w": 12,
+            "x": 12,
+            "y": 5
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "sum by(namespace) (container_memory_working_set_bytes{container!=\"\",container!=\"POD\"})",
+              "legendFormat": "{{namespace}}"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "bytes"
+            },
+            "overrides": []
+          }
+        },
+        {
+          "id": 7,
+          "title": "Deployment Available",
           "type": "timeseries",
           "gridPos": {
             "h": 7,
@@ -156,32 +179,8 @@ data:
           "targets": [
             {
               "refId": "A",
-              "expr": "100 * (1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)",
-              "legendFormat": "{{instance}}"
-            }
-          ],
-          "fieldConfig": {
-            "defaults": {
-              "unit": "percent"
-            },
-            "overrides": []
-          }
-        },
-        {
-          "id": 7,
-          "title": "Node Availability",
-          "type": "timeseries",
-          "gridPos": {
-            "h": 7,
-            "w": 12,
-            "x": 12,
-            "y": 12
-          },
-          "targets": [
-            {
-              "refId": "A",
-              "expr": "up{job=~\".*node.*|node-exporter\"}",
-              "legendFormat": "{{job}} / {{instance}}"
+              "expr": "sum by(namespace,deployment) (kube_deployment_status_replicas_available)",
+              "legendFormat": "{{namespace}}/{{deployment}}"
             }
           ],
           "fieldConfig": {
@@ -193,19 +192,19 @@ data:
         },
         {
           "id": 8,
-          "title": "Pod Restarts (1h)",
+          "title": "Deployment Desired",
           "type": "timeseries",
           "gridPos": {
             "h": 7,
             "w": 12,
-            "x": 0,
-            "y": 19
+            "x": 12,
+            "y": 12
           },
           "targets": [
             {
               "refId": "A",
-              "expr": "sum by(namespace) (increase(kube_pod_container_status_restarts_total[1h]))",
-              "legendFormat": "{{namespace}}"
+              "expr": "sum by(namespace,deployment) (kube_deployment_spec_replicas)",
+              "legendFormat": "{{namespace}}/{{deployment}}"
             }
           ],
           "fieldConfig": {
@@ -217,19 +216,19 @@ data:
         },
         {
           "id": 9,
-          "title": "Cilium Agent Scrape",
+          "title": "DaemonSet Ready",
           "type": "timeseries",
           "gridPos": {
             "h": 7,
             "w": 12,
-            "x": 12,
+            "x": 0,
             "y": 19
           },
           "targets": [
             {
               "refId": "A",
-              "expr": "up{job=~\".*cilium.*\"}",
-              "legendFormat": "{{job}} / {{instance}}"
+              "expr": "sum by(namespace,daemonset) (kube_daemonset_status_number_ready)",
+              "legendFormat": "{{namespace}}/{{daemonset}}"
             }
           ],
           "fieldConfig": {
@@ -241,19 +240,19 @@ data:
         },
         {
           "id": 10,
-          "title": "Envoy Scrape",
+          "title": "DaemonSet Desired",
           "type": "timeseries",
           "gridPos": {
             "h": 7,
             "w": 12,
-            "x": 0,
-            "y": 26
+            "x": 12,
+            "y": 19
           },
           "targets": [
             {
               "refId": "A",
-              "expr": "up{job=~\".*envoy.*\"}",
-              "legendFormat": "{{job}} / {{instance}}"
+              "expr": "sum by(namespace,daemonset) (kube_daemonset_status_desired_number_scheduled)",
+              "legendFormat": "{{namespace}}/{{daemonset}}"
             }
           ],
           "fieldConfig": {
@@ -265,24 +264,24 @@ data:
         },
         {
           "id": 11,
-          "title": "HAProxy Scrape",
+          "title": "API Server Request Rate",
           "type": "timeseries",
           "gridPos": {
             "h": 7,
-            "w": 12,
-            "x": 12,
+            "w": 24,
+            "x": 0,
             "y": 26
           },
           "targets": [
             {
               "refId": "A",
-              "expr": "up{job=\"haproxy\"}",
-              "legendFormat": "{{instance}}"
+              "expr": "sum by(verb,resource) (rate(apiserver_request_total[5m]))",
+              "legendFormat": "{{verb}} {{resource}}"
             }
           ],
           "fieldConfig": {
             "defaults": {
-              "unit": "short"
+              "unit": "reqps"
             },
             "overrides": []
           }

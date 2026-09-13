@@ -1,0 +1,225 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-nodes
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1"
+data:
+  nodes.json: |
+    {
+      "title": "Nodes",
+      "uid": "nodes",
+      "schemaVersion": 39,
+      "version": 1,
+      "refresh": "30s",
+      "time": {
+        "from": "now-6h",
+        "to": "now"
+      },
+      "tags": [
+        "nodes",
+        "node-exporter",
+        "infrastructure"
+      ],
+      "panels": [
+        {
+          "id": 1,
+          "title": "CPU Utilisation",
+          "type": "timeseries",
+          "gridPos": {
+            "h": 7,
+            "w": 12,
+            "x": 0,
+            "y": 0
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "100 * (1 - avg by(instance) (rate(node_cpu_seconds_total{mode=\"idle\"}[5m])))",
+              "legendFormat": "{{instance}}"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent"
+            },
+            "overrides": []
+          }
+        },
+        {
+          "id": 2,
+          "title": "Memory Utilisation",
+          "type": "timeseries",
+          "gridPos": {
+            "h": 7,
+            "w": 12,
+            "x": 12,
+            "y": 0
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "100 * (1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)",
+              "legendFormat": "{{instance}}"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent"
+            },
+            "overrides": []
+          }
+        },
+        {
+          "id": 3,
+          "title": "Load Average (1m)",
+          "type": "timeseries",
+          "gridPos": {
+            "h": 7,
+            "w": 12,
+            "x": 0,
+            "y": 7
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "node_load1",
+              "legendFormat": "{{instance}}"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short"
+            },
+            "overrides": []
+          }
+        },
+        {
+          "id": 4,
+          "title": "Filesystem Utilisation",
+          "type": "timeseries",
+          "gridPos": {
+            "h": 7,
+            "w": 12,
+            "x": 12,
+            "y": 7
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "100 * (1 - node_filesystem_avail_bytes{fstype!~\"tmpfs|overlay\"} / node_filesystem_size_bytes{fstype!~\"tmpfs|overlay\"})",
+              "legendFormat": "{{instance}} {{mountpoint}}"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent"
+            },
+            "overrides": []
+          }
+        },
+        {
+          "id": 5,
+          "title": "Network Receive",
+          "type": "timeseries",
+          "gridPos": {
+            "h": 7,
+            "w": 12,
+            "x": 0,
+            "y": 14
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "sum by(instance) (rate(node_network_receive_bytes_total{device!=\"lo\"}[5m]))",
+              "legendFormat": "{{instance}}"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "Bps"
+            },
+            "overrides": []
+          }
+        },
+        {
+          "id": 6,
+          "title": "Network Transmit",
+          "type": "timeseries",
+          "gridPos": {
+            "h": 7,
+            "w": 12,
+            "x": 12,
+            "y": 14
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "sum by(instance) (rate(node_network_transmit_bytes_total{device!=\"lo\"}[5m]))",
+              "legendFormat": "{{instance}}"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "Bps"
+            },
+            "overrides": []
+          }
+        },
+        {
+          "id": 7,
+          "title": "Filesystem Free",
+          "type": "timeseries",
+          "gridPos": {
+            "h": 7,
+            "w": 12,
+            "x": 0,
+            "y": 21
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "node_filesystem_avail_bytes{fstype!~\"tmpfs|overlay\"}",
+              "legendFormat": "{{instance}} {{mountpoint}}"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "bytes"
+            },
+            "overrides": []
+          }
+        },
+        {
+          "id": 8,
+          "title": "Node Uptime",
+          "type": "timeseries",
+          "gridPos": {
+            "h": 7,
+            "w": 12,
+            "x": 12,
+            "y": 21
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "time() - node_boot_time_seconds",
+              "legendFormat": "{{instance}}"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "s"
+            },
+            "overrides": []
+          }
+        }
+      ],
+      "templating": {
+        "list": []
+      },
+      "annotations": {
+        "list": []
+      }
+    }

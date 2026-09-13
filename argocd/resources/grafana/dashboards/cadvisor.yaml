@@ -1,0 +1,177 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-cadvisor
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1"
+data:
+  cadvisor.json: |
+    {
+      "title": "cAdvisor / Container Runtime",
+      "uid": "cadvisor",
+      "schemaVersion": 39,
+      "version": 1,
+      "refresh": "30s",
+      "time": {
+        "from": "now-6h",
+        "to": "now"
+      },
+      "tags": [
+        "kubernetes",
+        "containers",
+        "cadvisor"
+      ],
+      "panels": [
+        {
+          "id": 1,
+          "title": "Container CPU by Pod",
+          "type": "timeseries",
+          "gridPos": {
+            "h": 7,
+            "w": 12,
+            "x": 0,
+            "y": 0
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "sum by(namespace,pod) (rate(container_cpu_usage_seconds_total{container!=\"\",container!=\"POD\"}[5m]))",
+              "legendFormat": "{{namespace}}/{{pod}}"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "cores"
+            },
+            "overrides": []
+          }
+        },
+        {
+          "id": 2,
+          "title": "Container Memory by Pod",
+          "type": "timeseries",
+          "gridPos": {
+            "h": 7,
+            "w": 12,
+            "x": 12,
+            "y": 0
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "sum by(namespace,pod) (container_memory_working_set_bytes{container!=\"\",container!=\"POD\"})",
+              "legendFormat": "{{namespace}}/{{pod}}"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "bytes"
+            },
+            "overrides": []
+          }
+        },
+        {
+          "id": 3,
+          "title": "Network Receive by Pod",
+          "type": "timeseries",
+          "gridPos": {
+            "h": 7,
+            "w": 12,
+            "x": 0,
+            "y": 7
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "sum by(namespace,pod) (rate(container_network_receive_bytes_total[5m]))",
+              "legendFormat": "{{namespace}}/{{pod}}"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "Bps"
+            },
+            "overrides": []
+          }
+        },
+        {
+          "id": 4,
+          "title": "Network Transmit by Pod",
+          "type": "timeseries",
+          "gridPos": {
+            "h": 7,
+            "w": 12,
+            "x": 12,
+            "y": 7
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "sum by(namespace,pod) (rate(container_network_transmit_bytes_total[5m]))",
+              "legendFormat": "{{namespace}}/{{pod}}"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "Bps"
+            },
+            "overrides": []
+          }
+        },
+        {
+          "id": 5,
+          "title": "Filesystem Usage by Container",
+          "type": "timeseries",
+          "gridPos": {
+            "h": 7,
+            "w": 12,
+            "x": 0,
+            "y": 14
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "sum by(namespace,pod,container) (container_fs_usage_bytes{container!=\"\",container!=\"POD\"})",
+              "legendFormat": "{{namespace}}/{{pod}}/{{container}}"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "bytes"
+            },
+            "overrides": []
+          }
+        },
+        {
+          "id": 6,
+          "title": "CPU Throttling",
+          "type": "timeseries",
+          "gridPos": {
+            "h": 7,
+            "w": 12,
+            "x": 12,
+            "y": 14
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "sum by(namespace,pod,container) (rate(container_cpu_cfs_throttled_seconds_total{container!=\"\",container!=\"POD\"}[5m]))",
+              "legendFormat": "{{namespace}}/{{pod}}/{{container}}"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "s"
+            },
+            "overrides": []
+          }
+        }
+      ],
+      "templating": {
+        "list": []
+      },
+      "annotations": {
+        "list": []
+      }
+    }

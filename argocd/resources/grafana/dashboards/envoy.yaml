@@ -1,0 +1,201 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-envoy
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1"
+data:
+  envoy.json: |
+    {
+      "title": "Cilium Envoy",
+      "uid": "cilium-envoy",
+      "schemaVersion": 39,
+      "version": 1,
+      "refresh": "30s",
+      "time": {
+        "from": "now-6h",
+        "to": "now"
+      },
+      "tags": [
+        "cilium",
+        "envoy",
+        "network"
+      ],
+      "panels": [
+        {
+          "id": 1,
+          "title": "Envoy Targets Up",
+          "type": "stat",
+          "gridPos": {
+            "h": 5,
+            "w": 8,
+            "x": 0,
+            "y": 0
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "sum(up{job=~\".*envoy.*\"})",
+              "legendFormat": ""
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short"
+            },
+            "overrides": []
+          }
+        },
+        {
+          "id": 2,
+          "title": "Active Upstream Connections",
+          "type": "stat",
+          "gridPos": {
+            "h": 5,
+            "w": 8,
+            "x": 8,
+            "y": 0
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "sum(envoy_cluster_upstream_cx_active)",
+              "legendFormat": ""
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short"
+            },
+            "overrides": []
+          }
+        },
+        {
+          "id": 3,
+          "title": "Downstream Requests / s",
+          "type": "stat",
+          "gridPos": {
+            "h": 5,
+            "w": 8,
+            "x": 16,
+            "y": 0
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "sum(rate(envoy_http_downstream_rq_total[5m]))",
+              "legendFormat": ""
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ops"
+            },
+            "overrides": []
+          }
+        },
+        {
+          "id": 4,
+          "title": "Upstream Active Connections",
+          "type": "timeseries",
+          "gridPos": {
+            "h": 7,
+            "w": 12,
+            "x": 0,
+            "y": 5
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "sum by(envoy_cluster_name) (envoy_cluster_upstream_cx_active)",
+              "legendFormat": "{{envoy_cluster_name}}"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short"
+            },
+            "overrides": []
+          }
+        },
+        {
+          "id": 5,
+          "title": "Upstream Request Rate",
+          "type": "timeseries",
+          "gridPos": {
+            "h": 7,
+            "w": 12,
+            "x": 12,
+            "y": 5
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "sum by(envoy_cluster_name) (rate(envoy_cluster_upstream_rq_total[5m]))",
+              "legendFormat": "{{envoy_cluster_name}}"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ops"
+            },
+            "overrides": []
+          }
+        },
+        {
+          "id": 6,
+          "title": "Downstream Request Rate",
+          "type": "timeseries",
+          "gridPos": {
+            "h": 7,
+            "w": 12,
+            "x": 0,
+            "y": 12
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "sum(rate(envoy_http_downstream_rq_total[5m]))",
+              "legendFormat": "requests"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ops"
+            },
+            "overrides": []
+          }
+        },
+        {
+          "id": 7,
+          "title": "Envoy Target Health",
+          "type": "timeseries",
+          "gridPos": {
+            "h": 7,
+            "w": 12,
+            "x": 12,
+            "y": 12
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "up{job=~\".*envoy.*\"}",
+              "legendFormat": "{{instance}}"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short"
+            },
+            "overrides": []
+          }
+        }
+      ],
+      "templating": {
+        "list": []
+      },
+      "annotations": {
+        "list": []
+      }
+    }

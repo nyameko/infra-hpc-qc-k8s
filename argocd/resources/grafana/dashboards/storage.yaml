@@ -1,15 +1,15 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: grafana-dashboard-platform-overview
+  name: grafana-dashboard-storage
   namespace: monitoring
   labels:
     grafana_dashboard: "1"
 data:
-  platform-overview.json: |
+  storage.json: |
     {
-      "title": "Platform Overview",
-      "uid": "platform-overview",
+      "title": "Storage / Kubernetes",
+      "uid": "storage",
       "schemaVersion": 39,
       "version": 1,
       "refresh": "30s",
@@ -18,14 +18,14 @@ data:
         "to": "now"
       },
       "tags": [
-        "platform",
-        "admin",
-        "infrastructure"
+        "storage",
+        "kubernetes",
+        "cinder"
       ],
       "panels": [
         {
           "id": 1,
-          "title": "Nodes Up",
+          "title": "PVCs Bound",
           "type": "stat",
           "gridPos": {
             "h": 5,
@@ -36,7 +36,7 @@ data:
           "targets": [
             {
               "refId": "A",
-              "expr": "count(up{job=~\".*node.*|node-exporter\"})",
+              "expr": "count(kube_persistentvolumeclaim_status_phase{phase=\"Bound\"})",
               "legendFormat": ""
             }
           ],
@@ -49,7 +49,7 @@ data:
         },
         {
           "id": 2,
-          "title": "Running Pods",
+          "title": "PVCs Pending",
           "type": "stat",
           "gridPos": {
             "h": 5,
@@ -60,7 +60,7 @@ data:
           "targets": [
             {
               "refId": "A",
-              "expr": "count(kube_pod_status_phase{phase=\"Running\"})",
+              "expr": "count(kube_persistentvolumeclaim_status_phase{phase=\"Pending\"})",
               "legendFormat": ""
             }
           ],
@@ -73,7 +73,7 @@ data:
         },
         {
           "id": 3,
-          "title": "Prometheus Targets Up",
+          "title": "PVC Requested Capacity",
           "type": "stat",
           "gridPos": {
             "h": 5,
@@ -84,20 +84,20 @@ data:
           "targets": [
             {
               "refId": "A",
-              "expr": "sum(up)",
+              "expr": "sum(kube_persistentvolumeclaim_resource_requests_storage_bytes)",
               "legendFormat": ""
             }
           ],
           "fieldConfig": {
             "defaults": {
-              "unit": "short"
+              "unit": "bytes"
             },
             "overrides": []
           }
         },
         {
           "id": 4,
-          "title": "HAProxy Exporter",
+          "title": "PV Capacity",
           "type": "stat",
           "gridPos": {
             "h": 5,
@@ -108,8 +108,56 @@ data:
           "targets": [
             {
               "refId": "A",
-              "expr": "up{job=\"haproxy\"}",
+              "expr": "sum(kube_persistentvolume_capacity_bytes)",
               "legendFormat": ""
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "bytes"
+            },
+            "overrides": []
+          }
+        },
+        {
+          "id": 5,
+          "title": "PVC Requested Capacity by Namespace",
+          "type": "timeseries",
+          "gridPos": {
+            "h": 7,
+            "w": 12,
+            "x": 0,
+            "y": 5
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "sum by(namespace) (kube_persistentvolumeclaim_resource_requests_storage_bytes)",
+              "legendFormat": "{{namespace}}"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "bytes"
+            },
+            "overrides": []
+          }
+        },
+        {
+          "id": 6,
+          "title": "PVCs by Storage Class",
+          "type": "timeseries",
+          "gridPos": {
+            "h": 7,
+            "w": 12,
+            "x": 12,
+            "y": 5
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "count by(storageclass) (kube_persistentvolume_info)",
+              "legendFormat": "{{storageclass}}"
             }
           ],
           "fieldConfig": {
@@ -120,32 +168,8 @@ data:
           }
         },
         {
-          "id": 5,
-          "title": "CPU Utilisation",
-          "type": "timeseries",
-          "gridPos": {
-            "h": 7,
-            "w": 24,
-            "x": 0,
-            "y": 5
-          },
-          "targets": [
-            {
-              "refId": "A",
-              "expr": "100 * (1 - avg by(instance) (rate(node_cpu_seconds_total{mode=\"idle\"}[5m])))",
-              "legendFormat": "{{instance}}"
-            }
-          ],
-          "fieldConfig": {
-            "defaults": {
-              "unit": "percent"
-            },
-            "overrides": []
-          }
-        },
-        {
-          "id": 6,
-          "title": "Memory Utilisation",
+          "id": 7,
+          "title": "PV Capacity by Storage Class",
           "type": "timeseries",
           "gridPos": {
             "h": 7,
@@ -156,20 +180,20 @@ data:
           "targets": [
             {
               "refId": "A",
-              "expr": "100 * (1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)",
-              "legendFormat": "{{instance}}"
+              "expr": "sum by(storageclass) (kube_persistentvolume_capacity_bytes)",
+              "legendFormat": "{{storageclass}}"
             }
           ],
           "fieldConfig": {
             "defaults": {
-              "unit": "percent"
+              "unit": "bytes"
             },
             "overrides": []
           }
         },
         {
-          "id": 7,
-          "title": "Node Availability",
+          "id": 8,
+          "title": "PVC Phase",
           "type": "timeseries",
           "gridPos": {
             "h": 7,
@@ -180,32 +204,8 @@ data:
           "targets": [
             {
               "refId": "A",
-              "expr": "up{job=~\".*node.*|node-exporter\"}",
-              "legendFormat": "{{job}} / {{instance}}"
-            }
-          ],
-          "fieldConfig": {
-            "defaults": {
-              "unit": "short"
-            },
-            "overrides": []
-          }
-        },
-        {
-          "id": 8,
-          "title": "Pod Restarts (1h)",
-          "type": "timeseries",
-          "gridPos": {
-            "h": 7,
-            "w": 12,
-            "x": 0,
-            "y": 19
-          },
-          "targets": [
-            {
-              "refId": "A",
-              "expr": "sum by(namespace) (increase(kube_pod_container_status_restarts_total[1h]))",
-              "legendFormat": "{{namespace}}"
+              "expr": "sum by(namespace,phase) (kube_persistentvolume_status_phase)",
+              "legendFormat": "{{namespace}} {{phase}}"
             }
           ],
           "fieldConfig": {
@@ -217,72 +217,24 @@ data:
         },
         {
           "id": 9,
-          "title": "Cilium Agent Scrape",
+          "title": "PVC Requested Capacity by Claim",
           "type": "timeseries",
           "gridPos": {
             "h": 7,
-            "w": 12,
-            "x": 12,
+            "w": 24,
+            "x": 0,
             "y": 19
           },
           "targets": [
             {
               "refId": "A",
-              "expr": "up{job=~\".*cilium.*\"}",
-              "legendFormat": "{{job}} / {{instance}}"
+              "expr": "kube_persistentvolumeclaim_resource_requests_storage_bytes",
+              "legendFormat": "{{namespace}}/{{persistentvolumeclaim}}"
             }
           ],
           "fieldConfig": {
             "defaults": {
-              "unit": "short"
-            },
-            "overrides": []
-          }
-        },
-        {
-          "id": 10,
-          "title": "Envoy Scrape",
-          "type": "timeseries",
-          "gridPos": {
-            "h": 7,
-            "w": 12,
-            "x": 0,
-            "y": 26
-          },
-          "targets": [
-            {
-              "refId": "A",
-              "expr": "up{job=~\".*envoy.*\"}",
-              "legendFormat": "{{job}} / {{instance}}"
-            }
-          ],
-          "fieldConfig": {
-            "defaults": {
-              "unit": "short"
-            },
-            "overrides": []
-          }
-        },
-        {
-          "id": 11,
-          "title": "HAProxy Scrape",
-          "type": "timeseries",
-          "gridPos": {
-            "h": 7,
-            "w": 12,
-            "x": 12,
-            "y": 26
-          },
-          "targets": [
-            {
-              "refId": "A",
-              "expr": "up{job=\"haproxy\"}",
-              "legendFormat": "{{instance}}"
-            }
-          ],
-          "fieldConfig": {
-            "defaults": {
-              "unit": "short"
+              "unit": "bytes"
             },
             "overrides": []
           }
