@@ -216,6 +216,46 @@ resource "openstack_networking_secgroup_rule_v2" "k8s_icmp_worker" {
   security_group_id = openstack_networking_secgroup_v2.this["k8s-worker"].id
 }
 
+resource "openstack_networking_secgroup_rule_v2" "k8s_monitoring_metrics" {
+  direction         = "ingress"
+  ethertype         = "IPv4"
+  protocol          = "tcp"
+  port_range_min    = 9100
+  port_range_max    = 9100
+  remote_ip_prefix  = var.k8s_cidr
+  security_group_id = openstack_networking_secgroup_v2.this["k8s-control-plane"].id
+}
+
+resource "openstack_networking_secgroup_rule_v2" "k8s_cilium_metrics" {
+  direction         = "ingress"
+  ethertype         = "IPv4"
+  protocol          = "tcp"
+  port_range_min    = 9962
+  port_range_max    = 9964
+  remote_ip_prefix  = var.k8s_cidr
+  security_group_id = openstack_networking_secgroup_v2.this["k8s-control-plane"].id
+}
+
+resource "openstack_networking_secgroup_rule_v2" "k8s_monitoring_metrics" {
+  direction         = "ingress"
+  ethertype         = "IPv4"
+  protocol          = "tcp"
+  port_range_min    = 9100
+  port_range_max    = 9100
+  remote_ip_prefix  = var.k8s_cidr
+  security_group_id = openstack_networking_secgroup_v2.this["k8s-worker"].id
+}
+
+resource "openstack_networking_secgroup_rule_v2" "k8s_cilium_metrics" {
+  direction         = "ingress"
+  ethertype         = "IPv4"
+  protocol          = "tcp"
+  port_range_min    = 9962
+  port_range_max    = 9964
+  remote_ip_prefix  = var.k8s_cidr
+  security_group_id = openstack_networking_secgroup_v2.this["k8s-worker"].id
+}
+
 resource "openstack_networking_secgroup_rule_v2" "slurm_controller" {
   direction         = "ingress"
   ethertype         = "IPv4"
