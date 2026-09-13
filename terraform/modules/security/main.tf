@@ -90,6 +90,36 @@ resource "openstack_networking_secgroup_rule_v2" "k8s_api_from_k8s" {
   security_group_id = openstack_networking_secgroup_v2.this["k8s-control-plane"].id
 }
 
+resource "openstack_networking_secgroup_rule_v2" "api_lb_http_from_k8s" {
+  direction         = "ingress"
+  ethertype         = "IPv4"
+  protocol          = "tcp"
+  port_range_min    = 80
+  port_range_max    = 80
+  remote_ip_prefix  = var.k8s_cidr
+  security_group_id = openstack_networking_secgroup_v2.this["api-lb"].id
+}
+
+resource "openstack_networking_secgroup_rule_v2" "api_lb_https_from_k8s" {
+  direction         = "ingress"
+  ethertype         = "IPv4"
+  protocol          = "tcp"
+  port_range_min    = 443
+  port_range_max    = 443
+  remote_ip_prefix  = var.k8s_cidr
+  security_group_id = openstack_networking_secgroup_v2.this["api-lb"].id
+}
+
+resource "openstack_networking_secgroup_rule_v2" "api_lb_prometheus_from_k8s" {
+  direction         = "ingress"
+  ethertype         = "IPv4"
+  protocol          = "tcp"
+  port_range_min    = 8404
+  port_range_max    = 8404
+  remote_ip_prefix  = var.k8s_cidr
+  security_group_id = openstack_networking_secgroup_v2.this["api-lb"].id
+}
+
 resource "openstack_networking_secgroup_rule_v2" "k8s_etcd" {
   direction         = "ingress"
   ethertype         = "IPv4"
