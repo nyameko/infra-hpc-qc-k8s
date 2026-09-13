@@ -28,11 +28,6 @@ spec:
       targetRevision: main
       ref: values
 
-    # Grafana admin credential.
-    - repoURL: https://github.com/nyameko/infra-hpc-qc-k8s.git
-      targetRevision: main
-      path: secrets/grafana
-
   syncPolicy:
     automated:
       prune: true
