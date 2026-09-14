@@ -13,24 +13,34 @@ defaults
     timeout client 30s
     timeout server 30s
 
-frontend application-http
+frontend kubernetes-api
+    bind {{ api_lb_listen_address }}:{{ api_lb_listen_port }}
+    default_backend kubernetes-control-plane
+
+backend kubernetes-control-plane
+    balance roundrobin
+{% for backend in api_lb_backends %}
+    server {{ backend.name }} {{ backend.address }}:{{ backend.port }} check
+{% endfor %}
+
+frontend ingress-http
     bind {{ api_lb_listen_address }}:80
     default_backend traefik-http
 
 backend traefik-http
     balance roundrobin
 {% for worker in api_lb_ingress_workers %}
-    server {{ worker.name }} {{ worker.address }}:80 check
+    server {{ worker.name }} {{ worker.address }}:{{ api_lb_ingress_http_port }} check
 {% endfor %}
 
-frontend application-https
+frontend ingress-https
     bind {{ api_lb_listen_address }}:443
     default_backend traefik-https
 
 backend traefik-https
     balance roundrobin
 {% for worker in api_lb_ingress_workers %}
-    server {{ worker.name }} {{ worker.address }}:443 check
+    server {{ worker.name }} {{ worker.address }}:{{ api_lb_ingress_https_port }} check
 {% endfor %}
 
 frontend prometheus
