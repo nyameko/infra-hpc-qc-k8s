@@ -10,8 +10,9 @@ operator:
 routingMode: tunnel
 tunnelProtocol: vxlan
 
-cni:
-  chainingMode: portmap
+kubeProxyReplacement: true
+k8sServiceHost: 10.51.0.100
+k8sServicePort: 6443
 
 # Enable Cilium agent metrics for Prometheus/Grafana observability.
 prometheus:
