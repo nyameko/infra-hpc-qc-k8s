@@ -1,6 +1,12 @@
 deployment:
   kind: DaemonSet
 
+updateStrategy:
+  type: RollingUpdate
+  rollingUpdate:
+    maxSurge: 0
+    maxUnavailable: 1
+
 ports:
   web:
     port: 80
