@@ -58,6 +58,66 @@ resource "openstack_networking_secgroup_rule_v2" "api_lb_http_vpn" {
   security_group_id = openstack_networking_secgroup_v2.this["api-lb"].id
 }
 
+resource "openstack_networking_secgroup_rule_v2" "edge_wazuh_agent" {
+  direction         = "ingress"
+  ethertype         = "IPv4"
+  protocol          = "tcp"
+  port_range_min    = 1514
+  port_range_max    = 1515
+  remote_ip_prefix  = var.k8s_cidr
+  security_group_id = openstack_networking_secgroup_v2.this["edge"].id
+}
+
+resource "openstack_networking_secgroup_rule_v2" "edge_wazuh_agent_mgmt" {
+  direction         = "ingress"
+  ethertype         = "IPv4"
+  protocol          = "tcp"
+  port_range_min    = 1514
+  port_range_max    = 1515
+  remote_ip_prefix  = var.mgmt_cidr
+  security_group_id = openstack_networking_secgroup_v2.this["edge"].id
+}
+
+resource "openstack_networking_secgroup_rule_v2" "edge_wazuh_agent_vpn" {
+  direction         = "ingress"
+  ethertype         = "IPv4"
+  protocol          = "tcp"
+  port_range_min    = 1514
+  port_range_max    = 1515
+  remote_ip_prefix  = var.vpn_cidr
+  security_group_id = openstack_networking_secgroup_v2.this["edge"].id
+}
+
+resource "openstack_networking_secgroup_rule_v2" "edge_wazuh_api" {
+  direction         = "ingress"
+  ethertype         = "IPv4"
+  protocol          = "tcp"
+  port_range_min    = 55000
+  port_range_max    = 55000
+  remote_ip_prefix  = var.k8s_cidr
+  security_group_id = openstack_networking_secgroup_v2.this["edge"].id
+}
+
+resource "openstack_networking_secgroup_rule_v2" "edge_wazuh_api_mgmt" {
+  direction         = "ingress"
+  ethertype         = "IPv4"
+  protocol          = "tcp"
+  port_range_min    = 55000
+  port_range_max    = 55000
+  remote_ip_prefix  = var.mgmt_cidr
+  security_group_id = openstack_networking_secgroup_v2.this["edge"].id
+}
+
+resource "openstack_networking_secgroup_rule_v2" "edge_wazuh_api_vpn" {
+  direction         = "ingress"
+  ethertype         = "IPv4"
+  protocol          = "tcp"
+  port_range_min    = 55000
+  port_range_max    = 55000
+  remote_ip_prefix  = var.vpn_cidr
+  security_group_id = openstack_networking_secgroup_v2.this["edge"].id
+}
+
 resource "openstack_networking_secgroup_rule_v2" "api_lb_https_vpn" {
   direction         = "ingress"
   ethertype         = "IPv4"
