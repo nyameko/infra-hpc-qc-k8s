@@ -224,7 +224,7 @@ resource "openstack_networking_secgroup_rule_v2" "k8s_worker_http_from_api_lb" {
   port_range_min = 80
   port_range_max = 80
 
-  remote_ip_prefix = var.api_lb_address
+  remote_ip_prefix = var.k8s_cidr
 
   security_group_id = openstack_networking_secgroup_v2.this["k8s-worker"].id
 }
@@ -237,7 +237,7 @@ resource "openstack_networking_secgroup_rule_v2" "k8s_worker_https_from_api_lb" 
   port_range_min = 443
   port_range_max = 443
 
-  remote_ip_prefix = var.api_lb_address
+  remote_ip_prefix = var.k8s_cidr
 
   security_group_id = openstack_networking_secgroup_v2.this["k8s-worker"].id
 }
