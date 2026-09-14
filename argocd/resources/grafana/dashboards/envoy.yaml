@@ -181,7 +181,7 @@ data:
             {
               "refId": "A",
               "expr": "100*avg(up{job=\"kubernetes-pods\",namespace=\"kube-system\",app_kubernetes_io_name=\"cilium-agent\",instance=~\".*:9964\"})",
-              "legendFormat": "{{instance}}"
+              "legendFormat": ""
             }
           ],
           "fieldConfig": {
