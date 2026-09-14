@@ -10,6 +10,9 @@ operator:
 routingMode: tunnel
 tunnelProtocol: vxlan
 
+cni:
+  chainingMode: portmap
+
 # Enable Cilium agent metrics for Prometheus/Grafana observability.
 prometheus:
   enabled: true
