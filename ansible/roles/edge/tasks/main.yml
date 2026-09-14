@@ -24,8 +24,18 @@
 - name: Deploy nftables configuration
   ansible.builtin.template:
     src: edge.nft.j2
-    dest: /etc/nftables.conf
+    dest: /etc/nftables/edge.nft
     owner: root
     group: root
     mode: "0644"
+  notify: Restart nftables
+
+- name: Configure nftables service entrypoint
+  ansible.builtin.copy:
+    dest: /etc/sysconfig/nftables.conf
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      include "/etc/nftables/edge.nft"
   notify: Restart nftables
