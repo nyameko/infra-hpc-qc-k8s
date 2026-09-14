@@ -56,7 +56,7 @@ affinity:
             - key: node-role.kubernetes.io/control-plane
               operator: DoesNotExist
 
-logs:
+log:
     level: INFO
 
 accessLog:
