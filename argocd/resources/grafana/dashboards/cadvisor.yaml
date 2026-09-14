@@ -132,7 +132,7 @@ data:
           "targets": [
             {
               "refId": "A",
-              "expr": "sum by(namespace,pod,container) (container_fs_usage_bytes{container!=\"\",container!=\"POD\"})",
+              "expr": "sum by(instance,device) (container_fs_usage_bytes{container!=\"\",container!=\"POD\"})",
               "legendFormat": "{{namespace}}/{{pod}}/{{container}}"
             }
           ],
