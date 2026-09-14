@@ -1,365 +1,256 @@
 # Course Outline: Hybrid HPC / Cloud / AI-ML / Quantum Infrastructure
 
-A facilitation guide for turning `infra-hpc-qc-k8s` and the `docs/` pack in this repository into a taught
-course — video lectures, in-person/live workshops, and self-paced tutorials — in the format proven by
-[CHPC's Student Cluster Competition](https://github.com/chpc-tech-eval/scc): daily lecture + tutorial
-pairing, a checklist per tutorial, progress-weighted scoring, and a public repo the cohort checks for
-updates.
+A facilitation guide for turning `infra-hpc-qc-k8s` into a practical multi-week or intensive infrastructure course.
 
-## Audience & prerequisites
+## Audience and prerequisites
 
-Undergraduate/postgraduate students or early-career engineers comfortable with a Linux shell and basic
-networking (IP addressing, DNS, SSH). No prior Kubernetes, Slurm, or quantum-computing experience assumed —
-Module 0 exists specifically to level the group before the stack-specific modules start.
+Students or early-career engineers comfortable with Linux and basic networking. No prior Kubernetes, Slurm or quantum-computing experience is required.
 
 ## Learning outcomes
 
-By the end, a participant should be able to: stand up a segmented, WireGuard-fronted OpenStack environment
-from Terraform; configure it with Ansible against a documented variable model; bootstrap a highly-available
-Kubernetes cluster and run applications on it via GitOps; operate a Slurm HPC partition alongside it;
-articulate a layered security posture (cloud → host → cluster → application) and its threat model; explain
-where an AI orchestration agent like Hermes fits, and does *not* fit, into infrastructure automation; and
-run quantum circuit simulations in a JupyterHub sandbox.
+By the end of the course a participant should be able to:
 
-## How this maps to the repo and docs pack
+- provision segmented OpenStack infrastructure with Terraform;
+- configure Rocky Linux hosts with Ansible;
+- bootstrap and validate a highly available Kubernetes cluster;
+- explain Cilium's role and validate its datapath;
+- deploy persistent Kubernetes applications through Argo CD;
+- build and validate Prometheus/Grafana observability;
+- operate a layered Wazuh/Siccata security plane;
+- operate Slurm alongside Kubernetes;
+- establish private DNS and ingress through Pi-hole, HAProxy and Traefik;
+- deploy PostgreSQL and JupyterHub as platform services;
+- explain Hermes/Heretic trust boundaries and least-privilege capabilities;
+- run a quantum-computing sandbox within JupyterHub;
+- close a real infrastructure gap through a reviewed Git change.
 
-| Module | Docs reference | Repo paths touched |
+## Module map
+
+| Module | Theme | Primary deliverable |
 |---|---|---|
-| M0 — Orientation & Access | `docs/01` | OpenStack project, SSH keys |
-| M1 — Architecture & Separation of Concerns | `docs/01` | — (design/reading module) |
-| M2 — Networking, WireGuard & Edge Security | `docs/02` | `terraform/modules/{network,security}`, `ansible/roles/{wireguard,ssh}` |
-| M3 — Terraform: Provisioning the Cloud | `docs/03` §3.3 | `terraform/environments/personal`, `terraform/modules/*` |
-| M4 — Ansible: Configuring the Fleet | `docs/03` §3.4–3.9 | `ansible/*` |
-| M5 — Kubernetes Bootstrap | `docs/04` §4.1–4.4 | `ansible/roles/{kube_control_plane,kube_worker,containerd,kubernetes_prereqs}` |
-| M6 — GitOps, Ingress & Platform Services | `docs/04` §4.5–4.12 | (Argo CD applications, not yet in repo) |
-| M7 — HPC with Slurm | `docs/05` | `ansible/roles/slurm` (▶ lab, doesn't exist yet) |
-| M8 — Hermes: AI Agents & Security Orchestration | `docs/06` | `ansible/roles/hermes` (▶ lab, doesn't exist yet) |
-| M9 — Quantum Computing Sandbox | `docs/07` | JupyterHub profile config |
-| M10 — Capstone: Close the Gaps | `docs/09` | Whatever the cohort chooses from the `STATUS.md` backlog |
+| M0 | Orientation and access | working lab access |
+| M1 | Architecture and separation of concerns | architecture explanation |
+| M2 | Networking, WireGuard and edge security | validated network/security path |
+| M3 | Terraform provisioning | reproducible OpenStack resources |
+| M4 | Ansible fleet configuration | host bootstrap playbooks |
+| M5 | Kubernetes bootstrap and Cilium | healthy six-node cluster |
+| M6 | GitOps and observability | Argo-managed Prometheus/Grafana dashboards |
+| M7 | Wazuh / Siccata security plane | security telemetry pipeline |
+| M8 | Slurm HPC scheduler | working partition + sample job |
+| M9 | Private ingress and DNS | end-to-end private application path |
+| M10 | PostgreSQL + JupyterHub | researcher platform baseline |
+| M11 | Hermes / Heretic | capability design and safe orchestration |
+| M12 | Quantum sandbox | notebook-based simulator lab |
+| M13 | Astro portal | user-facing application |
+| M14 | Capstone | reviewed PR closing a platform gap |
 
-## Format per module
+## M6 — GitOps and observability
 
-Each module below follows the same four-part structure so a facilitator can prep once and reuse the
-pattern:
+### Objectives
 
-- **Lecture** (45–60 min, recorded for YouTube) — concept-level, diagram-driven, no live typing.
-- **Workshop** (2–3 hr, in-person or live-streamed) — hands-on, instructor drives the first pass, cohort
-  repeats it themselves.
-- **Tutorial checklist** (self-paced, take-home) — the graded artifact; mirrors the SCC tutorials' per-item
-  checkbox format so progress is easy for both student and mentor to track.
-- **Deliverable** — what gets checked off / submitted.
+Students learn why Kubernetes application reconciliation and metric observability are distinct layers.
 
----
+### Workshop
 
-## M0 — Orientation & Environment Access
+Deploy/validate:
 
-**Objectives:** get every participant a working OpenStack project, SSH keypair, and a first VM they can
-reach — before any platform-specific content starts.
+```text
+Argo CD
+Prometheus
+Grafana
+Grafana dashboard sidecar
+Git-managed dashboard ConfigMaps
+```
 
-**Lecture:** what OpenStack is and isn't; projects/quotas/flavors/images; the shape of the whole course
-(show the architecture diagram from `docs/01` §1.3 once, as a "here's where we're going" map).
+Build dashboard panels from actual Prometheus metrics.
 
-**Workshop:** generate an SSH keypair; authenticate to OpenStack (`openstack token issue`); launch one
-throwaway VM; SSH in; tear it down.
+### Key experiments
 
-**Tutorial checklist:**
-- [ ] SSH keypair generated and added to the OpenStack project
-- [ ] `openstack token issue` succeeds
-- [ ] One VM launched, reached over SSH, and deleted again
-- [ ] Local tooling installed and verified (`docs/03` §3.1 commands all run clean)
+1. Put `extraScrapeConfigs` at the wrong Helm hierarchy and observe why Git can look correct while the runtime configuration is wrong.
+2. Compare `job="haproxy"`, `job="kubernetes-pods"` and `job="kubernetes-service-endpoints"`.
+3. Update a dashboard in Git and observe Argo + Grafana sidecar reconciliation.
+4. Distinguish “metric exists” from “dashboard query is correct”.
 
-**Deliverable:** screenshot/terminal log of the four checklist items.
+### Deliverable
 
----
+A validated Git-managed dashboard set with a written explanation of at least one failed PromQL assumption and its correction.
 
-## M1 — Architecture & Separation of Concerns
+## M7 — Wazuh / Siccata
 
-**Objectives:** explain the Terraform/Ansible/kubeadm/Argo CD boundary from memory; explain why Slurm and
-Kubernetes coexist rather than one replacing the other; locate every VM on the topology diagram without
-looking it up.
+### Objectives
 
-**Lecture:** walk `docs/01` end to end — separation of concerns table, VM topology, hybrid HPC/K8s
-rationale, the environment roadmap (personal → research → Purple Team) and why that last stage is still an
-open question (`docs/01` §1.8).
+Understand the separation between security-event management, IDS/IPS telemetry and operational observability.
 
-**Workshop:** whiteboard exercise — given a new requirement ("add a GPU node," "add a second research
-domain"), the group decides which layer(s) it touches and why, using the separation-of-concerns table as the
-only reference material.
+### Architecture
 
-**Tutorial checklist:**
-- [ ] Can redraw the VM topology table from memory, unaided
-- [ ] Can state, for any given change, which of Terraform/Ansible/kubeadm/Argo CD owns it
-- [ ] Has read `docs/09` findings #1–#3 (the naming/LB gaps) and can explain each in one sentence
+```text
+edge
+ ├── Wazuh Manager
+ └── Siccata
 
-**Deliverable:** a short written answer (2–3 sentences) to "why does this platform run both Slurm and
-Kubernetes instead of just one?"
+Kubernetes
+ ├── Wazuh Indexer
+ └── Wazuh Dashboard
 
----
+Prometheus/Grafana
+ └── operational/security telemetry
+```
 
-## M2 — Networking, WireGuard & Edge Security
+### Workshop
 
-**Objectives:** stand up WireGuard, understand the two independent firewall layers (OpenStack SGs vs.
-nftables), and articulate the threat model in `docs/02` §2.9.
+- complete the edge Wazuh Manager configuration;
+- deploy Wazuh Indexer;
+- deploy Wazuh Dashboard;
+- verify an agent event end-to-end;
+- add Siccata telemetry;
+- add Grafana security-health panels.
 
-**Lecture:** `docs/02` in full — defense-in-depth diagram, canonical CIDRs, SSH identity model, WireGuard key
-handling, nftables baseline, Pi-hole DNS chain, Wazuh/Suricata staged rollout, the three access-control
-planes (§2.8).
+### Deliverable
 
-**Workshop:** generate a WireGuard client keypair; connect through `edge`; verify the `bootstrap_ssh_cidr →
-WireGuard` cutover by disabling the bootstrap rule and confirming access still works over the tunnel; write
-and validate an `nftables` ruleset with `nft -c -f`.
+Working Wazuh security pipeline plus Grafana operational security dashboard.
 
-**Tutorial checklist:**
-- [ ] WireGuard tunnel up, client can reach `mgmt_cidr`
-- [ ] Public bootstrap SSH rule removed and access re-verified over WireGuard only
-- [ ] `nftables` ruleset validates with `nft -c -f` before being applied
-- [ ] Pi-hole resolves an internal record and correctly refuses external queries
-- [ ] Threat-model table (`docs/02` §2.9) extended with at least two new rows, with likelihood/impact and a MITRE ATT&CK technique mapped to each
+## M8 — Slurm HPC scheduler
 
-**Deliverable:** the extended threat-model table.
+### Objectives
 
----
+Operate Slurm independently of Kubernetes.
 
-## M3 — Terraform: Provisioning the Cloud
+### Workshop
 
-**Objectives:** run the full Terraform workflow against the OpenStack project from M0 and produce the 13(+1)
-VM topology from `docs/01`.
+```text
+controller
+  ↓
+login
+  ↓
+compute
+```
 
-**Lecture:** Terraform module structure (`network`, `compute`, `api_lb`, `security`), state handling, why
-Terraform never touches the OS (`docs/01` §1.2).
+Validate:
 
-**Workshop:** `terraform init/validate/plan/apply` against `terraform/environments/personal`; deliberately
-break something (wrong flavor, missing variable) and read the `plan` output to diagnose it before applying.
+```bash
+sinfo
+squeue
+scontrol show nodes
+```
 
-**Tutorial checklist:**
-- [ ] `terraform validate` and `terraform plan` both clean
-- [ ] `terraform apply` produces the expected VM count
-- [ ] Can explain, from the module list alone, what each of `network`/`compute`/`api_lb`/`security` is
-      responsible for
-- [ ] Has proposed a resolution to gap-analysis finding #2 (Octavia vs. HAProxy wording) in a short PR/patch
+Submit and verify a sample job.
 
-**Deliverable:** `terraform plan` output plus the gap-#2 patch.
+Add Grafana telemetry after Slurm is working.
 
----
+### Deliverable
 
-## M4 — Ansible: Configuring the Fleet
+Working partition + completed sample job + first Slurm dashboard.
 
-**Objectives:** run the bootstrap sequence end-to-end and correctly diagnose inventory/variable issues using
-`ansible-inventory` rather than reading YAML by eye.
+## M9 — Private ingress and DNS
 
-**Lecture:** roles vs. playbooks, the canonical variable model (`docs/03` §3.5, `docs/08` §8.2), the
-bootstrap sequence (`docs/03` §3.6), why `--flush-cache` is almost never what you actually need.
+### Objectives
 
-**Workshop:** run `make bootstrap`, then intentionally introduce a variable-naming drift
-(`management_cidr` instead of `mgmt_cidr`) and use `rg` plus `ansible-inventory --host` to find and fix it.
+Replace temporary GUI tunnels with the actual platform access path.
 
-**Tutorial checklist:**
-- [ ] `ansible all -m ping` returns success from every host
-- [ ] `chronyc tracking` reports `Leap status : Normal` on every host
-- [ ] Deliberately introduced naming drift found via `rg` and fixed
-- [ ] Has read gap-analysis findings #4/#5 and can explain, without help, exactly which playbooks/roles are
-      missing today and why that's tracked rather than hidden
+### Architecture
 
-**Deliverable:** before/after diff of the drift-fix exercise.
+```text
+WireGuard
+   ↓
+Pi-hole private DNS
+   ↓
+HAProxy
+   ↓
+Traefik
+   ↓
+Kubernetes Service
+```
 
----
+Cloudflare provides public DNS/ACME where public exposure is intentional.
 
-## M5 — Kubernetes Bootstrap
+### Workshop
 
-**Objectives:** bring up a 3+3 HA Kubernetes cluster with Cilium and validate every node is `Ready`.
+- validate HAProxy application frontends/backends;
+- deploy and validate Traefik;
+- establish Pi-hole private DNS records;
+- configure Cloudflare DNS/ACME;
+- publish one application;
+- remove normal-use `kubectl port-forward` and SSH tunnels.
 
-**Lecture:** kubeadm HA control-plane bootstrap, the API load balancer's role (`docs/04` §4.1–4.2), Cilium's
-job as CNI (§4.3), the storage chain (§4.4).
+### Deliverable
 
-**Workshop:** run `make k8s-prereqs && make k8s-init`; install Cilium; run `cilium status` and `kubectl get
-nodes -o wide`; deliberately stop `haproxy` on the LB node and observe (without panic) what does and doesn't
-break.
+An end-to-end application URL reachable through the intended ingress path, with the DNS path documented.
 
-**Tutorial checklist:**
-- [ ] All six nodes report `Ready`
-- [ ] `cilium status` reports healthy
-- [ ] Can explain what continues working, and what stops, if the API load balancer goes down mid-session
-- [ ] Has resolved gap-analysis finding #3 (missing `api-lb-01` topology row) with a concrete IP proposal
+## M10 — PostgreSQL + JupyterHub
 
-**Deliverable:** `kubectl get nodes -o wide` output plus the topology-table patch.
+### Objectives
 
----
+Introduce the platform identity/data layer and interactive computing environment.
 
-## M6 — GitOps, Ingress & Platform Services
+### Deliverable
 
-**Objectives:** deploy Argo CD, pick and justify an ingress controller, and get the `quantum.nyameko.com`
-hello-world Astro site live end-to-end.
+PostgreSQL-backed platform service and JupyterHub environment with observable health.
 
-**Lecture:** Argo CD app-of-apps pattern (`docs/04` §4.5); the ingress-nginx retirement and why it changes
-the default answer here (§4.6); cert-manager + DNS-01 (§4.7); the observability and Wazuh
-indexer/dashboard architecture (§4.8).
+## M11 — Hermes / Heretic
 
-**Workshop:** install Argo CD; deploy Traefik (or Cilium Gateway API) and cert-manager as the first two
-Argo-managed applications; ship the Astro hello-world page and verify the full
-`Cloudflare → Ingress → Astro` chain resolves publicly.
+### Objectives
 
-**Tutorial checklist:**
-- [ ] Argo CD UI reachable and showing at least two healthy applications
-- [ ] `quantum.nyameko.com` resolves and serves the hello-world page over HTTPS
-- [ ] Can state, in one paragraph, why `ingress-nginx` was ruled out and what was chosen instead
-- [ ] Has written the `STATUS.md` rows (gap-analysis finding #14) for every application deployed this module
+Understand controlled orchestration, trust boundaries, and prompt-injection risks.
 
-**Deliverable:** working public URL + `STATUS.md` patch.
+### Workshop
 
----
+Design capabilities using:
 
-## M7 — HPC with Slurm
+```text
+read → propose → approve → apply
+```
 
-**Objectives:** submit and monitor a job on a working Slurm partition, and understand exactly what's missing
-from the current repo to get there.
+External interfaces:
 
-**Lecture:** controller/login/compute separation (`docs/05` §5.2–5.4), why the 64-CPU flavor assertion
-matters as an IaC pattern, the roadmap items (§5.5).
+```text
+Telegram
+Discord
+   ↓
+controlled liaison
+   ↓
+Hermes
+```
 
-**Workshop:** starting from the design in `docs/05`, scaffold the missing `slurm` Ansible role (controller +
-login + compute variants) far enough to bring up a working single-node partition; submit the sample job from
-§5.6.
+No external message should directly become an unrestricted infrastructure action.
 
-**Tutorial checklist:**
-- [ ] `sinfo` shows the partition `up` with at least one `idle` node
-- [ ] Sample job (`docs/05` §5.6) completes and produces the expected output file
-- [ ] Role includes the 64-CPU flavor assertion, tested against both a passing and a deliberately-wrong flavor
-- [ ] Progress captured against the `slurm` row in `STATUS.md`
+### Deliverable
 
-**Deliverable:** the `slurm` role (even partially complete) plus job output.
+Capability specification with scope, approval gate, audit trail and threat model.
 
----
+## M12 — Quantum sandbox
 
-## M8 — Hermes: AI Agents & Security Orchestration
+Use JupyterHub to run the quantum simulator progression and later connect to controlled remote quantum resources.
 
-**Objectives:** articulate the least-privilege capability model in `docs/06` §6.3 precisely enough to design
-a tool scope for a new Hermes capability, and explain the prompt-injection risk in §6.5 in your own words.
+Potential sandbox toolkits include Qiskit, PennyLane and CUDA-Q, with hardware-provider access handled through explicit secrets and capability boundaries.
 
-**Lecture:** federation model and why the orchestrator sits outside Kubernetes (`docs/06` §6.1–6.2); the
-read-only-by-default capability model (§6.3); Hermes as a security orchestrator and its specific guardrails
-(§6.4); prompt injection via attacker-controlled log content (§6.5) — this is the module most worth slowing
-down for.
+## M13 — Astro portal
 
-**Workshop:** design exercise, no code required — given a proposed new Hermes capability ("auto-draft a
-firewall rule change when Suricata fires N alerts from the same source in 5 minutes"), the group specifies:
-the exact read scope required, what the human-approval gate looks like, what gets logged, and where an
-attacker could try to manipulate the pipeline via crafted alert content.
+Deliver the user-facing application through the completed DNS/ingress path.
 
-**Tutorial checklist:**
-- [ ] Can state the difference between "propose" and "apply" as it applies to every Hermes capability
-- [ ] Has completed the design exercise above in writing
-- [ ] Can name at least one OWASP LLM Top 10 category and MITRE ATLAS technique relevant to a log-reading
-      security agent
-- [ ] Has NOT designed any capability that lets Hermes push to a protected branch or apply a change without
-      the human-approval gate — mentors check this explicitly
+## M14 — Capstone
 
-**Deliverable:** the written capability design.
+Choose a real item from the project's backlog and ship it through the same Git/Argo/validation path used throughout the course.
 
----
+Suggested capstone themes:
 
-## M9 — Quantum Computing Sandbox
+- complete Wazuh hardening;
+- improve Slurm observability;
+- complete ingress/DNS automation;
+- build a Hermes read-only integration;
+- create a GPU/QPU accounting schema and dashboard template;
+- close a disaster-recovery or backup gap.
 
-**Objectives:** run the full lab progression from `docs/07` §7.6 inside the JupyterHub sandbox, and correctly
-state the qubit-count ceiling for classical simulation and why it exists.
-
-**Lecture:** simulators vs. real hardware (`docs/07` §7.4), the toolkit comparison table (§7.3), where the
-sandbox sits in the wider platform (§7.7).
-
-**Workshop:** work through steps 1–4 of the lab progression live (single-qubit gates → Bell state →
-Deutsch–Jozsa → Grover on 3 qubits); leave VQE/QAOA (steps 5–6) as the take-home.
-
-**Tutorial checklist:**
-- [ ] Steps 1–4 completed and running in the JupyterHub sandbox
-- [ ] VQE (step 5) run on a toy molecule, with the resulting energy value sanity-checked
-- [ ] QAOA (step 6) run on a small MaxCut instance
-- [ ] Can explain, without notes, why state-vector simulation cost grows exponentially with qubit count
-
-**Deliverable:** the notebook from steps 1–6, with brief written commentary per step.
-
----
-
-## M10 — Capstone: Close the Gaps
-
-**Objectives:** take an item straight from `docs/09`'s findings table or `STATUS.md` backlog and ship it as a
-reviewed change — the same "human-approved Git/CI path" the whole platform is designed around (`docs/06`
-§6.3).
-
-**Format:** no lecture — this module is entirely project work, spread across the last week(s) of the course,
-with brief daily stand-ups instead of a scheduled workshop block.
-
-**Suggested project menu** (pick one per team, sized to the team's remaining time):
-
-- Finish the `slurm` role (M7) end-to-end, including the backup-controller and dedicated-DB roadmap items
-  from `docs/05` §5.5
-- Build the `hermes` role and the read-only telemetry integration described in `docs/06` §6.4
-- Resolve every "quick win" in `docs/09` (findings #1, #2, #3, #7, #8, #9, #11, #12) as a single PR
-- Design and document (not necessarily implement) the Purple Team environment boundary flagged as open in
-  `docs/01` §1.8
-- Automate `FILELIST.txt` and add the `STATUS.md` tracker (`docs/09` finding #10/#14) as CI-enforced
-  artifacts
-
-**Deliverable:** a pull request against the course repository, reviewed against the same criteria the course
-has been teaching all along — least privilege, separation of concerns, and no secrets in Git.
-
-**Presentation:** each team presents their change (10 minutes: what gap it closed, why the approach was
-chosen, what they'd do differently with more time) to the full cohort and any invited mentors.
-
----
-
-## Assessment rubric
+## Assessment
 
 | Component | Weight |
 |---|---:|
-| Tutorial checklists (M0–M9) | 40% |
-| Capstone PR (M10) | 35% |
+| Tutorial checklists | 40% |
+| Capstone PR | 35% |
 | Capstone presentation | 15% |
-| Participation (discussions, peer help) | 10% |
+| Participation / peer support | 10% |
 
-## Suggested cadence
+## Teaching principle
 
-The nine content modules (M0–M9) map naturally onto a 9–10 session course — weekly for a semester-length
-offering, or daily for an intensive week in the SCC style. M10 needs unstructured project time; don't
-compress it into a single session. If running in the intensive format, mirror SCC's pattern directly:
-lectures in the morning, tutorial/workshop time in the afternoon, discussion channel open the whole time for
-peer help.
+The point is not to create a tutorial in which everything works on the first attempt.
 
-## Facilitator notes
-
-- **Mentors guide, they don't drive.** If running this in the SCC "hands-off" style, state that rule
-  explicitly on day one: mentors help debug and explain, they do not type commands on a student's
-  infrastructure.
-- **The gap-analysis document is not a script bug list — treat it as real course content.** Presenting
-  `docs/09` early (end of M1) sets the expectation that finding and fixing documentation/implementation
-  drift is itself a skill being taught, not an embarrassing oversight to route around.
-- **Keep a public discussion channel open** (GitHub Discussions, Slack, whatever the cohort already uses) —
-  the SCC repos lean on this heavily, and it scales mentor time far better than 1:1 debugging.
-- **Recheck `docs/08` §8.3's version table before every course run.** Software moves faster than a syllabus;
-  the rule in that section is written to survive that, but someone still has to apply it each time.
-
-## Suggested repository branching model
-
-Reuse the pattern from `chpc-tech-eval/scc` for the course repository itself:
-
-- `main` — stable, what the cohort is currently working from
-- `stag` — staging/integration testing of new modules or material before they go live
-- `dev` — active development of new course content
-
-Participants working on M10 capstone PRs branch from `dev`, not `main`, for the same reason: it keeps
-in-flight teaching material from landing in front of the cohort half-finished.
-
-## Cheat sheet
-
-| Command | Purpose |
-|---|---|
-| `openstack token issue` | Verify OpenStack authentication |
-| `terraform plan` / `apply` | Preview / apply infrastructure changes |
-| `ansible-inventory -i <inv> --host <host>` | Authoritative view of what a host's variables actually resolve to |
-| `ansible all -i <inv> -m ping` | Verify SSH + Ansible connectivity across the fleet |
-| `wg show` | WireGuard tunnel status |
-| `nft -c -f <file>` | Validate an nftables ruleset before applying it |
-| `kubectl get nodes -o wide` | Kubernetes node health |
-| `cilium status` | CNI health |
-| `argocd app list` | GitOps application sync status |
-| `sinfo` | Slurm partition/node status |
-| `squeue -u $USER` | Your own Slurm job queue |
-| `sbatch <script>` | Submit a Slurm batch job |
+The point is to teach students how to identify which layer owns a failure, inspect the actual runtime state, change the smallest responsible layer, and prove the fix with an acceptance test.

@@ -1,293 +1,120 @@
 # Quick Guide
 
-> **Zero-to-hero:** OpenStack project → VMs → hardened hosts → Kubernetes → Cilium → platform applications.
->
-> Minimal prose. Read [INSTALLATION.md](INSTALLATION.md) for explanations, warnings, comparisons and troubleshooting.
+Command-first reference for the current platform.
 
----
-
-## 0. Workstation
+## 1. OpenStack / Terraform
 
 ```bash
-git clone https://github.com/nyameko/infra-hpc-qc-k8s.git
-cd infra-hpc-qc-k8s
-
-sudo pacman -Syu ansible terraform python-openstackclient git
-```
-
-Verify:
-
-```bash
-terraform version
-ansible --version
-openstack --version
-```
-
----
-
-## 1. OpenStack credentials
-
-Configure your OpenStack credentials **outside Git**.
-
-```bash
-openstack token issue
-openstack network list
-openstack image list
-openstack flavor list
-```
-
----
-
-## 2. Private environment
-
-Populate the private environment files required by this deployment.
-
-Typical structure:
-
-```text
-ansible/inventories/private/
-├── hosts.yml
-└── group_vars/
-    └── all.yml
-```
-
-Confirm inventory resolution:
-
-```bash
-cd ansible
-ansible-inventory -i inventories/private/hosts.yml --graph
-ansible-inventory -i inventories/private/hosts.yml --host edge
-```
-
----
-
-## 3. OpenStack infrastructure
-
-```bash
-cd ../terraform/environments/private
+cd terraform/environments/private
 terraform init
-terraform fmt -check
+a
 terraform validate
 terraform plan
 terraform apply
 ```
 
-Verify:
+Terraform owns OpenStack resources: networks, routers, ports, security groups, VMs and cloud-side load-balancing resources.
+
+## 2. Ansible
 
 ```bash
-openstack server list
-openstack network list
-openstack security group list
-```
-
----
-
-## 4. Bootstrap and base hosts
-
-```bash
-cd ../../../ansible
+cd ansible
+ansible-inventory -i inventories/private/hosts.yml --graph
 ansible all -i inventories/private/hosts.yml -m ping
-
-ansible-playbook \
-  -i inventories/private/hosts.yml \
-  playbooks/bootstrap.yml
+ansible-playbook -i inventories/private/hosts.yml playbooks/bootstrap.yml
+ansible-playbook -i inventories/private/hosts.yml playbooks/edge.yml
+ansible-playbook -i inventories/private/hosts.yml playbooks/api-lb.yml
 ```
 
-Verify:
+Ansible owns host configuration and infrastructure services.
 
-```bash
-ansible all -i inventories/private/hosts.yml -m command \
-  -a 'hostnamectl --static'
-
-ansible all -i inventories/private/hosts.yml -m command \
-  -a 'timedatectl show -p Timezone --value'
-
-ansible all -i inventories/private/hosts.yml -b -m command \
-  -a 'chronyc tracking'
-```
-
----
-
-## 5. Edge
-
-```bash
-ansible-playbook \
-  -i inventories/private/hosts.yml \
-  playbooks/edge.yml
-```
-
-Verify:
-
-```bash
-ansible edge_nodes -i inventories/private/hosts.yml -b -m shell -a \
-  'systemctl is-active nftables; systemctl is-active wg-quick@wg0; systemctl is-active pihole-FTL; systemctl is-active suricata'
-
-ssh edge
-sudo nft list ruleset
-sudo wg show
-```
-
----
-
-## 6. Kubernetes API load balancer
-
-```bash
-ansible-playbook \
-  -i inventories/private/hosts.yml \
-  playbooks/api_lb.yml
-```
-
-Verify:
-
-```bash
-ssh api-lb-01
-sudo haproxy -c -f /etc/haproxy/haproxy.cfg
-sudo systemctl is-active haproxy
-sudo ss -lntp | grep 6443
-```
-
-Before Kubernetes exists, HAProxy backends may be `DOWN`. That is expected.
-
----
-
-## 7. Kubernetes prerequisites
-
-```bash
-ansible-playbook \
-  -i inventories/private/hosts.yml \
-  playbooks/kubernetes-prereqs.yml
-```
-
-Verify **as root** where required:
-
-```bash
-ansible control_plane:workers \
-  -i inventories/private/hosts.yml -b -m shell -a \
-  'systemctl is-active containerd; systemctl is-active kubelet; crictl info >/dev/null && echo CRI_OK'
-```
-
-Expected:
-
-```text
-active
-active
-CRI_OK
-```
-
----
-
-## 8. Kubernetes cluster
+## 3. Kubernetes
 
 ```bash
 ansible-playbook \
   -i inventories/private/hosts.yml \
   playbooks/kubernetes.yml
-```
 
-Configure `kubectl` from the bootstrap control plane as required by the role/workstation setup, then verify:
-
-```bash
-kubectl cluster-info
 kubectl get nodes -o wide
 kubectl get pods -A
 ```
 
-Before CNI, `CoreDNS` may be pending and nodes may not be `Ready`. After CNI is installed, all six nodes must become `Ready`.
-
----
-
-## 9. Cilium
-
-Install the pinned Cilium release used by the environment:
+## 4. Cilium
 
 ```bash
-cilium install <version>
 cilium status --wait
-```
-
-Verify:
-
-```bash
-kubectl get nodes
-cilium status
 cilium connectivity test --debug
 ```
 
-Acceptance:
+Advanced Hubble, kube-proxy replacement, ClusterMesh and deeper policy work remain deliberate follow-on exercises.
 
-```text
-6/6 Cilium agents healthy
-6/6 nodes Ready
-connectivity test successful
-```
+## 5. Argo CD
 
----
-
-## 10. OpenStack integration
-
-Next layers:
-
-```text
-OpenStack Cloud Controller Manager
-Cinder CSI
-```
-
-Verify after deployment:
+Check applications from Kubernetes when the Argo CLI is unavailable:
 
 ```bash
-kubectl get pods -A
-kubectl get storageclass
-kubectl get csidrivers
+kubectl -n argocd get applications
 ```
 
----
-
-## 11. Argo CD
-
-Install Argo CD through the repository's Kubernetes/GitOps path.
-
-Verify:
-
-```bash
-kubectl get pods -n argocd
-kubectl get applications -A
-```
-
----
-
-## 12. Platform applications
-
-Deploy in dependency order:
+Typical application pattern:
 
 ```text
-Ingress
-  ↓
-cert-manager
-  ↓
-Prometheus / Grafana / Loki
-  ↓
-Wazuh indexer / dashboard
-  ↓
-PostgreSQL
-  ↓
-JupyterHub
-  ↓
-Astro
-  ↓
-Research Hermes
+argocd/applications/<app>.yml
+        ↓
+Argo CD
+        ↓
+Helm / repository resources
+        ↓
+Kubernetes
 ```
 
----
-
-## 13. Slurm
+## 6. Prometheus / Grafana
 
 ```bash
-ansible-playbook \
-  -i inventories/private/hosts.yml \
-  playbooks/slurm.yml
+kubectl -n monitoring get pods
+kubectl -n argocd get applications
+kubectl -n monitoring get configmaps -l grafana_dashboard=1
 ```
 
-Verify:
+Prometheus queries can be tested directly:
+
+```bash
+kubectl -n monitoring exec deploy/prometheus-server -c prometheus-server -- \
+  wget -qO- 'http://127.0.0.1:9090/api/v1/query?query=up'
+```
+
+The Grafana dashboard sidecar watches ConfigMaps labelled:
+
+```text
+grafana_dashboard=1
+```
+
+Do not manually import Git-managed dashboards into Grafana.
+
+## 7. Temporary GUI access during bootstrap
+
+Before application ingress is complete, temporary access may use:
+
+```text
+kubectl port-forward
+SSH local forwarding
+```
+
+These are transitional tools only. The target architecture is:
+
+```text
+WireGuard / DNS
+   ↓
+HAProxy
+   ↓
+Traefik
+   ↓
+Kubernetes Service
+```
+
+The end-state goal is to stop requiring normal-use port-forwards and SSH tunnels.
+
+## 8. Slurm
 
 ```bash
 sinfo
@@ -295,90 +122,22 @@ squeue
 scontrol show nodes
 ```
 
----
+Slurm remains authoritative for HPC scheduling. Kubernetes does not replace it.
 
-## 14. End-to-end acceptance
-
-```bash
-terraform validate
-ansible all -i ansible/inventories/private/hosts.yml -m ping
-
-kubectl get nodes -o wide
-kubectl get pods -A
-cilium status
-kubectl get storageclass
-
-sinfo
-```
-
-Final application path:
-
-```text
-OpenStack
-  → Rocky Linux
-  → Ansible
-  → kubeadm
-  → Cilium
-  → Cinder CSI
-  → Argo CD
-  → Ingress
-  → Application
-```
-
----
-
-## Safety gates
-
-**DO NOT** remove public SSH/22 until the final public-application milestone has been completed and the WireGuard/recovery path has been tested.
-
-**DO NOT** commit:
-
-```text
-OpenStack credentials
-private SSH keys
-WireGuard private keys
-Ansible secrets
-kubeadm bootstrap credentials
-TLS private keys
-```
-
-**DO NOT** skip validation between layers.
-
----
-
-## Failure triage
+## 9. Edge health
 
 ```bash
-# OpenStack
-openstack server list
-openstack port list
-openstack security group rule list <group>
-
-# Ansible
-ansible-inventory -i inventories/private/hosts.yml --graph
-ansible all -i inventories/private/hosts.yml -m ping
-
-# Host
-systemctl --failed
-journalctl -u <service> -b
-
-# Networking
-ip addr
-ip route
 sudo nft list ruleset
 sudo wg show
+systemctl is-active wazuh-manager
+systemctl is-active haproxy
+sudo ss -lntup
+```
 
-# Kubernetes
-kubectl get nodes -o wide
-kubectl get pods -A
-kubectl get events -A --sort-by=.lastTimestamp
+## 10. Troubleshooting rule
 
-# Runtime
-sudo systemctl status containerd kubelet
-sudo crictl info
+Classify the failing layer before changing it:
 
-# Cilium
-cilium status
-cilium-dbg status --verbose
-cilium connectivity test --debug
+```text
+cloud → VM/OS → firewall/SELinux → service → runtime → Kubernetes → Cilium → application → observability
 ```

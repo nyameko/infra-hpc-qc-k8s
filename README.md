@@ -1,366 +1,414 @@
 # infra-hpc-qc-k8s
 
-## Hybrid Quantum-Centric Supercomputing Infrastructure
+Infrastructure-as-Code and GitOps platform for hybrid HPC, Kubernetes, AI/ML and quantum-computing research.
 
-`infra-hpc-qc-k8s` is a reproducible Infrastructure-as-Code and GitOps platform for hybrid **HPC + Kubernetes + AI/ML + quantum-computing research**.
+`infra-hpc-qc-k8s` is a reproducible, teachable and recoverable platform stack. It is deliberately built as a set of independently owned layers rather than as one monolithic installer:
 
-The project is deliberately more than a collection of deployment scripts. It is a reference implementation and teaching environment for understanding how a modern research-computing platform is assembled, operated, validated, secured, extended, and eventually reproduced or recovered.
+- **Terraform** owns OpenStack infrastructure.
+- **Ansible** owns host configuration and infrastructure services.
+- **kubeadm** owns Kubernetes cluster bootstrap.
+- **Cilium** owns Kubernetes networking and network policy.
+- **Cinder CSI** provides persistent OpenStack-backed storage.
+- **Argo CD** owns long-lived Kubernetes applications.
+- **Prometheus/Grafana** own platform observability.
+- **Wazuh/Siccata** own the security telemetry plane.
+- **Slurm** remains authoritative for HPC scheduling.
+- **PostgreSQL** stores platform identity and application state.
+- **JupyterHub** provides researcher-facing interactive environments.
+- **Hermes/Heretic** provide controlled intelligent orchestration and execution workflows.
+- **Astro** provides the user/research portal.
 
-The central design rule is simple:
+The repository is both an infrastructure implementation and a teaching platform: failures, debugging paths, acceptance tests and design trade-offs are part of the material.
 
-> **Each layer has an owner, each boundary has a contract, and each capability is validated before the next layer depends on it.**
+## Current status
 
----
-
-## What this project builds
-
-The reference environment currently uses OpenStack and Rocky Linux as the infrastructure substrate, with Kubernetes and Slurm providing complementary execution environments.
+The foundational platform is operational through the following layers:
 
 ```text
-                          Users / Researchers
-                                  │
-                  ┌───────────────┴───────────────┐
-                  │                               │
-                  ▼                               ▼
-             Research Portal                 Research Services
-                  │                        JupyterHub / Hermes /
-                  │                        AI/ML / quantum apps
-                  ▼                               │
-             Kubernetes                           │
-                  │                               │
-        ┌─────────┼─────────┐                     │
-        ▼         ▼         ▼                     │
-      Cilium   Argo CD   Observability             │
-                  │      Prometheus/Grafana        │
-                  ▼                                │
-           Platform applications                   │
-                                                   │
-      ┌────────────────────────────────────────────┘
-      │
-      ▼
-   Slurm HPC
-      │
-      ├── CPU / MPI / batch workloads
-      └── future GPU / accelerator workloads
-
 OpenStack
-   │
-   ├── Terraform → cloud infrastructure
-   └── Rocky Linux VMs
-          │
-          └── Ansible → hosts + bootstrap
+  ↓
+Rocky Linux hosts
+  ↓
+Edge security / WireGuard / Pi-hole / Wazuh Manager / Suricata
+  ↓
+HAProxy Kubernetes API endpoint
+  ↓
+3-control-plane + 3-worker Kubernetes cluster
+  ↓
+Cilium
+  ↓
+OpenStack CCM + Cinder CSI
+  ↓
+Argo CD
+  ↓
+Prometheus + Grafana
+  ↓
+Git-managed Grafana dashboards
 ```
 
-The current architecture intentionally keeps Kubernetes and Slurm complementary rather than attempting to turn either into a universal scheduler.
+The reference Kubernetes cluster currently has three control planes and three workers, with Kubernetes 1.36.4, containerd 2.3.4 and Cilium 1.20.1. The Kubernetes API is served through the stable HAProxy VIP `10.51.0.100:6443`.
 
----
+Cilium baseline connectivity testing has passed. The current observability implementation also includes Prometheus/Grafana GitOps dashboards for Kubernetes, nodes, cAdvisor, Cilium, Envoy, HAProxy, Prometheus and storage. The dashboards are provisioned as labelled ConfigMaps and consumed by the Grafana sidecar rather than imported manually.
 
-## The ownership model
-
-The project is easiest to understand as a sequence of control boundaries:
+## Architecture
 
 ```text
-Terraform
-    ↓
-Cloud infrastructure
-
-Ansible
-    ↓
-Operating systems + host services + bootstrap
-
-kubeadm
-    ↓
-Kubernetes cluster formation
-
-Cilium
-    ↓
-Kubernetes networking + policy
-
-Cinder CSI
-    ↓
-Persistent storage integration
-
-Argo CD
-    ↓
-Long-lived Kubernetes applications
-
-Prometheus / Grafana
-    ↓
-Observability
-
-Slurm
-    ↓
-HPC scheduling + execution
-
-Hermes / Heretic
-    ↓
-Research orchestration + controlled execution
+                         GitHub
+                    ┌─────────────┐
+                    │ repository  │
+                    └──────┬──────┘
+                           │
+              ┌────────────┴────────────┐
+              │                         │
+          Terraform                  Ansible
+              │                         │
+              ▼                         ▼
+         OpenStack                 Rocky Linux
+              │                         │
+              └────────────┬────────────┘
+                           ▼
+                    Kubernetes + Slurm
+                           │
+        ┌──────────────────┼──────────────────┐
+        │                  │                  │
+     Cilium             Argo CD          Wazuh/Siccata
+        │                  │                  │
+        │          ┌───────┼────────┐         │
+        │          │       │        │         │
+        │       Prometheus Grafana  Apps      │
+        │                          │          │
+        └──────────────────────────┼──────────┘
+                                   │
+                ┌──────────────────┼─────────────────┐
+                │                  │                 │
+            JupyterHub          Hermes            Astro
+                │                  │                 │
+                └──────────────────┼─────────────────┘
+                                   │
+                              PostgreSQL
 ```
 
-The separation is intentional. Terraform should not become a Kubernetes application manager. Ansible should not become the long-term Kubernetes application controller. Argo CD should not manage OpenStack VMs or Rocky Linux configuration. Slurm should remain authoritative for HPC batch scheduling.
+## Network planes
 
----
-
-## Reference network topology
-
-The current reference environment uses three logical network planes:
-
-| Network | CIDR | Primary purpose |
-|---|---|---|
-| Management | `10.50.0.0/24` | hosts, SSH, infrastructure services |
-| Kubernetes | `10.51.0.0/24` | Kubernetes nodes and the external Kubernetes VIP |
-| WireGuard | `10.60.0.0/24` | private operator/researcher access |
+```text
+Management:   10.50.0.0/24
+Kubernetes:   10.51.0.0/24
+WireGuard:    10.60.0.0/24
+```
 
 Important reference endpoints include:
 
 ```text
-edge              10.50.0.10
-api-lb-01         10.51.0.100
-k8s-cp-01         10.51.0.11
-k8s-cp-02         10.51.0.12
-k8s-cp-03         10.51.0.13
-k8s-worker-01     10.51.0.21
-k8s-worker-02     10.51.0.22
-k8s-worker-03     10.51.0.23
+edge                10.50.0.10
+api-lb-01            10.51.0.100
+k8s-cp-01            10.51.0.11
+k8s-cp-02            10.51.0.12
+k8s-cp-03            10.51.0.13
+k8s-worker-01        10.51.0.21
+k8s-worker-02        10.51.0.22
+k8s-worker-03        10.51.0.23
+WireGuard client      10.60.0.2
 ```
 
-The Kubernetes API is consumed through the stable endpoint:
+The edge host is the private security boundary: WireGuard, DNS, nftables, Wazuh Manager and network IDS/IPS live there. The Kubernetes API HAProxy endpoint is separate from the later application-ingress path through HAProxy → Traefik.
+
+## Separation of concerns
+
+The repository intentionally keeps these paths distinct:
+
+### Infrastructure lifecycle
 
 ```text
-10.51.0.100:6443
-        │
-      HAProxy
-      /  |  \
-    CP1  CP2  CP3
+Terraform → OpenStack resources
 ```
 
-The same external load-balancer boundary is being used for application ingress:
+### Host lifecycle
 
 ```text
-WireGuard client
-      │
-      ▼
-Pi-hole / private DNS
-      │
-      ▼
-10.51.0.100
-      │
-    HAProxy
-      │
-      ├── workers:31818 → Traefik HTTP
-      └── workers:31924 → Traefik HTTPS
-                 │
-                 ▼
-              Ingress
-                 │
-                 ▼
-             Application
+Ansible → Linux hosts, packages, services, firewalls and infrastructure daemons
 ```
 
-Kubernetes does not own the external load balancer. The OpenStack VM and HAProxy do. This distinction is important when interpreting Kubernetes and Argo CD health fields.
-
----
-
-## Current platform milestones
-
-The platform has already crossed several significant boundaries:
-
-- OpenStack infrastructure is provisioned through Terraform.
-- Rocky Linux hosts and core services are configured through Ansible.
-- A three-control-plane / three-worker Kubernetes cluster is bootstrapped with kubeadm.
-- Cilium is the cluster CNI, and the baseline connectivity suite has passed.
-- OpenStack Cinder CSI provides persistent storage through Kubernetes StorageClasses.
-- Argo CD provides the Kubernetes GitOps boundary.
-- Sealed Secrets is the selected Git-safe mechanism for Kubernetes secrets.
-- Traefik is deployed as the Kubernetes ingress controller.
-- Pi-hole provides private infrastructure DNS over WireGuard.
-- cert-manager obtains trusted certificates through Cloudflare DNS-01 and Let's Encrypt.
-- The Traefik test route has been validated directly through all three worker NodePorts, including valid Let's Encrypt TLS and an `HTTP/2 200` response from the nginx test application.
-
-The next objective is to operationalize the external HAProxy ingress path as a fully inventory-driven, scalable component and then build observability around the resulting platform.
-
----
-
-## Repository map
+### Kubernetes lifecycle
 
 ```text
-infra-hpc-qc-k8s/
-├── terraform/       # cloud infrastructure
-├── ansible/         # hosts, security, services, bootstrap
-├── argocd/          # GitOps applications and platform resources
-├── docs/            # installation guides and engineering tutorials
-└── secrets/         # local/non-public secret inputs; never commit plaintext secrets
+kubeadm → cluster formation
+Cilium  → networking / policy
+Argo CD → long-lived applications
 ```
 
-The repository deliberately avoids turning a single directory into the owner of everything.
-
-### `terraform/`
-
-Terraform answers:
-
-> **What infrastructure exists?**
-
-Networks, subnets, ports, security groups, VM instances, and OpenStack-side load-balancer infrastructure belong here.
-
-[Terraform README](terraform/README.md)
-
-### `ansible/`
-
-Ansible answers:
-
-> **How are those machines configured and bootstrapped?**
-
-Operating systems, users, SSH, firewalls, containerd, host services, Kubernetes prerequisites, kubeadm bootstrap, edge services, Slurm VMs, and the Argo CD bootstrap belong here.
-
-[Ansible README](ansible/README.md)
-
-### `argocd/`
-
-Argo CD answers:
-
-> **What should the Kubernetes platform be running?**
-
-Long-lived Kubernetes applications, Helm configuration, Kubernetes resources, and GitOps reconciliation belong here.
-
-[Argo CD README](argocd/README.md)
-
-### `docs/`
-
-The documentation answers three different questions:
+### HPC lifecycle
 
 ```text
-README
-  → What is this project?
-
-Installation / quick guides
-  → How do I deploy it?
-
-Tutorials
-  → What did we learn, why does it work, and how do we debug it?
+Slurm → HPC scheduling and execution
 ```
 
-See [docs/README.md](docs/README.md).
-
----
-
-## Secrets
-
-The platform uses **Bitnami Sealed Secrets** rather than committing plaintext Kubernetes credentials.
-
-The workflow is:
+### Security lifecycle
 
 ```text
-plaintext Secret on workstation
-        ↓
-     kubeseal
-        ↓
-   SealedSecret
-        ↓
-       Git
-        ↓
-     Argo CD
-        ↓
-Sealed Secrets controller
-        ↓
- Kubernetes Secret
+Wazuh   → security events / host security
+Siccata → IDS/IPS telemetry
 ```
 
-The controller's private sealing key must remain outside Git and be backed up securely. The public certificate may be distributed to trusted operators so secrets can be sealed offline.
-
-The project deliberately does not require KSOPS or SOPS for the Kubernetes application path.
-
----
-
-## Documentation philosophy
-
-This is a teaching repository, so failure analysis is part of the documentation.
-
-Tutorials should normally follow this rhythm:
+### Observability lifecycle
 
 ```text
-Goal
-  ↓
-Architecture / ownership
-  ↓
-Change one layer
-  ↓
-Validate the layer
-  ↓
-Inspect the real runtime state
-  ↓
-Diagnose failures
-  ↓
-Move to the next layer
+Prometheus → metrics
+Grafana    → dashboards / operational views
 ```
 
-The preferred lesson is not merely "run these commands." It is:
+### Research platform lifecycle
 
-> **Understand which controller owns the state, inspect that controller's inputs and outputs, and validate the actual runtime path.**
+```text
+PostgreSQL → identity / application state
+JupyterHub → interactive computing
+Hermes     → orchestration / coordination
+Heretic    → controlled execution / research workflows
+Astro      → user-facing portal
+```
 
----
+## Access model
 
-## Current limitations and deliberate deferrals
+The current administrative path is WireGuard-first:
 
-The baseline platform intentionally does not enable every advanced feature immediately.
+```text
+Workstation
+   ↓
+WireGuard
+   ↓
+edge
+   ├── management network
+   └── Kubernetes network
+```
 
-Deferred Kubernetes/Cilium work includes:
+During platform bring-up, temporary `kubectl port-forward` and SSH tunnels were used for selected graphical interfaces. These are **temporary bootstrap mechanisms**, not the target architecture.
 
-- Hubble / advanced flow observability
+The target application access path is:
+
+```text
+Cloudflare DNS / ACME
+        ↓
+Pi-hole for private DNS where applicable
+        ↓
+HAProxy
+        ↓
+Traefik
+        ↓
+Kubernetes Services
+```
+
+The next networking milestone is to complete and validate this path, then remove the remaining GUI port-forwards and SSH tunnels from normal operations.
+
+## Observability
+
+Prometheus and Grafana are now treated as platform infrastructure, not as an afterthought.
+
+The current dashboard set covers:
+
+```text
+Platform Overview
+Kubernetes
+Nodes
+cAdvisor
+Cilium
+Cilium Envoy
+HAProxy / Ingress
+Prometheus
+Storage
+```
+
+Dashboards are stored in Git as ConfigMaps under `argocd/resources/grafana/dashboards/`. Argo CD deploys those resources and the Grafana dashboard sidecar provisions them into Grafana.
+
+The important operational rule is:
+
+> A dashboard is not considered complete until its PromQL has been validated against the live metric and label schema.
+
+That rule matters because Prometheus job names are discovery-specific: for example, HAProxy is an explicit `haproxy` job, Cilium agents are discovered through `kubernetes-pods`, and Cilium Envoy through `kubernetes-service-endpoints`.
+
+## Security model
+
+Security is layered:
+
+```text
+Cloud security groups
+        ↓
+Host nftables
+        ↓
+WireGuard / SSH identities
+        ↓
+Kubernetes / Cilium policy
+        ↓
+Application authentication and authorization
+```
+
+Wazuh and Siccata complement rather than replace this model.
+
+## Roadmap
+
+### Phase A — Foundation and observability
+
+**Completed / operational:**
+
+- OpenStack/Terraform foundation
+- Rocky Linux host bootstrap
+- WireGuard and edge security baseline
+- HAProxy Kubernetes API endpoint
+- kubeadm multi-control-plane cluster
+- Cilium baseline and connectivity validation
+- OpenStack CCM / Cinder CSI
+- Argo CD
+- Prometheus
+- Grafana
+- GitOps-managed observability dashboards
+- Temporary GUI access paths documented as transitional only
+
+### Phase B — Security and HPC
+
+**Next:**
+
+1. Wazuh Manager completion
+2. Wazuh Indexer
+3. Wazuh Dashboard
+4. Siccata IDS/IPS integration
+5. Wazuh/Siccata/Prometheus/Grafana security observability
+6. Slurm completion
+7. Slurm Grafana dashboard
+
+### Phase C — Private ingress and DNS
+
+After security and Slurm:
+
+1. HAProxy application ingress
+2. Traefik
+3. Pi-hole private DNS
+4. Cloudflare DNS / ACME integration
+5. End-to-end private ingress validation
+6. Remove normal dependence on port-forwards and SSH tunnels
+
+### Phase D — Research platform
+
+1. PostgreSQL platform/user database
+2. JupyterHub
+3. Hermes Orchestrator
+4. Heretic controlled execution/research workflows
+5. Astro portal
+6. Telegram / Discord integrations for Hermes through controlled liaison components
+7. LLM inference services (llama.cpp / Ollama)
+8. research and quantum-computing workloads
+
+### Phase E — Resource accounting and advanced research
+
+Templates and interfaces will be established early, but detailed accounting is deliberately deferred until identity, Slurm and platform orchestration are authoritative.
+
+Planned accounting dimensions include:
+
+```text
+CPU / HPC
+GPU
+QPU
+user
+project
+job
+allocation
+runtime
+resource consumption
+```
+
+### Deferred / later
+
+- advanced Cilium Hubble work
 - kube-proxy replacement
-- advanced eBPF service-routing experiments
 - ClusterMesh
-- advanced Cilium policy design
+- deeper Cilium policy design
+- HPC accounting
+- GPU accounting
+- QPU accounting
+- user-facing resource dashboards
+- HA and disaster-recovery hardening beyond the current baseline
 
-These should be introduced only after the baseline is stable and observable.
+## Hermes / Heretic direction
 
-Likewise, advanced research services such as Hermes, Heretic, JupyterHub, quantum SDK infrastructure, and GPU/QPU integration should arrive only after the core platform is measurable and recoverable.
-
----
-
-## Path forward
-
-The recommended progression is:
+Hermes is deliberately split across trust boundaries:
 
 ```text
-1. Finish scalable HAProxy ingress
-          ↓
-2. Prometheus / Grafana observability
-          ↓
-3. Re-run Cilium validation while watching telemetry
-          ↓
-4. Wazuh / Suricata operational integration
-          ↓
-5. JupyterHub
-          ↓
-6. Slurm services and HPC integration
-          ↓
-7. A100 / accelerator integration
-          ↓
-8. Hermes / Heretic
-          ↓
-9. research and quantum-computing applications
+                      Hermes federation root
+                              │
+                    hermes-orchestrator host
+                              │
+                read/report by default
+                              │
+                    ┌─────────┴─────────┐
+                    │                   │
+             Research Hermes      controlled tools
+                (Kubernetes)          / APIs
 ```
 
-The immediate priority is not adding more frameworks. It is making the platform **observable, reproducible, scalable, and boring to operate**.
+The design goal is not a general-purpose autonomous administrator. Hermes capabilities should be explicit, least-privileged, auditable and human-approvable where changes can affect infrastructure.
 
----
+Planned integrations include:
+
+- Prometheus/Grafana telemetry
+- Wazuh/Siccata security telemetry
+- Kubernetes APIs
+- Slurm APIs/CLI through controlled capabilities
+- PostgreSQL-backed identity and metadata
+- JupyterHub lifecycle information
+- Telegram and Discord as messaging interfaces
+- separate liaison components for external chat systems
+- isolated per-user/per-profile execution context
+- Heretic for controlled research/execution workflows
+
+External messaging is an interface to the orchestrator, **not a direct path to privileged infrastructure actions**.
+
+## Documentation map
+
+```text
+README.md
+   ↓
+project identity, architecture, current state, roadmap
+
+ docs/README.md
+   ↓
+documentation map and ownership model
+
+ docs/QUICK_GUIDE.md
+   ↓
+command-first operational path
+
+ docs/INSTALLATION.md
+   ↓
+complete deployment, design decisions, validation and troubleshooting
+
+ docs/tutorials/README.md
+   ↓
+teaching pack and reading order
+
+ docs/tutorials/COURSE_OUTLINE.md
+   ↓
+lectures, workshops, tutorial checklists and capstone
+```
+
+Read the root README to understand the platform, not to learn every command. Detailed procedures belong in `INSTALLATION.md` and the tutorials.
+
+## Teaching philosophy
+
+This repository is intended to be a practical infrastructure classroom. The course teaches:
+
+1. architecture and separation of concerns
+2. cloud networking and edge security
+3. Terraform and Ansible
+4. Kubernetes and Cilium
+5. storage and GitOps
+6. observability and operations
+7. security telemetry and HPC scheduling
+8. private ingress and application delivery
+9. Hermes/Heretic orchestration and security boundaries
+10. AI/ML and quantum-computing platform design
+
+Real failures are preserved as teaching material where useful.
 
 ## Start here
 
-Read these in order:
-
-1. [Terraform](terraform/README.md)
-2. [Ansible](ansible/README.md)
-3. [Argo CD](argocd/README.md)
-4. [Documentation](docs/README.md)
-5. [Tutorials](docs/tutorials/)
-
-For a complete deployment, follow the installation documentation rather than reconstructing the deployment from individual commands in the README.
-
----
-
-## Project principle
-
-The project is ultimately trying to demonstrate one thing well:
-
-> **A complex hybrid research-computing platform can remain understandable when infrastructure, hosts, Kubernetes, applications, HPC scheduling, security, and research services are separated into explicit control planes with observable contracts between them.**
+- New deployment: `docs/INSTALLATION.md`
+- Experienced operator: `docs/QUICK_GUIDE.md`
+- Course / teaching: `docs/tutorials/README.md`
+- Module map: `docs/tutorials/COURSE_OUTLINE.md`
