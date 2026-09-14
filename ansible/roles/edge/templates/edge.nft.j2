@@ -19,6 +19,8 @@ table inet filter {
         udp dport 53 ip saddr { {{ mgmt_cidr }}, {{ k8s_cidr }}, {{ vpn_cidr }} } accept
         tcp dport 53 ip saddr { {{ mgmt_cidr }}, {{ k8s_cidr }}, {{ vpn_cidr }} } accept
 
+        tcp dport { 80, 443 } ip saddr {{ vpn_cidr }} accept
+
         tcp dport { 1514, 1515, 55000 } ip saddr { {{ mgmt_cidr }}, {{ k8s_cidr }}, {{ vpn_cidr }} } accept
     }
 
