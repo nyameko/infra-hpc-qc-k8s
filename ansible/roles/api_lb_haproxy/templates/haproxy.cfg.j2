@@ -23,24 +23,24 @@ backend kubernetes-control-plane
     server {{ backend.name }} {{ backend.address }}:{{ backend.port }} check
 {% endfor %}
 
-frontend ingress-http
+frontend application-http
     bind {{ api_lb_listen_address }}:80
     default_backend traefik-http
 
 backend traefik-http
     balance roundrobin
 {% for worker in api_lb_ingress_workers %}
-    server {{ worker.name }} {{ worker.address }}:{{ api_lb_ingress_http_port }} check
+    server {{ worker.name }} {{ worker.address }}:80 check
 {% endfor %}
 
-frontend ingress-https
+frontend application-https
     bind {{ api_lb_listen_address }}:443
     default_backend traefik-https
 
 backend traefik-https
     balance roundrobin
 {% for worker in api_lb_ingress_workers %}
-    server {{ worker.name }} {{ worker.address }}:{{ api_lb_ingress_https_port }} check
+    server {{ worker.name }} {{ worker.address }}:443 check
 {% endfor %}
 
 frontend prometheus
