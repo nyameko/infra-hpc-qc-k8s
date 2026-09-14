@@ -204,7 +204,7 @@ data:
           "targets": [
             {
               "refId": "A",
-              "expr": "haproxy_backend_agg_server_status{state=\"UP\"}",
+              "expr": "haproxy_server_status{state=\"UP\"}",
               "legendFormat": "{{proxy}} / {{server}}"
             }
           ],
