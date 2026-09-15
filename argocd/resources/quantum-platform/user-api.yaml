@@ -75,11 +75,6 @@ spec:
             timeoutSeconds: 5
             failureThreshold: 3
 
-            initialDelaySeconds: 20
-            periodSeconds: 20
-            timeoutSeconds: 5
-            failureThreshold: 6
-
           resources:
             requests:
               cpu: 100m
