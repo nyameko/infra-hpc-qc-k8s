@@ -1,0 +1,29 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: quantum-platform-config
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+data:
+  DJANGO_DEBUG: "false"
+
+  DJANGO_ALLOWED_HOSTS: >-
+    users.quantum.nyameko.com
+
+  DJANGO_CSRF_TRUSTED_ORIGINS: >-
+    https://users.quantum.nyameko.com
+
+  DJANGO_SESSION_COOKIE_SECURE: "true"
+  DJANGO_CSRF_COOKIE_SECURE: "true"
+
+  PORTAL_BASE_URL: "https://users.quantum.nyameko.com"
+
+  POSTGRES_DB: "quantum_platform"
+  POSTGRES_USER: "quantum_platform"
+  POSTGRES_HOST: "quantum-platform-postgres"
+  POSTGRES_PORT: "5432"
+  POSTGRES_CONN_MAX_AGE: "60"
+
+  # MVP integration default. Replace with SMTP settings before broad user testing.
+  DJANGO_EMAIL_BACKEND: "django.core.mail.backends.console.EmailBackend"
+  DJANGO_DEFAULT_FROM_EMAIL: "Quantum Platform <noreply@nyameko.com>"

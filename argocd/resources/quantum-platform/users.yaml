@@ -1,0 +1,76 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: quantum-platform-users
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  selector:
+    app.kubernetes.io/name: quantum-platform-users
+
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: quantum-platform-users
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  replicas: 2
+
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: quantum-platform-users
+
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: quantum-platform-users
+        app.kubernetes.io/part-of: quantum-platform
+
+    spec:
+      containers:
+        - name: users
+          image: quantum-platform-users
+          imagePullPolicy: Always
+
+          ports:
+            - name: http
+              containerPort: 8080
+
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+
+            initialDelaySeconds: 2
+            periodSeconds: 10
+
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+
+            initialDelaySeconds: 10
+            periodSeconds: 20
+
+          resources:
+            requests:
+              cpu: 20m
+              memory: 32Mi
+
+            limits:
+              memory: 128Mi
+
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false
+            runAsNonRoot: true
+            capabilities:
+              drop:
+                - ALL

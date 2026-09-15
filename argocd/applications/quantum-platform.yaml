@@ -1,0 +1,26 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: quantum-platform
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+
+  source:
+    repoURL: https://github.com/nyameko/infra-hpc-qc-k8s.git
+    targetRevision: main
+    path: argocd/resources/quantum-platform
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: quantum-platform
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+
+    syncOptions:
+      - CreateNamespace=true

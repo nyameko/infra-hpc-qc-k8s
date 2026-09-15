@@ -1,0 +1,32 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: quantum-platform
+
+resources:
+  - namespace.yaml
+  - configmap.yaml
+  - postgres.yaml
+  - migrate-job.yaml
+  - blog.yaml
+  - wiki.yaml
+  - users.yaml
+  - user-api.yaml
+  - ingress.yaml
+
+images:
+  - name: quantum-platform-blog
+    newName: ghcr.io/nyameko/quantum-platform-blog
+    newTag: main
+
+  - name: quantum-platform-wiki
+    newName: ghcr.io/nyameko/quantum-platform-wiki
+    newTag: main
+
+  - name: quantum-platform-users
+    newName: ghcr.io/nyameko/quantum-platform-users
+    newTag: main
+
+  - name: quantum-platform-user-api
+    newName: ghcr.io/nyameko/quantum-platform-user-api
+    newTag: main

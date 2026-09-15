@@ -1,0 +1,90 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: quantum-platform
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+spec:
+  ingressClassName: traefik
+
+  tls:
+    - hosts:
+        - blog.nyameko.com
+        - wiki.quantum.nyameko.com
+        - users.quantum.nyameko.com
+
+      secretName: quantum-platform-tls
+
+  rules:
+    - host: blog.nyameko.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: quantum-platform-blog
+                port:
+                  number: 8080
+
+    - host: wiki.quantum.nyameko.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: quantum-platform-wiki
+                port:
+                  number: 8080
+
+    - host: users.quantum.nyameko.com
+      http:
+        paths:
+          - path: /_allauth
+            pathType: Prefix
+            backend:
+              service:
+                name: quantum-platform-user-api
+                port:
+                  number: 8000
+
+          - path: /api/v1
+            pathType: Prefix
+            backend:
+              service:
+                name: quantum-platform-user-api
+                port:
+                  number: 8000
+
+          - path: /accounts
+            pathType: Prefix
+            backend:
+              service:
+                name: quantum-platform-user-api
+                port:
+                  number: 8000
+
+          - path: /admin
+            pathType: Prefix
+            backend:
+              service:
+                name: quantum-platform-user-api
+                port:
+                  number: 8000
+
+          - path: /static
+            pathType: Prefix
+            backend:
+              service:
+                name: quantum-platform-user-api
+                port:
+                  number: 8000
+
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: quantum-platform-users
+                port:
+                  number: 8080
