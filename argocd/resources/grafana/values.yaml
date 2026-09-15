@@ -16,6 +16,31 @@ persistence:
 service:
   type: ClusterIP
 
+
+grafana.ini:
+  server:
+    domain: grafana.quantum.nyameko.com
+    root_url: https://grafana.quantum.nyameko.com
+
+
+ingress:
+  enabled: true
+  ingressClassName: traefik
+
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-cloudflare
+
+  hosts:
+    - grafana.quantum.nyameko.com
+
+  path: /
+  pathType: Prefix
+
+  tls:
+    - secretName: grafana-tls
+      hosts:
+        - grafana.quantum.nyameko.com
+
 resources:
   requests:
     cpu: 100m
