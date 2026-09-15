@@ -50,20 +50,30 @@ spec:
             - secretRef:
                 name: quantum-platform-secrets
 
+          startupProbe:
+            tcpSocket:
+              port: http
+            periodSeconds: 2
+            timeoutSeconds: 1
+            failureThreshold: 30
+
           readinessProbe:
             httpGet:
               path: /api/v1/health/
               port: http
-
-            initialDelaySeconds: 5
+              httpHeaders:
+                - name: Host
+                  value: users.quantum.nyameko.com
             periodSeconds: 10
             timeoutSeconds: 5
-            failureThreshold: 12
+            failureThreshold: 6
 
           livenessProbe:
-            httpGet:
-              path: /api/v1/health/
+            tcpSocket:
               port: http
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 3
 
             initialDelaySeconds: 20
             periodSeconds: 20
