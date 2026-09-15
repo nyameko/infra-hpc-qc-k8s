@@ -22,6 +22,6 @@
 
 - name: Enable Pi-hole
   ansible.builtin.systemd:
-    name: pihole
+    name: pihole.service
     enabled: true
     state: started
