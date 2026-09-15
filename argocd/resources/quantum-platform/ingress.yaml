@@ -4,6 +4,7 @@ metadata:
   name: quantum-platform
   annotations:
     argocd.argoproj.io/sync-wave: "3"
+    cert-manager.io/cluster-issuer: letsencrypt-cloudflare
 spec:
   ingressClassName: traefik
 

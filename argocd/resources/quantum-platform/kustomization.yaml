@@ -6,6 +6,7 @@ namespace: quantum-platform
 resources:
   - namespace.yaml
   - configmap.yaml
+  - quantum-platform-secrets-sealed.yaml
   - postgres.yaml
   - migrate-job.yaml
   - blog.yaml

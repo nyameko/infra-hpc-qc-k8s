@@ -25,5 +25,8 @@ data:
   POSTGRES_CONN_MAX_AGE: "60"
 
   # MVP integration default. Replace with SMTP settings before broad user testing.
-  DJANGO_EMAIL_BACKEND: "django.core.mail.backends.console.EmailBackend"
+  DJANGO_EMAIL_BACKEND: "django.core.mail.backends.smtp.EmailBackend"
+  DJANGO_EMAIL_HOST: "smtp-relay.brevo.com"
+  DJANGO_EMAIL_PORT: "587"
+  DJANGO_EMAIL_USE_TLS: "true"
   DJANGO_DEFAULT_FROM_EMAIL: "Quantum Platform <noreply@nyameko.com>"
