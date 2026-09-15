@@ -46,6 +46,12 @@ providers:
   kubernetesIngress:
     enabled: true
 
+    publishedService:
+      enabled: false
+
+    ingressEndpoint:
+      ip: 10.51.0.100
+
 securityContext:
   capabilities:
     drop:
