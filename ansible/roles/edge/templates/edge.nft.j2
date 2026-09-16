@@ -32,6 +32,10 @@ table inet filter {
 
         iifname "wg0" oifname "{{ ansible_facts.default_ipv4.interface }}" accept
         iifname "{{ ansible_facts.default_ipv4.interface }}" oifname "wg0" ct state established,related accept
+
+        # Public web ingress:
+        # OpenStack FIP → edge → HAProxy VIP
+        iifname "{{ ansible_facts.default_ipv4.interface }}" oifname "{{ ansible_facts.default_ipv4.interface }}" ip daddr 10.51.0.100 tcp dport { 80, 443 } accept
     }
 
     chain output {
@@ -41,10 +45,17 @@ table inet filter {
 }
 
 table ip nat {
+    chain prerouting {
+        type nat hook prerouting priority dstnat; policy accept;
+
+        iifname "{{ ansible_facts.default_ipv4.interface }}" ip daddr 10.50.0.10 tcp dport { 80, 443 } dnat to 10.51.0.100
+    }
+
     chain postrouting {
         type nat hook postrouting priority srcnat;
         policy accept;
 
         ip saddr {{ vpn_cidr }} oifname "{{ ansible_facts.default_ipv4.interface }}" masquerade
+        ip daddr 10.51.0.100 tcp dport { 80, 443 } oifname "{{ ansible_facts.default_ipv4.interface }}" snat to 10.50.0.10
     }
 }

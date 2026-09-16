@@ -18,6 +18,50 @@ resource "openstack_networking_secgroup_v2" "this" {
   description = "${var.name_prefix} ${each.key}"
 }
 
+locals {
+  cloudflare_ipv4_cidrs = toset([
+    "173.245.48.0/20",
+    "103.21.244.0/22",
+    "103.22.200.0/22",
+    "103.31.4.0/22",
+    "141.101.64.0/18",
+    "108.162.192.0/18",
+    "190.93.240.0/20",
+    "188.114.96.0/20",
+    "197.234.240.0/22",
+    "198.41.128.0/17",
+    "162.158.0.0/15",
+    "104.16.0.0/13",
+    "104.24.0.0/14",
+    "172.64.0.0/13",
+    "131.0.72.0/22",
+  ])
+}
+
+resource "openstack_networking_secgroup_rule_v2" "edge_http_cloudflare" {
+  for_each = local.cloudflare_ipv4_cidrs
+
+  direction         = "ingress"
+  ethertype         = "IPv4"
+  protocol          = "tcp"
+  port_range_min    = 80
+  port_range_max    = 80
+  remote_ip_prefix  = each.value
+  security_group_id = openstack_networking_secgroup_v2.this["edge"].id
+}
+
+resource "openstack_networking_secgroup_rule_v2" "edge_https_cloudflare" {
+  for_each = local.cloudflare_ipv4_cidrs
+
+  direction         = "ingress"
+  ethertype         = "IPv4"
+  protocol          = "tcp"
+  port_range_min    = 443
+  port_range_max    = 443
+  remote_ip_prefix  = each.value
+  security_group_id = openstack_networking_secgroup_v2.this["edge"].id
+}
+
 resource "openstack_networking_secgroup_rule_v2" "edge_ssh_bootstrap" {
   direction         = "ingress"
   ethertype         = "IPv4"
