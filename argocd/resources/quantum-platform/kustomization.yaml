@@ -13,6 +13,7 @@ resources:
   - users.yaml
   - user-api.yaml
   - ingress.yaml
+  - postgres-exporter.yaml
 
 images:
   - name: quantum-platform-blog

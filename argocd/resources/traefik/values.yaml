@@ -68,6 +68,10 @@ affinity:
         - matchExpressions:
             - key: node-role.kubernetes.io/control-plane
               operator: DoesNotExist
+metrics:
+  prometheus:
+    addRoutersLabels: true
+    addServicesLabels: true
 
 log:
     level: INFO
