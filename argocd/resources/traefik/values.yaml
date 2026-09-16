@@ -37,7 +37,8 @@ ports:
 
 service:
   enabled: true
-  type: ClusterIP
+  spec:
+    type: ClusterIP
 
 providers:
   kubernetesCRD:
