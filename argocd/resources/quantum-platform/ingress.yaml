@@ -1,19 +1,19 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
+
 metadata:
   name: quantum-platform
   annotations:
     argocd.argoproj.io/sync-wave: "3"
     cert-manager.io/cluster-issuer: letsencrypt-cloudflare
+
 spec:
   ingressClassName: traefik
 
   tls:
     - hosts:
         - blog.nyameko.com
-        - wiki.quantum.nyameko.com
-        - users.quantum.nyameko.com
-
+        - quantum.nyameko.com
       secretName: quantum-platform-tls
 
   rules:
@@ -28,18 +28,7 @@ spec:
                 port:
                   number: 8080
 
-    - host: wiki.quantum.nyameko.com
-      http:
-        paths:
-          - path: /
-            pathType: Prefix
-            backend:
-              service:
-                name: quantum-platform-wiki
-                port:
-                  number: 8080
-
-    - host: users.quantum.nyameko.com
+    - host: quantum.nyameko.com
       http:
         paths:
           - path: /_allauth

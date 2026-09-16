@@ -10,7 +10,6 @@ resources:
   - postgres.yaml
   - migrate-job.yaml
   - blog.yaml
-  - wiki.yaml
   - users.yaml
   - user-api.yaml
   - ingress.yaml
@@ -18,10 +17,6 @@ resources:
 images:
   - name: quantum-platform-blog
     newName: ghcr.io/nyameko/quantum-platform-blog
-    newTag: main
-
-  - name: quantum-platform-wiki
-    newName: ghcr.io/nyameko/quantum-platform-wiki
     newTag: main
 
   - name: quantum-platform-users
