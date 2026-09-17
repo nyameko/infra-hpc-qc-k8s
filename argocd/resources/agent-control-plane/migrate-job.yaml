@@ -1,0 +1,51 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: acp-migrate
+  annotations:
+    argocd.argoproj.io/sync-wave: '1'
+    argocd.argoproj.io/hook: Sync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation,HookSucceeded
+spec:
+  backoffLimit: 10
+  activeDeadlineSeconds: 900
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/part-of: agent-control-plane
+        acp-role: migration
+    spec:
+      restartPolicy: OnFailure
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: migrate
+        image: agent-control-plane-api
+        command:
+        - python
+        - -m
+        - agent_control_plane.migrate
+        env:
+        - name: ACP_MIGRATION_DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: acp-db-owner
+              key: ACP_MIGRATION_DATABASE_URL
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            memory: 256Mi

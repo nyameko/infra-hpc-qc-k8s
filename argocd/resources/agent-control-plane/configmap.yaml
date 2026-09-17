@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: acp-config
+  annotations:
+    argocd.argoproj.io/sync-wave: '-2'
+data:
+  ACP_TENANT_ID: nyameko
+  ACP_PROMETHEUS_URL: http://prometheus-server.monitoring.svc.cluster.local
+  ACP_MODEL: ''
+  ACP_MODEL_BASE_URL: ''
+  ACP_RUN_TIMEOUT_SECONDS: '180'
+  HERMES_HOME: /var/lib/hermes/admin-readonly

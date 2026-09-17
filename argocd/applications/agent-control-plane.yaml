@@ -1,0 +1,19 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: agent-control-plane
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/nyameko/infra-hpc-qc-k8s.git
+    targetRevision: main
+    path: argocd/resources/agent-control-plane
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: agent-control-plane
+  # Manual first sync: image publication, sealed secrets and model endpoint are prerequisites.
+  # No deletion finalizer: deleting this Application must not cascade into durable state.
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true

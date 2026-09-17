@@ -1,0 +1,96 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: agent-control-plane-api
+  annotations:
+    argocd.argoproj.io/sync-wave: '2'
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/part-of: agent-control-plane
+    acp-role: api
+  ports:
+  - name: http
+    port: 8080
+    targetPort: http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: agent-control-plane-api
+  annotations:
+    argocd.argoproj.io/sync-wave: '2'
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/part-of: agent-control-plane
+      acp-role: api
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/part-of: agent-control-plane
+        acp-role: api
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: api
+        image: agent-control-plane-api
+        command:
+        - uvicorn
+        - agent_control_plane.api:app
+        - --host
+        - 0.0.0.0
+        - --port
+        - '8080'
+        - --no-access-log
+        envFrom:
+        - configMapRef:
+            name: acp-config
+        env:
+        - name: ACP_DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: acp-db-app
+              key: ACP_DATABASE_URL
+        - name: ACP_JWT_PUBLIC_KEY_FILE
+          value: /var/run/acp/public.pem
+        ports:
+        - containerPort: 8080
+          name: http
+        volumeMounts:
+        - name: verification
+          mountPath: /var/run/acp
+          readOnly: true
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: http
+          timeoutSeconds: 6
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: http
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            memory: 512Mi
+      volumes:
+      - name: verification
+        secret:
+          secretName: acp-verification
