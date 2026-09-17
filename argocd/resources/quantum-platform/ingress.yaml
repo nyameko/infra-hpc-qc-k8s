@@ -55,14 +55,6 @@ spec:
                 port:
                   number: 8000
 
-          - path: /admin
-            pathType: Prefix
-            backend:
-              service:
-                name: quantum-platform-user-api
-                port:
-                  number: 8000
-
           - path: /static
             pathType: Prefix
             backend:
