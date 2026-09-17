@@ -1,0 +1,27 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: quantum-platform-admin
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+    cert-manager.io/cluster-issuer: letsencrypt-cloudflare
+
+spec:
+  ingressClassName: traefik
+
+  tls:
+    - hosts:
+        - admin.quantum.nyameko.com
+      secretName: quantum-platform-admin-tls
+
+  rules:
+    - host: admin.quantum.nyameko.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: quantum-platform-user-api
+                port:
+                  number: 8000
