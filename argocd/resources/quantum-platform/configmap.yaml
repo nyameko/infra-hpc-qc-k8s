@@ -9,17 +9,16 @@ data:
   DJANGO_DEBUG: "false"
 
   DJANGO_ALLOWED_HOSTS: >-
-    quantum.nyameko.com
-
-  DJANGO_CSRF_TRUSTED_ORIGINS: >-
-    quantum.nyameko.com
+    quantum.nyameko.com,
+    admin.quantum.nyameko.com,
     quantum-platform-user-api,
     quantum-platform-user-api.quantum-platform,
     quantum-platform-user-api.quantum-platform.svc,
     quantum-platform-user-api.quantum-platform.svc.cluster.local
 
   DJANGO_CSRF_TRUSTED_ORIGINS: >-
-    https://quantum.nyameko.com
+    https://quantum.nyameko.com,
+    https://admin.quantum.nyameko.com
 
   DJANGO_SESSION_COOKIE_SECURE: "true"
   DJANGO_CSRF_COOKIE_SECURE: "true"
