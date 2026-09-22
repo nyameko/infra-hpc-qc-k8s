@@ -19,12 +19,12 @@ resources:
 images:
   - name: quantum-platform-blog
     newName: ghcr.io/nyameko/quantum-platform-blog
-    newTag: main
+    newTag: dev
 
   - name: quantum-platform-users
     newName: ghcr.io/nyameko/quantum-platform-users
-    newTag: main
+    newTag: dev
 
   - name: quantum-platform-user-api
     newName: ghcr.io/nyameko/quantum-platform-user-api
-    newTag: main
+    newTag: dev
