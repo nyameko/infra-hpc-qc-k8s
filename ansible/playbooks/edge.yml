@@ -7,5 +7,7 @@
     - wazuh_manager
     - wazuh_filebeat
     - wireguard
-    - pihole
+    - role: pihole
+      tags:
+        - pihole
     - suricata
