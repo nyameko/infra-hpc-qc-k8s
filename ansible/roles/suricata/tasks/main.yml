@@ -51,6 +51,36 @@
       Expected a Suricata 8.0.x package from the OISF 8.0 COPR.
       Installed version was: {{ suricata_version.stdout }}
 
+- name: Ensure Suricata log directory is writable by Suricata
+  ansible.builtin.file:
+    path: /var/log/suricata
+    state: directory
+    owner: suricata
+    group: suricata
+    mode: "0750"
+  notify: Restart Suricata
+
+- name: Inspect existing Suricata output files
+  ansible.builtin.stat:
+    path: "/var/log/suricata/{{ item }}"
+  loop:
+    - eve.json
+    - stats.log
+  register: suricata_output_files
+
+- name: Repair ownership of existing Suricata output files
+  ansible.builtin.file:
+    path: "/var/log/suricata/{{ item.item }}"
+    state: file
+    owner: suricata
+    group: suricata
+    mode: "0640"
+  loop: "{{ suricata_output_files.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+  when: item.stat.exists
+  notify: Restart Suricata
+
 - name: Ensure local Suricata rules directory exists
   ansible.builtin.file:
     path: /etc/suricata/rules
