@@ -1,0 +1,30 @@
+---
+output.elasticsearch:
+  hosts:
+    - "{{ wazuh_filebeat_indexer_host }}:{{ wazuh_indexer_port }}"
+  protocol: https
+  username: ${username}
+  password: ${password}
+
+  ssl.certificate_authorities:
+    - "{{ wazuh_filebeat_cert_dir }}/root-ca.pem"
+
+  ssl.certificate: "{{ wazuh_filebeat_cert_dir }}/filebeat.pem"
+  ssl.key: "{{ wazuh_filebeat_cert_dir }}/filebeat-key.pem"
+  ssl.verification_mode: full
+
+setup.template.json.enabled: true
+setup.template.json.path: "/etc/filebeat/wazuh-template.json"
+setup.template.json.name: "wazuh"
+
+setup.ilm.overwrite: true
+setup.ilm.enabled: false
+
+filebeat.modules:
+  - module: wazuh
+    alerts:
+      enabled: true
+    archives:
+      enabled: false
+
+logging.metrics.enabled: false
