@@ -1,0 +1,17 @@
+apiVersion: bitnami.com/v1alpha1
+kind: SealedSecret
+metadata:
+  name: indexer-security
+  namespace: wazuh
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+
+spec:
+  encryptedData:
+    internal_users.yml: <SEALED_INTERNAL_USERS>
+
+  template:
+    metadata:
+      name: indexer-security
+      namespace: wazuh
+    type: Opaque
