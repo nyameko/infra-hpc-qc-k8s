@@ -221,3 +221,12 @@ Inspect actual runtime state before adding another framework.
 ## Teaching use
 
 The tutorials deliberately preserve real failures and debugging lessons. The course format is based on a lecture + workshop + checklist + deliverable pattern suitable for intensive student-cluster or semester delivery.
+
+
+## Wazuh & Suricata — validated security teaching pack
+
+- [Deployment and full evidence chain](tutorials/wazuh-suricata-deployment.md) — Manager, agents, Indexer/Cinder, authenticated Filebeat, private Dashboard, Suricata 8 EVE and a benign indexed alert.
+- [Operational drills and incident notebook](tutorials/wazuh-suricata-operational-drills.md) — gate-based diagnostics, safe teaching exercises and evidence templates.
+- [Grafana dashboard family and data provenance](../argocd/resources/grafana/dashboards/wazuh-suricata-observability/README.md) — measured metrics versus exporters still missing.
+
+Use the official name **Suricata** for the IDS and **Wazuh & Suricata** for the course. Preserve historical spelling in old incident records rather than renaming implementation paths in a documentation-only change. The dated 23 September 2026 verification is an acceptance record, not a current-health guarantee.
