@@ -1,0 +1,25 @@
+---
+suricata_version_stream: "8.0"
+
+suricata_copr_repo: "@oisf/suricata-8.0"
+suricata_old_copr_repo: "@oisf/suricata-7.0"
+
+# Monitor the edge host's normal routed interface.
+#
+# This sees:
+#   public/FIP traffic arriving at edge
+#   traffic forwarded between WireGuard and Kubernetes
+#
+# We deliberately do not also capture wg0 for Alpha because that can
+# result in duplicate observations of routed VPN traffic.
+suricata_interface: "{{ ansible_facts.default_ipv4.interface }}"
+
+suricata_home_net: >-
+  [10.50.0.0/24,10.51.0.0/24,10.60.0.0/24]
+
+suricata_config_override: /etc/suricata/infra-hpc-qc-k8s.yaml
+suricata_local_rules: /etc/suricata/rules/local.rules
+
+suricata_eve_log: /var/log/suricata/eve.json
+
+suricata_wazuh_integration_enabled: true

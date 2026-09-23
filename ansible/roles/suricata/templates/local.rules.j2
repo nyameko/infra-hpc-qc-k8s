@@ -1,0 +1,13 @@
+# infra-hpc-qc-k8s controlled end-to-end acceptance rule.
+#
+# Harmless diagnostic signature. Remove only if an equivalent
+# repeatable acceptance test replaces it.
+
+alert http any any -> any any (
+    msg:"QCSC Suricata E2E Test";
+    flow:established,to_server;
+    http.uri;
+    content:"/suricata-e2e-test";
+    sid:9900001;
+    rev:1;
+)

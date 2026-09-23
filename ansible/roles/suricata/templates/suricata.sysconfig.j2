@@ -1,0 +1,8 @@
+# Managed by Ansible.
+#
+# Run Suricata as a passive IDS using AF_PACKET.
+#
+# The package-provided /etc/suricata/suricata.yaml remains the primary
+# configuration. infra-hpc-qc-k8s.yaml is applied afterward.
+
+OPTIONS="--af-packet --include {{ suricata_config_override }} --set vars.address-groups.HOME_NET={{ suricata_home_net }} --user suricata --group suricata"

@@ -1,0 +1,69 @@
+%YAML 1.1
+---
+
+#
+# infra-hpc-qc-k8s Suricata configuration
+#
+# This file augments the vendor Suricata configuration.
+# Do not place the complete upstream suricata.yaml here.
+#
+
+af-packet:
+  - interface: "{{ suricata_interface }}"
+    threads: auto
+    cluster-id: 99
+    cluster-type: cluster_flow
+    defrag: yes
+    tpacket-v3: yes
+
+    # OISF documents hardware timestamp reliability issues on
+    # some interfaces. We do not require hardware timestamps here.
+    disable-hwtimestamp: true
+
+default-rule-path: /var/lib/suricata/rules
+
+rule-files:
+  - suricata.rules
+  - "{{ suricata_local_rules }}"
+
+outputs:
+  - eve-log:
+      enabled: yes
+      filetype: regular
+      filename: eve.json
+      filemode: 0640
+
+      community-id: true
+      community-id-seed: 0
+
+      types:
+        - alert:
+            tagged-packets: yes
+
+        - anomaly:
+            enabled: yes
+
+        - http:
+            extended: yes
+
+        - dns:
+            version: 3
+
+        - tls:
+            extended: yes
+
+        - ssh
+
+        - flow
+
+        - stats:
+            totals: yes
+            threads: no
+            deltas: yes
+
+  - stats:
+      enabled: yes
+      filename: stats.log
+      append: yes
+      totals: yes
+      threads: no

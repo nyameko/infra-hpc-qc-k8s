@@ -14,18 +14,131 @@
     cmd: dnf config-manager --set-enabled crb
   changed_when: false
 
-- name: Enable Suricata COPR
-  ansible.builtin.command:
-    cmd: dnf -y copr enable @oisf/suricata-7.0
-    creates: /etc/yum.repos.d/_copr:copr.fedorainfracloud.org:group_oisf:suricata-7.0.repo
+- name: Stop Suricata before major-version upgrade
+  ansible.builtin.systemd:
+    name: suricata
+    state: stopped
+  failed_when: false
 
-- name: Install Suricata
+- name: Disable obsolete Suricata 7 COPR
+  ansible.builtin.command:
+    cmd: "dnf -y copr disable {{ suricata_old_copr_repo }}"
+  changed_when: false
+  failed_when: false
+
+- name: Enable Suricata 8 COPR
+  ansible.builtin.command:
+    cmd: "dnf -y copr enable {{ suricata_copr_repo }}"
+  changed_when: false
+
+- name: Install latest supported Suricata 8 package
   ansible.builtin.dnf:
     name: suricata
-    state: present
+    state: latest
+    update_cache: true
 
-- name: Enable Suricata
+- name: Read installed Suricata version
+  ansible.builtin.command:
+    cmd: suricata --version
+  register: suricata_version
+  changed_when: false
+
+- name: Require Suricata 8
+  ansible.builtin.assert:
+    that:
+      - "'Suricata version 8.0' in suricata_version.stdout"
+    fail_msg: >-
+      Expected a Suricata 8.0.x package from the OISF 8.0 COPR.
+      Installed version was: {{ suricata_version.stdout }}
+
+- name: Ensure local Suricata rules directory exists
+  ansible.builtin.file:
+    path: /etc/suricata/rules
+    state: directory
+    owner: root
+    group: suricata
+    mode: "0750"
+
+- name: Deploy infra-hpc-qc-k8s Suricata configuration
+  ansible.builtin.template:
+    src: infra-hpc-qc-k8s.yaml.j2
+    dest: "{{ suricata_config_override }}"
+    owner: root
+    group: suricata
+    mode: "0640"
+  notify: Restart Suricata
+
+- name: Deploy controlled Suricata local rules
+  ansible.builtin.template:
+    src: local.rules.j2
+    dest: "{{ suricata_local_rules }}"
+    owner: root
+    group: suricata
+    mode: "0640"
+  notify: Restart Suricata
+
+- name: Configure Suricata service options
+  ansible.builtin.template:
+    src: suricata.sysconfig.j2
+    dest: /etc/sysconfig/suricata
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart Suricata
+
+- name: Check for existing ET Open ruleset
+  ansible.builtin.stat:
+    path: /var/lib/suricata/rules/suricata.rules
+  register: suricata_ruleset
+
+- name: Download initial ET Open ruleset
+  ansible.builtin.command:
+    cmd: suricata-update
+  when: not suricata_ruleset.stat.exists
+  notify: Restart Suricata
+
+- name: Allow Wazuh to read Suricata logs
+  ansible.builtin.user:
+    name: wazuh
+    groups: suricata
+    append: true
+  when: suricata_wazuh_integration_enabled | bool
+  notify: Restart Wazuh manager
+
+- name: Configure Wazuh to ingest Suricata EVE JSON
+  ansible.builtin.blockinfile:
+    path: /var/ossec/etc/ossec.conf
+    insertbefore: '^</ossec_config>'
+    marker: '  <!-- {mark} ANSIBLE MANAGED SURICATA EVE -->'
+    block: |2
+        <localfile>
+          <log_format>json</log_format>
+          <location>{{ suricata_eve_log }}</location>
+        </localfile>
+  when: suricata_wazuh_integration_enabled | bool
+  notify: Restart Wazuh manager
+
+- name: Validate Wazuh logcollector configuration
+  ansible.builtin.command:
+    cmd: /var/ossec/bin/wazuh-logcollector -t
+  when: suricata_wazuh_integration_enabled | bool
+  changed_when: false
+
+- name: Validate Suricata configuration and rules
+  ansible.builtin.command:
+    argv:
+      - suricata
+      - -T
+      - -c
+      - /etc/suricata/suricata.yaml
+      - --include
+      - "{{ suricata_config_override }}"
+      - --set
+      - "vars.address-groups.HOME_NET={{ suricata_home_net }}"
+  changed_when: false
+
+- name: Enable and start Suricata
   ansible.builtin.systemd:
     name: suricata
     enabled: true
-    state: stopped
+    state: started
