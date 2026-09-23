@@ -1,0 +1,30 @@
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+
+metadata:
+  name: wazuh-dashboard
+  namespace: wazuh
+  annotations:
+    argocd.argoproj.io/sync-wave: "4"
+    cert-manager.io/cluster-issuer: letsencrypt-cloudflare
+
+spec:
+  ingressClassName: traefik
+
+  tls:
+    - hosts:
+        - wazuh.quantum.nyameko.com
+      secretName: wazuh-dashboard-tls
+
+  rules:
+    - host: wazuh.quantum.nyameko.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: dashboard
+                port:
+                  number: 5601

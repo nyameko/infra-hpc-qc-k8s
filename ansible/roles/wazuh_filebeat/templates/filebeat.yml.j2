@@ -1,4 +1,11 @@
 ---
+# Filebeat 7.10.2's embedded seccomp policy is incompatible with
+# newer Linux/glibc environments and can block pthread creation.
+#
+# Keep Wazuh's supported Filebeat 7.10.2, but rely on the host's
+# SELinux/systemd/kernel security controls instead of Beat seccomp.
+seccomp.enabled: false
+
 output.elasticsearch:
   hosts:
     - "{{ wazuh_filebeat_indexer_host }}:{{ wazuh_indexer_port }}"
