@@ -39,14 +39,14 @@
 
 - name: Read installed Suricata version
   ansible.builtin.command:
-    cmd: suricata --version
+    cmd: suricata -v
   register: suricata_version
   changed_when: false
 
-- name: Require Suricata 8
+- name: Require Suricata 8.0
   ansible.builtin.assert:
     that:
-      - "'Suricata version 8.0' in suricata_version.stdout"
+      - "suricata_version.stdout is search('Suricata 8\\.0\\.')"
     fail_msg: >-
       Expected a Suricata 8.0.x package from the OISF 8.0 COPR.
       Installed version was: {{ suricata_version.stdout }}
