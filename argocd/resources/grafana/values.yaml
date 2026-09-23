@@ -72,6 +72,10 @@ sidecar:
     SCProvider: true
     label: grafana_dashboard
     labelValue: "1"
+    # Honor the folder annotation on dedicated security dashboard ConfigMaps.
+    # Existing dashboard ConfigMaps without this annotation remain in their
+    # current root folder; no existing dashboard gets moved or replaced.
+    folderAnnotation: k8s-sidecar-target-directory
 
     provider:
       name: gitops-dashboards
