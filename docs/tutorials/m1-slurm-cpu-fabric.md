@@ -159,3 +159,33 @@ Open OnDemand contributes interactive-app and batch-connect patterns;
 OpenHPC contributes packaged cluster recipes and operations practices.
 Neither replaces the platform's unified research identity, Slurm
 accounting, quantum workflows and future QRMI/QDMI QPU dispatch.
+
+## Private-variable precedence and staging
+
+The playbook explicitly loads public `group_vars/slurm_cluster.yml`, whose
+secret placeholders are intentionally empty. Supply the encrypted **private**
+overrides as extra vars so they take precedence. Example (from `ansible/`):
+
+```bash
+ansible-galaxy collection install -r requirements.yml
+ansible-playbook -i inventories/private/hosts.yml \
+  playbooks/slurm.yml --ask-vault-pass \
+  -e @inventories/private/slurm-secrets.vault.yml --syntax-check
+ansible-playbook -i inventories/private/hosts.yml \
+  playbooks/slurm.yml --ask-vault-pass \
+  -e @inventories/private/slurm-secrets.vault.yml --check --diff
+```
+
+The protected file should contain `slurm_munge_key_b64` (base64 of the
+same **1024-byte random binary key** for all Slurm hosts),
+`slurm_db_password`, and any package list/version overrides.
+Do not paste the actual key or passwords into shell history or issue/PR
+comments. **Ansible check mode does not replace a full runtime test**:
+some database/service commands depend on packages already installed.
+Use the private inventory and vault only after the required shared
+filesystem is mounted and backed up.
+
+In the reference Nova quota, the two large compute VMs leave just
+four vCPUs. A new C4 storage VM would exhaust that vCPU quota; request
+quota headroom or use an approved existing storage/Manila service before
+provisioning a dedicated Cinder-backed NFS gateway.
