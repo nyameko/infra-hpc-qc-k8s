@@ -690,3 +690,10 @@ Before treating the platform as a production multi-user research service, review
 - public DNS/Cloudflare policy
 - disaster recovery
 - account lifecycle and RBAC
+
+
+# 24. Wazuh & Suricata — completed reference security sprint
+
+The detailed, replayable sequence lives in [Wazuh & Suricata deployment](tutorials/wazuh-suricata-deployment.md); [operational drills](tutorials/wazuh-suricata-operational-drills.md) covers common failures and an evidence template. Read these alongside sections 3, 10, 11 and 13 above. The security path is **edge Wazuh Manager → alerts.json → staged and then TLS-enabled Filebeat → private Cinder-backed Wazuh Indexer → private Dashboard**; edge Suricata 8 emits EVE JSON into that Manager, not directly into Grafana.
+
+At the 23 September 2026 acceptance checkpoint the Manager reported 14 Active identities (including its local identity); the benign Suricata SID 9900001 was correlated to Wazuh rule 86601 and a searchable alert in `wazuh-alerts-4.x-2026.09.23`. This is historical verification, not a current cluster-health or backup claim. Indexer availability, authentication, durable retention and restore must be checked individually. The `wazuh` Argo Application currently targets `main`; merging the tutorial into `dev` does not reconfigure that live application. Keep edge nftables separate from non-edge OpenStack security-group enforcement.

@@ -109,3 +109,8 @@ The capstone is to close a real platform gap with a reviewed Git change while pr
 - observability
 - no secrets in Git
 - explicit acceptance tests
+
+
+## Security tutorial: Wazuh & Suricata
+
+The dedicated [deployment workshop](wazuh-suricata-deployment.md) and [operational drills](wazuh-suricata-operational-drills.md) now supply the security module referenced in the reading order. Its capstone is a **single authorized, benign detection** correlated from Suricata EVE through Wazuh alerts into a private indexed document, supported by an agent-inventory record and a failure-analysis report. ACE can reuse the workshop in an isolated week-long challenge; QCC remains a distinct quantum-workflows teaching track. Neither challenge warrants relaxing production firewall, authentication or agent privilege boundaries.
