@@ -141,3 +141,17 @@ Classify the failing layer before changing it:
 ```text
 cloud → VM/OS → firewall/SELinux → service → runtime → Kubernetes → Cilium → application → observability
 ```
+
+
+## 11. Wazuh & Suricata — security acceptance commands
+
+For the explanation, prerequisites, secret-handling constraints and troubleshooting, follow [the deployment tutorial](tutorials/wazuh-suricata-deployment.md) and [operational drills](tutorials/wazuh-suricata-operational-drills.md). From `ansible/`:
+
+```bash
+ansible-playbook -i inventories/private/hosts.yml playbooks/wazuh-agents.yml
+ansible-playbook -i inventories/private/hosts.yml playbooks/edge.yml --limit edge_nodes --tags suricata
+# Filebeat should be enabled only after private Indexer TLS, client certs and credentials are ready:
+ansible-playbook -i inventories/private/hosts.yml playbooks/edge.yml --limit edge_nodes --tags wazuh_filebeat
+```
+
+On edge, check `sudo /var/ossec/bin/agent_control -l`, `sudo systemctl is-active wazuh-manager suricata filebeat`, `sudo /var/ossec/bin/wazuh-logcollector -t`, `sudo filebeat test output -c /etc/filebeat/filebeat.yml` and the actual JSON evidence in `/var/log/suricata/eve.json` and `/var/ossec/logs/alerts/alerts.json`. From the cluster, check `kubectl -n wazuh get pods,pvc` and `kubectl -n argocd get application wazuh`. For a harmless approved HTTP request to `/suricata-e2e-test`, correlate SID 9900001 → Wazuh rule/alert ID → authenticated Indexer document. Do not assume a service is healthy because its Pod is Running or because a dashboard panel is green.

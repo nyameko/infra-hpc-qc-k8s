@@ -987,3 +987,12 @@ A system is more valuable when another person can understand it, reproduce it, m
 See the repository license and contribution guidance for the current project terms.
 
 Contributions, experiments, provider adapters, documentation fixes, security/recovery tests and reproducibility reports are valuable—particularly where they make the platform easier for students, researchers, engineers and autonomous contributors to understand and safely extend.
+
+
+## Wazuh & Suricata security milestone (23 September 2026)
+
+The edge-host Wazuh Manager, fleet agents and Suricata IDS now form a verified security-event path through Filebeat into the Kubernetes-hosted, Cinder-backed Wazuh Indexer and private Dashboard. The dated acceptance test recorded 14 Active Wazuh identities (13 connected remote agents plus local Manager) and correlated a harmless Suricata SID 9900001 through Wazuh rule 86601 into a searchable `wazuh-alerts-4.x` index. This is a historical checkpoint—not a claim about live state or guaranteed retention.
+
+**Start here:** [full deployment tutorial](docs/tutorials/wazuh-suricata-deployment.md) · [operational drills and failure analysis](docs/tutorials/wazuh-suricata-operational-drills.md) · [Wazuh & Suricata Grafana dashboard provenance](argocd/resources/grafana/dashboards/wazuh-suricata-observability/README.md). Terraform owns cloud networking and SGs; only edge has nftables; Ansible owns Manager/agents/Filebeat/Suricata; Argo CD owns Indexer/Dashboard; Wazuh evidence and Prometheus metrics remain distinct. The Argo application currently tracks `main`: a documentation merge into `dev` does not silently change a live deployment.
+
+**Future teaching tracks:** Automation and Cloud Engineering Challenge (ACE) and Quantum Computing Challenge (QCC) are cross-repository programme milestones, not additional services installed by this documentation update. Use the challenge planning issues for scope, rules of engagement, isolation and deliverables.
