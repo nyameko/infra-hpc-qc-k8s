@@ -4,7 +4,7 @@
     that:
       - slurm_package_version | length > 0
       - slurm_munge_key_b64 | length > 0
-      - (slurm_munge_key_b64 | b64decode | length) >= 1024
+      - slurm_munge_key_b64 | length >= 1368
       - slurm_nodes | length == 4
       - slurm_nodes | map(attribute='name') | unique | list | length == 4
     fail_msg: "Set slurm_package_version and vaulted slurm_munge_key_b64; review inventory."
@@ -55,13 +55,28 @@
     group: munge
     mode: "0700"
 
-- name: Distribute shared MUNGE key from protected Ansible vars
+- name: Check existing MUNGE key
+  ansible.builtin.stat:
+    path: /etc/munge/munge.key
+  register: slurm_existing_munge_key
+
+- name: Stage encoded MUNGE key with restricted permissions
   ansible.builtin.copy:
-    content: "{{ slurm_munge_key_b64 | b64decode }}"
-    dest: /etc/munge/munge.key
-    owner: munge
-    group: munge
+    content: "{{ slurm_munge_key_b64 }}"
+    dest: /etc/munge/munge.key.b64
+    owner: root
+    group: root
     mode: "0400"
+  register: slurm_staged_munge_key
+  no_log: true
+
+- name: Decode binary MUNGE key without putting binary in Jinja text
+  ansible.builtin.shell: |
+    umask 077
+    base64 --decode /etc/munge/munge.key.b64 > /etc/munge/munge.key
+    chown munge:munge /etc/munge/munge.key
+    chmod 0400 /etc/munge/munge.key
+  when: slurm_staged_munge_key.changed or not slurm_existing_munge_key.stat.exists
   no_log: true
   notify: restart munge
 
