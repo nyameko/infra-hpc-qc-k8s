@@ -1,0 +1,51 @@
+# Candidate: NOT a published release or live-cluster attestation.
+schema_version: 1
+platform: 0.1.0-alpha.1
+status: candidate
+snapshot_date: "2026-09-23"
+release_tag_created: false
+repositories:
+  infra-hpc-qc-k8s:
+    version: 0.1.0-alpha.1
+    branch: dev
+    baseline_commit: 594827f5a61ddec132a55f577341ede5a9cafb21
+    note: "dev behind main; reconcile PR 24"
+  quantum-platform:
+    version: 0.1.0-alpha.1
+    branch: dev
+    baseline_commit: 7765b218cda2503f151d20f763a11699929c52df
+  agent-control-plane:
+    version: 0.1.0-alpha.1
+    branch: dev
+    baseline_commit: f67c96dcb48eb067d3fb1842c138d8d860ec5911
+  quantum-workflows:
+    version: 0.1.0-alpha.1
+    branch: dev
+    baseline_commit: aa90a6d788ec1d120211966a08951dbe072a2fb9
+runtimes:
+  python: "3.14"
+  node: "24"
+  postgresql: "18"
+  kubernetes: "1.36"
+  rocky_linux: "9"
+  status: target_pending_ci
+images:
+  quantum-platform-blog:
+    channel: dev
+    observed_digest: sha256:0b5684cd8c1a0dade4ef9890a5b892e48c3c092f0c592b1d4ab5343747b0695e
+  quantum-platform-users:
+    channel: dev
+    observed_digest: sha256:61b1fbe112794b7252cd1e1040d632efeada5bcc00baa339ed0b5af91a4de811
+  quantum-platform-user-api:
+    channel: dev
+    observed_digest: sha256:da36cba937862dbcba98ec2835c76566bf8707a3d31e82bd2c10875e7d0b6168
+  evidence: "Historical operator kubectl output; reverify at release freeze"
+checks:
+  repository_ci: pending
+  python_314_compatibility: pending
+  manifest_validation: pending
+  security_smoke: pending
+  portal_smoke: pending
+  staging_conformance: pending
+  live_cluster_snapshot: pending
+  release_tags: pending
