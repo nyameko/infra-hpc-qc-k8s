@@ -15,9 +15,6 @@ wazuh_filebeat_module_url: >-
 wazuh_filebeat_template_url: >-
   https://raw.githubusercontent.com/wazuh/wazuh/v4.14.7/extensions/elasticsearch/7.x/wazuh-template.json
 
-wazuh_filebeat_config_url: >-
-  https://packages.wazuh.com/4.14/tpl/wazuh/filebeat/filebeat.yml
-
 wazuh_indexer_port: 9200
 
 # Filled in when Gate 3 creates the private Indexer endpoint.
