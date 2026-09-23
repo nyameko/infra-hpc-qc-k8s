@@ -36,18 +36,46 @@
     state: directory
     owner: root
     group: root
-    mode: "0750"
+    mode: "0500"
 
-# We deliberately defer the live filebeat.yml until the Indexer endpoint,
-# TLS certificates and keystore credentials exist.
-- name: Download Wazuh Filebeat configuration
-  ansible.builtin.get_url:
-    url: "{{ wazuh_filebeat_config_url }}"
+- name: Install Wazuh Root CA for Filebeat
+  ansible.builtin.copy:
+    src: "{{ wazuh_filebeat_ca_src }}"
+    dest: "{{ wazuh_filebeat_cert_dir }}/root-ca.pem"
+    owner: root
+    group: root
+    mode: "0400"
+  when: wazuh_filebeat_configure | bool
+  notify: Restart Filebeat
+
+- name: Install Filebeat client certificate
+  ansible.builtin.copy:
+    src: "{{ wazuh_filebeat_cert_src }}"
+    dest: "{{ wazuh_filebeat_cert_dir }}/filebeat.pem"
+    owner: root
+    group: root
+    mode: "0400"
+  when: wazuh_filebeat_configure | bool
+  notify: Restart Filebeat
+
+- name: Install Filebeat client private key
+  ansible.builtin.copy:
+    src: "{{ wazuh_filebeat_key_src }}"
+    dest: "{{ wazuh_filebeat_cert_dir }}/filebeat-key.pem"
+    owner: root
+    group: root
+    mode: "0400"
+  when: wazuh_filebeat_configure | bool
+  no_log: true
+  notify: Restart Filebeat
+
+- name: Deploy Filebeat configuration
+  ansible.builtin.template:
+    src: filebeat.yml.j2
     dest: /etc/filebeat/filebeat.yml
     owner: root
     group: root
     mode: "0600"
-    force: true
   when: wazuh_filebeat_configure | bool
   notify: Restart Filebeat
 
@@ -56,13 +84,58 @@
     that:
       - wazuh_filebeat_indexer_host | length > 0
       - wazuh_indexer_port | int > 0
+      - wazuh_filebeat_username | length > 0
     fail_msg: >-
-      wazuh_filebeat_indexer_host and wazuh_indexer_port must be configured before Filebeat can
-      be enabled.
+      Wazuh Indexer host, port and Filebeat username must be configured
+      before Filebeat is enabled.
   when: wazuh_filebeat_enabled | bool
 
-- name: Keep Filebeat disabled until Indexer is available
+- name: Check for existing Filebeat keystore
+  ansible.builtin.stat:
+    path: /var/lib/filebeat/filebeat.keystore
+  register: wazuh_filebeat_keystore
+
+- name: Create Filebeat keystore
+  ansible.builtin.command:
+    cmd: filebeat keystore create
+  when:
+    - wazuh_filebeat_configure | bool
+    - not wazuh_filebeat_keystore.stat.exists
+
+- name: Store Indexer username in Filebeat keystore
+  ansible.builtin.command:
+    cmd: filebeat keystore add username --stdin --force
+    stdin: "{{ wazuh_filebeat_username }}"
+    stdin_add_newline: true
+  when: wazuh_filebeat_configure | bool
+  no_log: true
+  changed_when: false
+
+- name: Store Indexer password in Filebeat keystore
+  ansible.builtin.command:
+    cmd: filebeat keystore add password --stdin --force
+    stdin: "{{ lookup('ansible.builtin.file', wazuh_filebeat_password_src) }}"
+    stdin_add_newline: true
+  when: wazuh_filebeat_configure | bool
+  no_log: true
+  changed_when: false
+
+- name: Validate Filebeat configuration
+  ansible.builtin.command:
+    cmd: filebeat test config -c /etc/filebeat/filebeat.yml
+  when: wazuh_filebeat_configure | bool
+  changed_when: false
+
+- name: Test Filebeat connection to Wazuh Indexer
+  ansible.builtin.command:
+    cmd: filebeat test output -c /etc/filebeat/filebeat.yml
+  when: wazuh_filebeat_enabled | bool
+  register: wazuh_filebeat_output_test
+  changed_when: false
+
+- name: Enable and start Filebeat
   ansible.builtin.systemd:
     name: filebeat
-    enabled: "{{ wazuh_filebeat_enabled }}"
-    state: "{{ 'started' if wazuh_filebeat_enabled else 'stopped' }}"
+    enabled: true
+    state: started
+  when: wazuh_filebeat_enabled | bool
