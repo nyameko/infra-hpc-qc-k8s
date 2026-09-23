@@ -14,11 +14,20 @@
     cmd: dnf config-manager --set-enabled crb
   changed_when: false
 
-- name: Stop Suricata before major-version upgrade
+- name: Inspect previously installed Suricata version
+  ansible.builtin.command:
+    cmd: rpm -q --qf '%{VERSION}' suricata
+  register: suricata_previous_version
+  changed_when: false
+  failed_when: false
+
+- name: Stop Suricata only for a 7.x to 8.x upgrade
   ansible.builtin.systemd:
     name: suricata
     state: stopped
-  failed_when: false
+  when:
+    - suricata_previous_version.rc == 0
+    - suricata_previous_version.stdout is match('^7[.]')
 
 - name: Disable obsolete Suricata 7 COPR
   ansible.builtin.command:
