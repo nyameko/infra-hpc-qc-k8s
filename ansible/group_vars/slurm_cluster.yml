@@ -33,3 +33,7 @@ slurm_nodes:
   - {name: slurm-cpu-02, addr: 10.50.0.31, cpus: 12, memory_mb: 24576, partition: small}
   - {name: slurm-cpu-03, addr: 10.50.0.32, cpus: 64, memory_mb: 262144, partition: large}
   - {name: slurm-cpu-04, addr: 10.50.0.33, cpus: 64, memory_mb: 262144, partition: large}
+
+# Pinned EPEL 9 x86_64 build; update deliberately after repository validation.
+slurm_node_exporter_package: node-exporter-1.12.1-1.el9
+slurm_node_exporter_service: node_exporter
