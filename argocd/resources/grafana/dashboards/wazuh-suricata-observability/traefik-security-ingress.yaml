@@ -1,0 +1,350 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-sec-traefik-ingress
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1"
+  annotations:
+    k8s-sidecar-target-directory: "Wazuh and Suricata Observability"
+data:
+  traefik-security-ingress.json: |
+    {
+      "title": "Traefik — Security Ingress",
+      "uid": "sec-traefik-ingress",
+      "schemaVersion": 39,
+      "version": 1,
+      "refresh": "30s",
+      "time": {
+        "from": "now-6h",
+        "to": "now"
+      },
+      "tags": [
+        "wazuh",
+        "suricata",
+        "security-observability",
+        "traefik",
+        "ingress"
+      ],
+      "panels": [
+        {
+          "id": 1,
+          "title": "Live metrics",
+          "type": "text",
+          "gridPos": {
+            "h": 4,
+            "w": 24,
+            "x": 0,
+            "y": 0
+          },
+          "options": {
+            "mode": "markdown",
+            "content": "Traefik Prometheus metric families were observed in the live Prometheus name inventory on 23 September 2026. This dashboard reports **HTTP/TLS ingress health**, not Suricata packet capture or IPS verdicts. HAProxy has its own existing dashboard, which remains unchanged."
+          }
+        },
+        {
+          "id": 2,
+          "title": "Config last reload successful",
+          "type": "stat",
+          "description": "",
+          "gridPos": {
+            "h": 5,
+            "w": 6,
+            "x": 0,
+            "y": 4
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "min(traefik_config_last_reload_success)",
+              "legendFormat": ""
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "orientation": "auto",
+            "textMode": "auto",
+            "colorMode": "value"
+          }
+        },
+        {
+          "id": 3,
+          "title": "HTTP requests/s",
+          "type": "stat",
+          "description": "",
+          "gridPos": {
+            "h": 5,
+            "w": 6,
+            "x": 6,
+            "y": 4
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "sum(rate(traefik_entrypoint_requests_total[5m]))",
+              "legendFormat": ""
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "reqps"
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "orientation": "auto",
+            "textMode": "auto",
+            "colorMode": "value"
+          }
+        },
+        {
+          "id": 4,
+          "title": "HTTP 5xx responses/s",
+          "type": "stat",
+          "description": "",
+          "gridPos": {
+            "h": 5,
+            "w": 6,
+            "x": 12,
+            "y": 4
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "sum(rate(traefik_entrypoint_requests_total{code=~\"5..\"}[5m])) or vector(0)",
+              "legendFormat": ""
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "reqps"
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "orientation": "auto",
+            "textMode": "auto",
+            "colorMode": "value"
+          }
+        },
+        {
+          "id": 5,
+          "title": "Nearest TLS certificate expiry (days)",
+          "type": "stat",
+          "description": "No data if the Traefik metric does not contain cert expiry.",
+          "gridPos": {
+            "h": 5,
+            "w": 6,
+            "x": 18,
+            "y": 4
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "min((traefik_tls_certs_not_after - time()) / 86400)",
+              "legendFormat": ""
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "orientation": "auto",
+            "textMode": "auto",
+            "colorMode": "value"
+          }
+        },
+        {
+          "id": 6,
+          "title": "Requests/s by entrypoint",
+          "type": "timeseries",
+          "description": "",
+          "gridPos": {
+            "h": 7,
+            "w": 12,
+            "x": 0,
+            "y": 9
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "sum by(entrypoint) (rate(traefik_entrypoint_requests_total[5m]))",
+              "legendFormat": "{{entrypoint}}"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "reqps"
+            },
+            "overrides": []
+          }
+        },
+        {
+          "id": 7,
+          "title": "HTTP response rate by status code",
+          "type": "timeseries",
+          "description": "",
+          "gridPos": {
+            "h": 7,
+            "w": 12,
+            "x": 12,
+            "y": 9
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "sum by(code) (rate(traefik_entrypoint_requests_total[5m]))",
+              "legendFormat": "{{code}}"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "reqps"
+            },
+            "overrides": []
+          }
+        },
+        {
+          "id": 8,
+          "title": "p95 request latency by entrypoint",
+          "type": "timeseries",
+          "description": "",
+          "gridPos": {
+            "h": 7,
+            "w": 12,
+            "x": 0,
+            "y": 16
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "histogram_quantile(0.95, sum by(le,entrypoint) (rate(traefik_entrypoint_request_duration_seconds_bucket[5m])))",
+              "legendFormat": "{{entrypoint}}"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "s"
+            },
+            "overrides": []
+          }
+        },
+        {
+          "id": 9,
+          "title": "Requests/s by router",
+          "type": "timeseries",
+          "description": "",
+          "gridPos": {
+            "h": 7,
+            "w": 12,
+            "x": 12,
+            "y": 16
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "sum by(router) (rate(traefik_router_requests_total[5m]))",
+              "legendFormat": "{{router}}"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "reqps"
+            },
+            "overrides": []
+          }
+        },
+        {
+          "id": 10,
+          "title": "Open connections",
+          "type": "timeseries",
+          "description": "",
+          "gridPos": {
+            "h": 7,
+            "w": 12,
+            "x": 0,
+            "y": 23
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "sum by(entrypoint) (traefik_open_connections)",
+              "legendFormat": "{{entrypoint}}"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short"
+            },
+            "overrides": []
+          }
+        },
+        {
+          "id": 11,
+          "title": "TLS requests/s",
+          "type": "timeseries",
+          "description": "",
+          "gridPos": {
+            "h": 7,
+            "w": 12,
+            "x": 12,
+            "y": 23
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "sum by(entrypoint) (rate(traefik_entrypoint_requests_tls_total[5m]))",
+              "legendFormat": "{{entrypoint}}"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "reqps"
+            },
+            "overrides": []
+          }
+        }
+      ],
+      "templating": {
+        "list": []
+      },
+      "annotations": {
+        "list": []
+      }
+    }

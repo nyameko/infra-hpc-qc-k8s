@@ -1,0 +1,228 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-sec-suricata-ids
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1"
+  annotations:
+    k8s-sidecar-target-directory: "Wazuh and Suricata Observability"
+data:
+  suricata-ids.json: |
+    {
+      "title": "Suricata IDS — Edge",
+      "uid": "sec-suricata-ids",
+      "schemaVersion": 39,
+      "version": 1,
+      "refresh": "30s",
+      "time": {
+        "from": "now-6h",
+        "to": "now"
+      },
+      "tags": [
+        "wazuh",
+        "suricata",
+        "security-observability",
+        "ids",
+        "edge"
+      ],
+      "panels": [
+        {
+          "id": 1,
+          "title": "Sensor scope and verified detection",
+          "type": "text",
+          "gridPos": {
+            "h": 8,
+            "w": 24,
+            "x": 0,
+            "y": 0
+          },
+          "options": {
+            "mode": "markdown",
+            "content": "The **only deployed Suricata sensor is edge/eth0**. On 23 September 2026 Suricata 8.0.7 emitted EVE SID `9900001`; Wazuh produced rule `86601`; the exact event was found in `wazuh-alerts-4.x-2026.09.23`.\n\n**Important:** Prometheus currently has **no Suricata exporter or edge host node-exporter target**. Do not interpret the ingress HTTP request charts below as IDS packet rate, flow rate, capture drops, or security alert rate. Those measurements require a verified exporter and scrape target.\n\nEVE and Wazuh alerts are investigated in the Wazuh Dashboard; their raw counts are not available in the current Prometheus data source."
+          }
+        },
+        {
+          "id": 2,
+          "title": "Suricata exporter scrape targets UP (not IDS health)",
+          "type": "stat",
+          "description": "0 currently means no verified Suricata exporter target; it does not mean the Suricata systemd service is down.",
+          "gridPos": {
+            "h": 5,
+            "w": 8,
+            "x": 0,
+            "y": 8
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "sum(up{job=\"suricata-exporter\"}) or vector(0)",
+              "legendFormat": ""
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "orientation": "auto",
+            "textMode": "auto",
+            "colorMode": "value"
+          }
+        },
+        {
+          "id": 3,
+          "title": "Edge node-exporter targets UP (not IDS health)",
+          "type": "stat",
+          "description": "No edge node-exporter is present in the current Prometheus target inventory.",
+          "gridPos": {
+            "h": 5,
+            "w": 8,
+            "x": 8,
+            "y": 8
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "sum(up{job=\"edge-node-exporter\"}) or vector(0)",
+              "legendFormat": ""
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "orientation": "auto",
+            "textMode": "auto",
+            "colorMode": "value"
+          }
+        },
+        {
+          "id": 4,
+          "title": "Indexer PVC bound",
+          "type": "stat",
+          "description": "Shared Wazuh Indexer PVC state; not Suricata raw EVE storage or a backup.",
+          "gridPos": {
+            "h": 5,
+            "w": 8,
+            "x": 16,
+            "y": 8
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "sum(kube_persistentvolumeclaim_status_phase{namespace=\"wazuh\",persistentvolumeclaim=\"data-wazuh-indexer-0\",phase=\"Bound\"})",
+              "legendFormat": ""
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "orientation": "auto",
+            "textMode": "auto",
+            "colorMode": "value"
+          }
+        },
+        {
+          "id": 5,
+          "title": "Platform ingress HTTP requests/s (context only)",
+          "type": "timeseries",
+          "description": "Observed at Traefik, not at Suricata/eth0.",
+          "gridPos": {
+            "h": 7,
+            "w": 12,
+            "x": 0,
+            "y": 13
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "sum by(entrypoint) (rate(traefik_entrypoint_requests_total[5m]))",
+              "legendFormat": "{{entrypoint}}"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "reqps"
+            },
+            "overrides": []
+          }
+        },
+        {
+          "id": 6,
+          "title": "Platform ingress 5xx responses/s (context only)",
+          "type": "timeseries",
+          "description": "Traefik application responses, not Suricata signature alerts.",
+          "gridPos": {
+            "h": 7,
+            "w": 12,
+            "x": 12,
+            "y": 13
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "sum by(entrypoint) (rate(traefik_entrypoint_requests_total{code=~\"5..\"}[5m]))",
+              "legendFormat": "{{entrypoint}}"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "reqps"
+            },
+            "overrides": []
+          }
+        },
+        {
+          "id": 7,
+          "title": "Exporter acceptance before enabling IDS-rate panels",
+          "type": "text",
+          "gridPos": {
+            "h": 7,
+            "w": 24,
+            "x": 0,
+            "y": 20
+          },
+          "options": {
+            "mode": "markdown",
+            "content": "Add an **edge-only** Suricata exporter and a restricted scrape route; verify its actual `/metrics` output before writing PromQL for packet rate, capture/kernel drops, flow rate, Suricata CPU/RSS and signature-alert rate. Measure dropped packets independently from future IPS drop *verdicts*.\n\nExpose service availability with a systemd-aware exporter (or authenticated probe), not simply `up` on a VM. Preserve EVE → Wazuh investigation separately. Track bounded log rotation and archival in issue #15."
+          }
+        }
+      ],
+      "templating": {
+        "list": []
+      },
+      "annotations": {
+        "list": []
+      }
+    }

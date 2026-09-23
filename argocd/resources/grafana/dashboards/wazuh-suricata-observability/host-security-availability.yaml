@@ -1,0 +1,316 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-sec-host-security
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1"
+  annotations:
+    k8s-sidecar-target-directory: "Wazuh and Suricata Observability"
+data:
+  host-security-availability.json: |
+    {
+      "title": "Host Security & Availability — OpenStack",
+      "uid": "sec-openstack-hosts",
+      "schemaVersion": 39,
+      "version": 1,
+      "refresh": "30s",
+      "time": {
+        "from": "now-6h",
+        "to": "now"
+      },
+      "tags": [
+        "wazuh",
+        "suricata",
+        "security-observability",
+        "openstack",
+        "fleet",
+        "agents"
+      ],
+      "panels": [
+        {
+          "id": 1,
+          "title": "Scope: 14 persistent OpenStack hosts",
+          "type": "text",
+          "gridPos": {
+            "h": 11,
+            "w": 24,
+            "x": 0,
+            "y": 0
+          },
+          "options": {
+            "mode": "markdown",
+            "content": "The Wazuh Manager independently verified **14 Active identities, 0 inactive and no duplicate names** on 23 September 2026. This is a recorded acceptance result, **not** an automatically refreshed metric.\n\n1. edge (local Wazuh Manager / Suricata sensor)\n2. api-lb-01\n3. k8s-cp-01\n4. k8s-cp-02\n5. k8s-cp-03\n6. k8s-worker-01\n7. k8s-worker-02\n8. k8s-worker-03\n9. slurm-controller-01\n10. login1\n11. login2\n12. slurm-cpu-01\n13. slurm-cpu-02\n14. hermes-orchestrator-01\n\nOnly the six Kubernetes nodes currently have Prometheus node-exporter targets in the verified scrape inventory. **Do not read the Kubernetes graphs below as measurements of the other eight VMs.** Those require host exporters. Wazuh agent status needs a dedicated manager-derived metric; node-exporter alone cannot confirm an agent is connected."
+          }
+        },
+        {
+          "id": 2,
+          "title": "Kubernetes nodes Ready",
+          "type": "stat",
+          "description": "",
+          "gridPos": {
+            "h": 5,
+            "w": 6,
+            "x": 0,
+            "y": 11
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "sum(kube_node_status_condition{condition=\"Ready\",status=\"true\"})",
+              "legendFormat": ""
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "orientation": "auto",
+            "textMode": "auto",
+            "colorMode": "value"
+          }
+        },
+        {
+          "id": 3,
+          "title": "Kubernetes nodes inventoried",
+          "type": "stat",
+          "description": "",
+          "gridPos": {
+            "h": 5,
+            "w": 6,
+            "x": 6,
+            "y": 11
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "count(kube_node_info)",
+              "legendFormat": ""
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "orientation": "auto",
+            "textMode": "auto",
+            "colorMode": "value"
+          }
+        },
+        {
+          "id": 4,
+          "title": "Kubernetes node-exporter targets UP",
+          "type": "stat",
+          "description": "The live target list showed six :9100 Kubernetes node exporters.",
+          "gridPos": {
+            "h": 5,
+            "w": 6,
+            "x": 12,
+            "y": 11
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "sum(up{job=\"kubernetes-service-endpoints\",instance=~\".*:9100\"}) or vector(0)",
+              "legendFormat": ""
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "orientation": "auto",
+            "textMode": "auto",
+            "colorMode": "value"
+          }
+        },
+        {
+          "id": 5,
+          "title": "Non-K8s host exporters UP (pending)",
+          "type": "stat",
+          "description": "0 means no configured/up targets in this job. It is not a reliable host-down signal until this job exists.",
+          "gridPos": {
+            "h": 5,
+            "w": 6,
+            "x": 18,
+            "y": 11
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "sum(up{job=\"openstack-node-exporter\"}) or vector(0)",
+              "legendFormat": ""
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "orientation": "auto",
+            "textMode": "auto",
+            "colorMode": "value"
+          }
+        },
+        {
+          "id": 6,
+          "title": "Kubernetes host CPU utilization",
+          "type": "timeseries",
+          "description": "",
+          "gridPos": {
+            "h": 7,
+            "w": 12,
+            "x": 0,
+            "y": 16
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "100 * (1 - avg by(instance) (rate(node_cpu_seconds_total{mode=\"idle\"}[5m])))",
+              "legendFormat": "{{instance}}"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent"
+            },
+            "overrides": []
+          }
+        },
+        {
+          "id": 7,
+          "title": "Kubernetes host memory utilization",
+          "type": "timeseries",
+          "description": "",
+          "gridPos": {
+            "h": 7,
+            "w": 12,
+            "x": 12,
+            "y": 16
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "100 * (1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)",
+              "legendFormat": "{{instance}}"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent"
+            },
+            "overrides": []
+          }
+        },
+        {
+          "id": 8,
+          "title": "Kubernetes host filesystem utilization",
+          "type": "timeseries",
+          "description": "",
+          "gridPos": {
+            "h": 7,
+            "w": 12,
+            "x": 0,
+            "y": 23
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "100 * (1 - node_filesystem_avail_bytes{fstype!~\"tmpfs|overlay\"} / node_filesystem_size_bytes{fstype!~\"tmpfs|overlay\"})",
+              "legendFormat": "{{instance}} {{mountpoint}}"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent"
+            },
+            "overrides": []
+          }
+        },
+        {
+          "id": 9,
+          "title": "Kubernetes Ready state by node",
+          "type": "timeseries",
+          "description": "",
+          "gridPos": {
+            "h": 7,
+            "w": 12,
+            "x": 12,
+            "y": 23
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "kube_node_status_condition{condition=\"Ready\",status=\"true\"}",
+              "legendFormat": "{{node}}"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short"
+            },
+            "overrides": []
+          }
+        },
+        {
+          "id": 10,
+          "title": "Next: true 14-host security availability",
+          "type": "text",
+          "gridPos": {
+            "h": 7,
+            "w": 24,
+            "x": 0,
+            "y": 30
+          },
+          "options": {
+            "mode": "markdown",
+            "content": "Deploy restricted node-exporter/textfile health collection to edge, api-lb, Slurm login/controller/CPU and Hermes hosts. Ingest a **Manager-derived agent-connected gauge** keyed by stable inventory hostname and Wazuh agent ID; only then graph 14/14 as a *live* fleet health statistic. Avoid exporting alert content, tokens or research-user information as metric labels.\n\nCollect kube-apiserver audit, Cilium/Hubble (when enabled), runtime/pod logs and admission-policy evidence via their appropriate collectors; do not install a separate Wazuh agent inside each ephemeral pod."
+          }
+        }
+      ],
+      "templating": {
+        "list": []
+      },
+      "annotations": {
+        "list": []
+      }
+    }
