@@ -13,5 +13,5 @@
       tags:
         - pihole
     - role: suricata
-      -tags:
+      tags:
         - suricata
