@@ -5,6 +5,11 @@
   roles:
     - edge
     - wazuh_manager
+
+    - role: wazuh_filebeat
+      tags:
+        - wazuh_filebeat
+
     - wireguard
     - pihole
     - suricata

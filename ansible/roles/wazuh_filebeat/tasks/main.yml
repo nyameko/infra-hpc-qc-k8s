@@ -1,0 +1,67 @@
+---
+- name: Install supported Filebeat package
+  ansible.builtin.dnf:
+    name: "filebeat-{{ wazuh_filebeat_version }}"
+    state: present
+    update_cache: true
+
+- name: Ensure Filebeat module directory exists
+  ansible.builtin.file:
+    path: /usr/share/filebeat/module
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Install Wazuh Filebeat module
+  ansible.builtin.unarchive:
+    src: "{{ wazuh_filebeat_module_url }}"
+    dest: /usr/share/filebeat/module
+    remote_src: true
+    creates: /usr/share/filebeat/module/wazuh
+  notify: Restart Filebeat
+
+- name: Install Wazuh Indexer alerts template
+  ansible.builtin.get_url:
+    url: "{{ wazuh_filebeat_template_url }}"
+    dest: /etc/filebeat/wazuh-template.json
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart Filebeat
+
+- name: Ensure Filebeat certificate directory exists
+  ansible.builtin.file:
+    path: "{{ wazuh_filebeat_cert_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0750"
+
+# We deliberately defer the live filebeat.yml until the Indexer endpoint,
+# TLS certificates and keystore credentials exist.
+- name: Download Wazuh Filebeat configuration
+  ansible.builtin.get_url:
+    url: "{{ wazuh_filebeat_config_url }}"
+    dest: /etc/filebeat/filebeat.yml
+    owner: root
+    group: root
+    mode: "0600"
+    force: true
+  when: wazuh_filebeat_configure | bool
+  notify: Restart Filebeat
+
+- name: Require Indexer endpoint before enabling Filebeat
+  ansible.builtin.assert:
+    that:
+      - wazuh_filebeat_indexer_host | length > 0
+    fail_msg: >-
+      wazuh_filebeat_indexer_host must be configured before Filebeat can
+      be enabled.
+  when: wazuh_filebeat_enabled | bool
+
+- name: Keep Filebeat disabled until Indexer is available
+  ansible.builtin.systemd:
+    name: filebeat
+    enabled: "{{ wazuh_filebeat_enabled }}"
+    state: "{{ 'started' if wazuh_filebeat_enabled else 'stopped' }}"

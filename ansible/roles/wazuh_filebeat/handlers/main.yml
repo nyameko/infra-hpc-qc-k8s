@@ -1,0 +1,6 @@
+---
+- name: Restart Filebeat
+  ansible.builtin.systemd:
+    name: filebeat
+    state: restarted
+  when: wazuh_filebeat_enabled | bool
