@@ -11,11 +11,11 @@ resource "openstack_networking_port_v2" "this" {
 }
 
 resource "openstack_compute_instance_v2" "this" {
-  for_each    = var.nodes
-  name        = each.value.name
-  image_id    = each.value.image_id
-  flavor_name = each.value.flavor_name
-  key_pair    = each.value.key_pair
+  for_each     = var.nodes
+  name         = each.value.name
+  image_id     = each.value.image_id
+  flavor_name  = each.value.flavor_name
+  key_pair     = each.value.key_pair
   config_drive = true
 
   network {
