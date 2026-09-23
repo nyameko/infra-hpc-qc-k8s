@@ -47,3 +47,13 @@ frontend prometheus
     bind {{ api_lb_listen_address }}:{{ api_lb_prometheus_port }}
     mode http
     http-request use-service prometheus-exporter if { path /metrics }
+
+frontend wazuh-indexer
+    bind {{ api_lb_listen_address }}:{{ api_lb_wazuh_indexer_port }}
+    default_backend wazuh-indexer
+
+backend wazuh-indexer
+    balance roundrobin
+{% for worker in api_lb_ingress_workers %}
+    server {{ worker.name }} {{ worker.address }}:{{ api_lb_wazuh_indexer_port }} check
+{% endfor %}

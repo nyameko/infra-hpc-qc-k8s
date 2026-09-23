@@ -6,3 +6,5 @@ api_lb_backends: "{{ kubernetes_api_backends }}"
 api_lb_ingress_workers: "{{ kubernetes_api_workers }}"
 
 api_lb_prometheus_port: 8404
+
+api_lb_wazuh_indexer_port: 9200
