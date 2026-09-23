@@ -28,7 +28,21 @@ runtimes:
   postgresql: "18"
   kubernetes: "1.36"
   rocky_linux: "9"
-  status: target_pending_ci
+  status: target_pending_release
+  exceptions:
+    hermes_worker:
+      python: "3.13"
+      reason: "Pinned upstream Hermes requires Python <3.14; ACP API remains Python 3.14"
+      tracking_issue: "nyameko/agent-control-plane#3"
+component_package_versions_observed:
+  quantum-platform-user-api: "0.4.0"
+  agent-control-plane: "0.2.0"
+  quantum-workflows: "0.1.0"
+  quantum-platform-root: "0.1.0"
+release_blockers:
+  - "nyameko/infra-hpc-qc-k8s#26"
+  - "nyameko/infra-hpc-qc-k8s#27"
+  - "nyameko/infra-hpc-qc-k8s#28"
 images:
   quantum-platform-blog:
     channel: dev
@@ -41,8 +55,9 @@ images:
     observed_digest: sha256:da36cba937862dbcba98ec2835c76566bf8707a3d31e82bd2c10875e7d0b6168
   evidence: "Historical operator kubectl output; reverify at release freeze"
 checks:
-  repository_ci: pending
-  python_314_compatibility: pending
+  repository_ci: "quantum-platform, ACP and quantum-workflows PR checks passed; infra Terraform/Ansible failed"
+  kubernetes_manifest_ci: passed_pr25
+  python_314_compatibility: "ACP API, portal and quantum-workflows CI passed; runtime image builds/staging not yet verified"
   manifest_validation: pending
   security_smoke: pending
   portal_smoke: pending
