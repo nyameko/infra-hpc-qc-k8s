@@ -162,6 +162,32 @@ resource "openstack_networking_secgroup_rule_v2" "edge_wazuh_api_vpn" {
   security_group_id = openstack_networking_secgroup_v2.this["edge"].id
 }
 
+resource "openstack_networking_secgroup_rule_v2" "api_lb_wazuh_indexer_from_edge" {
+  direction = "ingress"
+  ethertype = "IPv4"
+  protocol  = "tcp"
+
+  port_range_min = 9200
+  port_range_max = 9200
+
+  remote_group_id = openstack_networking_secgroup_v2.this["edge"].id
+
+  security_group_id = openstack_networking_secgroup_v2.this["api-lb"].id
+}
+
+resource "openstack_networking_secgroup_rule_v2" "k8s_worker_wazuh_indexer_from_api_lb" {
+  direction = "ingress"
+  ethertype = "IPv4"
+  protocol  = "tcp"
+
+  port_range_min = 9200
+  port_range_max = 9200
+
+  remote_group_id = openstack_networking_secgroup_v2.this["api-lb"].id
+
+  security_group_id = openstack_networking_secgroup_v2.this["k8s-worker"].id
+}
+
 resource "openstack_networking_secgroup_rule_v2" "api_lb_https_vpn" {
   direction         = "ingress"
   ethertype         = "IPv4"
