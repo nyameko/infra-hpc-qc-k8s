@@ -9,7 +9,8 @@ repositories:
     version: 0.1.0-alpha.1
     branch: dev
     baseline_commit: 594827f5a61ddec132a55f577341ede5a9cafb21
-    note: "dev behind main; reconcile PR 24"
+    reconciled_dev_commit: d27003ef4ac19a5382aca19b60a0bbd9d6130866
+    note: "Initial snapshot retained; PR 24 merged main into dev on 2026-09-23"
   quantum-platform:
     version: 0.1.0-alpha.1
     branch: dev
