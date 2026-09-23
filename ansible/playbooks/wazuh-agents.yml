@@ -1,0 +1,10 @@
+---
+- name: Enroll persistent OpenStack hosts with Wazuh
+  hosts: wazuh_agents
+  become: true
+  serial: 1
+
+  roles:
+    - role: wazuh_agent
+      tags:
+        - wazuh_agent
