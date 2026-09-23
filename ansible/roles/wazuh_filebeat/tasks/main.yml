@@ -55,8 +55,9 @@
   ansible.builtin.assert:
     that:
       - wazuh_filebeat_indexer_host | length > 0
+      - wazuh_indexer_port | int > 0
     fail_msg: >-
-      wazuh_filebeat_indexer_host must be configured before Filebeat can
+      wazuh_filebeat_indexer_host and wazuh_indexer_port must be configured before Filebeat can
       be enabled.
   when: wazuh_filebeat_enabled | bool
 
