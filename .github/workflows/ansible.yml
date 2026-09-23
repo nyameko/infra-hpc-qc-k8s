@@ -2,12 +2,13 @@ name: Ansible CI
 
 on:
   pull_request:
+    branches: [dev, main]
     paths:
       - "ansible/**"
       - "tests/ansible/**"
       - ".github/workflows/ansible.yml"
   push:
-    branches: [main]
+    branches: [dev, main]
     paths:
       - "ansible/**"
       - "tests/ansible/**"
