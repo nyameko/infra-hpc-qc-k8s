@@ -27,6 +27,9 @@ jobs:
       - name: Install Ansible
         run: python3 -m pip install --user ansible-core ansible-lint
 
+      - name: Install required Ansible collections
+        run: ansible-galaxy collection install ansible.posix community.general
+
       - name: Syntax check
         working-directory: ansible
         run: |
