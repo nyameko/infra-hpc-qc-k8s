@@ -1,0 +1,159 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: wazuh-indexer
+  namespace: wazuh
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+
+spec:
+  replicas: 1
+
+  serviceName: wazuh-indexer
+
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: wazuh-indexer
+
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: wazuh-indexer
+        app.kubernetes.io/component: indexer
+        app.kubernetes.io/part-of: wazuh
+        app.kubernetes.io/version: "4.14.7"
+
+    spec:
+      securityContext:
+        fsGroup: 1000
+
+      initContainers:
+        - name: prepare-data-volume
+          image: busybox:1.37
+          command:
+            - sh
+            - -c
+            - chown -R 1000:1000 /var/lib/wazuh-indexer
+
+          securityContext:
+            runAsUser: 0
+            runAsNonRoot: false
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+              add:
+                - CHOWN
+
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/wazuh-indexer
+
+      containers:
+        - name: wazuh-indexer
+          image: wazuh/wazuh-indexer:4.14.7
+
+          env:
+            - name: OPENSEARCH_JAVA_OPTS
+              value: "-Xms1g -Xmx1g -Dlog4j2.formatMsgNoLookups=true"
+
+            - name: CLUSTER_NAME
+              value: wazuh
+
+            - name: NETWORK_HOST
+              value: "0.0.0.0"
+
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+
+            - name: DISABLE_INSTALL_DEMO_CONFIG
+              value: "true"
+
+          ports:
+            - name: https
+              containerPort: 9200
+
+            - name: transport
+              containerPort: 9300
+
+          securityContext:
+            runAsUser: 1000
+            runAsGroup: 1000
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+              add:
+                - SYS_CHROOT
+
+          resources:
+            requests:
+              cpu: 500m
+              memory: 2Gi
+            limits:
+              cpu: "2"
+              memory: 4Gi
+
+          readinessProbe:
+            tcpSocket:
+              port: https
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            failureThreshold: 12
+
+          livenessProbe:
+            tcpSocket:
+              port: https
+            initialDelaySeconds: 60
+            periodSeconds: 20
+            failureThreshold: 6
+
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/wazuh-indexer
+
+            - name: indexer-certs
+              mountPath: /usr/share/wazuh-indexer/config/certs
+              readOnly: true
+
+            - name: indexer-conf
+              mountPath: /usr/share/wazuh-indexer/config/opensearch.yml
+              subPath: opensearch.yml
+              readOnly: true
+
+            - name: indexer-security
+              mountPath: /usr/share/wazuh-indexer/config/opensearch-security/internal_users.yml
+              subPath: internal_users.yml
+              readOnly: true
+
+      volumes:
+        - name: indexer-certs
+          secret:
+            secretName: indexer-certs
+            defaultMode: 0600
+
+        - name: indexer-conf
+          configMap:
+            name: indexer-conf
+            defaultMode: 0600
+
+        - name: indexer-security
+          secret:
+            secretName: indexer-security
+            defaultMode: 0600
+
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+
+        storageClassName: cinder-ssd
+
+        resources:
+          requests:
+            storage: 20Gi
