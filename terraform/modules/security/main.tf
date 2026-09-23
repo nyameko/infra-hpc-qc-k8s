@@ -567,3 +567,27 @@ resource "openstack_networking_secgroup_rule_v2" "edge_dns_k8s_tcp" {
   remote_ip_prefix  = var.k8s_cidr
   security_group_id = openstack_networking_secgroup_v2.this["edge"].id
 }
+
+
+# M1 Slurm accounting: private management network only.
+resource "openstack_networking_secgroup_rule_v2" "slurmdbd_mgmt" {
+  direction         = "ingress"
+  ethertype         = "IPv4"
+  protocol          = "tcp"
+  port_range_min    = 6819
+  port_range_max    = 6819
+  remote_ip_prefix  = var.mgmt_cidr
+  security_group_id = openstack_networking_secgroup_v2.this["slurm-controller"].id
+}
+
+# External host exporters are scraped by Prometheus from the Kubernetes network.
+resource "openstack_networking_secgroup_rule_v2" "slurm_node_exporters" {
+  for_each          = toset(["slurm-controller", "slurm-login", "slurm-compute"])
+  direction         = "ingress"
+  ethertype         = "IPv4"
+  protocol          = "tcp"
+  port_range_min    = 9100
+  port_range_max    = 9100
+  remote_ip_prefix  = var.k8s_cidr
+  security_group_id = openstack_networking_secgroup_v2.this[each.key].id
+}

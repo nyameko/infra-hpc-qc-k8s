@@ -1,41 +1,89 @@
 ---
-- name: Install initial Slurm database dependency
-  ansible.builtin.dnf:
-    name: mariadb-server
-    state: present
+- name: Require database credentials from private Ansible variables
+  ansible.builtin.assert:
+    that:
+      - slurm_db_password | length >= 20
+    fail_msg: "Provide slurm_db_password through a protected Ansible Vault file."
+  no_log: true
 
-- name: Create Slurm directories
+- name: Create Slurm controller directories
   ansible.builtin.file:
-    path: "{{ item }}"
+    path: "{{ item.path }}"
     state: directory
-    owner: root
-    group: root
-    mode: '0755'
+    owner: slurm
+    group: slurm
+    mode: "{{ item.mode }}"
   loop:
-    - /etc/slurm
-    - /var/log/slurm
-    - /var/spool/slurmctld
+    - {path: /var/spool/slurmctld, mode: "0750"}
+    - {path: /var/log/slurm, mode: "0755"}
 
-- name: Create Slurm service account
-  ansible.builtin.user:
-    name: slurm
-    system: true
-    shell: /sbin/nologin
-
-- name: Template slurm.conf
-  ansible.builtin.template:
-    src: slurm.conf.j2
-    dest: /etc/slurm/slurm.conf
-    owner: root
-    group: root
-    mode: '0644'
-
-- name: Enable MariaDB
+- name: Enable local MariaDB for Slurm accounting
   ansible.builtin.systemd:
     name: mariadb
     enabled: true
     state: started
 
-- name: Pause before Slurm daemon installation
-  ansible.builtin.debug:
-    msg: "Install the selected pinned Slurm/OpenHPC packages before enabling slurmctld/slurmdbd."
+- name: Create isolated Slurm accounting database
+  community.mysql.mysql_db:
+    name: "{{ slurm_database_name }}"
+    state: present
+    login_unix_socket: /var/lib/mysql/mysql.sock
+
+- name: Create local Slurm accounting database principal
+  community.mysql.mysql_user:
+    name: "{{ slurm_database_user }}"
+    host: localhost
+    password: "{{ slurm_db_password }}"
+    priv: "{{ slurm_database_name }}.*:ALL"
+    state: present
+    login_unix_socket: /var/lib/mysql/mysql.sock
+  no_log: true
+
+- name: Install Slurm accounting configuration
+  ansible.builtin.template:
+    src: slurmdbd.conf.j2
+    dest: /etc/slurm/slurmdbd.conf
+    owner: slurm
+    group: slurm
+    mode: "0600"
+  no_log: true
+  notify: restart slurmdbd
+
+- name: Enable Slurm database daemon
+  ansible.builtin.systemd:
+    name: slurmdbd
+    enabled: true
+    state: started
+
+- name: Apply pending configuration updates before cluster registration
+  ansible.builtin.meta: flush_handlers
+
+- name: Read current accounting clusters
+  ansible.builtin.command: sacctmgr -nP show cluster format=Cluster
+  register: slurm_registered_clusters
+  changed_when: false
+  retries: 6
+  delay: 5
+  until: slurm_registered_clusters.rc == 0
+
+- name: Register cluster with Slurm accounting once
+  ansible.builtin.command: "sacctmgr -i add cluster {{ slurm_cluster_name }}"
+  when: slurm_cluster_name not in (slurm_registered_clusters.stdout_lines | map('trim') | list)
+
+- name: Validate Slurm controller configuration
+  ansible.builtin.command: slurmctld -t
+  changed_when: false
+
+- name: Enable Slurm controller
+  ansible.builtin.systemd:
+    name: slurmctld
+    enabled: true
+    state: started
+
+- name: Confirm scheduler responds locally
+  ansible.builtin.command: sinfo --noheader
+  changed_when: false
+  register: slurm_controller_sinfo
+  retries: 6
+  delay: 5
+  until: slurm_controller_sinfo.rc == 0

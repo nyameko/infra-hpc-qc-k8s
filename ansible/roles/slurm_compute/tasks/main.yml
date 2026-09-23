@@ -1,23 +1,53 @@
 ---
-- name: Create Slurm compute directories
-  ansible.builtin.file:
-    path: "{{ item }}"
-    state: directory
-    owner: root
-    group: root
-    mode: '0755'
-  loop:
-    - /etc/slurm
-    - /var/spool/slurmd
-    - /var/log/slurm
+- name: Find this node's declared Slurm resources
+  ansible.builtin.set_fact:
+    slurm_this_node: "{{ slurm_nodes | selectattr('name', 'equalto', inventory_hostname) | first }}"
 
-- name: Check CPU count
-  ansible.builtin.command: nproc
-  register: slurm_cpu_count
-  changed_when: false
-
-- name: Verify 12-core provisioning
+- name: Verify expected virtual CPU count before joining scheduler
   ansible.builtin.assert:
     that:
-      - slurm_cpu_count.stdout | int == 12
-    fail_msg: "This initial Slurm compute node must expose exactly 12 CPUs."
+      - ansible_processor_vcpus | int == slurm_this_node.cpus | int
+    fail_msg: "The OpenStack flavor does not match the Slurm node CPU declaration."
+
+- name: Verify node memory is sufficient for configured allocatable memory
+  ansible.builtin.assert:
+    that:
+      - (ansible_memtotal_mb | int) >= (slurm_this_node.memory_mb | int) - (slurm_reserve_mem_mb | int)
+    fail_msg: "Slurm RealMemory would exceed available VM RAM; inspect slurmd -C."
+
+- name: Create Slurm compute directories
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: "{{ item.owner }}"
+    group: "{{ item.group }}"
+    mode: "{{ item.mode }}"
+  loop:
+    - {path: /var/spool/slurmd, owner: root, group: root, mode: "0755"}
+    - {path: /var/log/slurm, owner: slurm, group: slurm, mode: "0755"}
+
+- name: Install cgroup enforcement policy
+  ansible.builtin.template:
+    src: "{{ playbook_dir }}/../roles/slurm_common/templates/cgroup.conf.j2"
+    dest: /etc/slurm/cgroup.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: restart slurmd
+
+- name: Report Slurm's actual CPU and RAM discovery
+  ansible.builtin.command: slurmd -C
+  register: slurmd_discovery
+  changed_when: false
+
+- name: Require discovered CPU count to agree with configuration
+  ansible.builtin.assert:
+    that:
+      - "('CPUs=' ~ slurm_this_node.cpus) in slurmd_discovery.stdout"
+    fail_msg: "Inspect slurmd -C output before enabling compute daemon."
+
+- name: Start compute daemon
+  ansible.builtin.systemd:
+    name: slurmd
+    enabled: true
+    state: started

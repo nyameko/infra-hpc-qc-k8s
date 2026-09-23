@@ -1,0 +1,29 @@
+---
+# Copy topology into the private inventory. Existing private inventory is authoritative.
+all:
+  children:
+    slurm_controller:
+      hosts:
+        slurm-controller-01:
+          ansible_host: 10.50.0.12
+    slurm_login:
+      hosts:
+        login1:
+          ansible_host: 10.50.0.20
+        login2:
+          ansible_host: 10.50.0.21
+    slurm_compute:
+      hosts:
+        slurm-cpu-01:
+          ansible_host: 10.50.0.30
+        slurm-cpu-02:
+          ansible_host: 10.50.0.31
+        slurm-cpu-03:
+          ansible_host: 10.50.0.32
+        slurm-cpu-04:
+          ansible_host: 10.50.0.33
+    slurm_cluster:
+      children:
+        slurm_controller: {}
+        slurm_login: {}
+        slurm_compute: {}

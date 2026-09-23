@@ -1,18 +1,40 @@
 ---
-- name: Configure Slurm controller
+- name: Configure Slurm controller, login and compute with one configuration
+  hosts: slurm_controller:slurm_login:slurm_compute
+  become: true
+  gather_facts: true
+  vars_files:
+    - ../group_vars/slurm_cluster.yml
+  vars:
+    slurm_role_packages: >-
+      {{
+        slurm_controller_packages if inventory_hostname in groups['slurm_controller']
+        else (slurm_login_packages if inventory_hostname in groups['slurm_login']
+        else slurm_compute_packages)
+      }}
+  roles:
+    - slurm_common
+
+- name: Configure Slurm controller and accounting
   hosts: slurm_controller
   become: true
+  vars_files:
+    - ../group_vars/slurm_cluster.yml
   roles:
     - slurm_controller
 
-- name: Configure Slurm login nodes
+- name: Configure Slurm login clients
   hosts: slurm_login
   become: true
+  vars_files:
+    - ../group_vars/slurm_cluster.yml
   roles:
     - slurm_login
 
-- name: Configure Slurm compute nodes
+- name: Configure Slurm compute daemons
   hosts: slurm_compute
   become: true
+  vars_files:
+    - ../group_vars/slurm_cluster.yml
   roles:
     - slurm_compute
