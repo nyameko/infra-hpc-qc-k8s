@@ -18,7 +18,8 @@ jobs:
       - name: Install YAML lint
         run: python3 -m pip install --user yamllint==1.37.1
       - name: YAML syntax and baseline lint
-        run: yamllint -d '{extends: relaxed, rules: {line-length: disable, document-start: disable}}' argocd
+        run: |
+          yamllint -d '{extends: relaxed, rules: {line-length: disable, document-start: disable}}' argocd
       - name: Render every Kustomize package and validate built-in resource schemas
         shell: bash
         run: |
@@ -27,7 +28,8 @@ jobs:
             dir="${file%/*}"
             echo "Validating ${dir}"
             kubectl kustomize "${dir}" > /tmp/rendered.yaml
-            docker run --rm -i ghcr.io/yannh/kubeconform:v0.8.0-alpine               -summary -strict -ignore-missing-schemas -kubernetes-version 1.36.0 - < /tmp/rendered.yaml
+            docker run --rm -i ghcr.io/yannh/kubeconform:v0.8.0-alpine               \
+              -summary -strict -ignore-missing-schemas -kubernetes-version 1.36.0 - < /tmp/rendered.yaml
           done < <(find argocd -name kustomization.yaml -o -name kustomization.yml | sort)
       - name: Terraform/Kubernetes static security report (advisory for baseline)
         uses: bridgecrewio/checkov-action@v12
