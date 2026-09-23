@@ -1,3 +1,4 @@
+---
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
@@ -6,11 +7,23 @@ namespace: wazuh
 resources:
   - namespace.yaml
 
+  # Indexer security material
   - indexer-certs-sealed.yaml
   - indexer-security-sealed.yaml
   - indexer-cred-sealed.yaml
 
+  # Dashboard service credentials
+  - dashboard-cred-sealed.yaml
+  - wazuh-api-cred-sealed.yaml
+
+  # Indexer
   - indexer-config.yaml
   - indexer-services.yaml
   - indexer-statefulset.yaml
   - indexer-ingressroute-tcp.yaml
+
+  # Dashboard
+  - dashboard-config.yaml
+  - dashboard-service.yaml
+  - dashboard-deployment.yaml
+  - dashboard-ingress.yaml

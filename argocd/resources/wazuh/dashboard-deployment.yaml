@@ -1,0 +1,120 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: wazuh-dashboard
+  namespace: wazuh
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+
+spec:
+  replicas: 1
+
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: wazuh-dashboard
+
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: wazuh-dashboard
+        app.kubernetes.io/component: dashboard
+        app.kubernetes.io/part-of: wazuh
+        app.kubernetes.io/version: "4.14.7"
+
+    spec:
+      containers:
+        - name: wazuh-dashboard
+          image: wazuh/wazuh-dashboard:4.14.7
+
+          env:
+            - name: INDEXER_URL
+              value: https://indexer:9200
+
+            - name: INDEXER_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: indexer-cred
+                  key: username
+
+            - name: INDEXER_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: indexer-cred
+                  key: password
+
+            - name: DASHBOARD_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: dashboard-cred
+                  key: username
+
+            - name: DASHBOARD_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: dashboard-cred
+                  key: password
+
+            - name: SERVER_SSL_ENABLED
+              value: "false"
+
+            - name: WAZUH_API_URL
+              value: https://10.50.0.10
+
+            - name: API_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: wazuh-api-cred
+                  key: username
+
+            - name: API_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: wazuh-api-cred
+                  key: password
+
+          ports:
+            - name: http
+              containerPort: 5601
+
+          resources:
+            requests:
+              cpu: 200m
+              memory: 512Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+
+          readinessProbe:
+            tcpSocket:
+              port: http
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            failureThreshold: 12
+
+          livenessProbe:
+            tcpSocket:
+              port: http
+            initialDelaySeconds: 60
+            periodSeconds: 20
+            failureThreshold: 6
+
+          volumeMounts:
+            - name: dashboard-conf
+              mountPath: /usr/share/wazuh-dashboard/config/opensearch_dashboards.yml
+              subPath: opensearch_dashboards.yml
+              readOnly: true
+
+            - name: indexer-ca
+              mountPath: /usr/share/wazuh-dashboard/certs/root-ca.pem
+              subPath: root-ca.pem
+              readOnly: true
+
+      volumes:
+        - name: dashboard-conf
+          configMap:
+            name: dashboard-conf
+
+        - name: indexer-ca
+          secret:
+            secretName: indexer-certs
