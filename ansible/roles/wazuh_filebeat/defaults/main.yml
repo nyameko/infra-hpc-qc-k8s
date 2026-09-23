@@ -1,0 +1,27 @@
+---
+# Wazuh 4.14.7 supported Filebeat package.
+wazuh_filebeat_version: "7.10.2-2"
+
+# We deliberately install/configure Filebeat before enabling delivery.
+# This flips to true after the Wazuh Indexer endpoint is available.
+# Install and stage Filebeat now, but do not start it until
+# the Wazuh Indexer endpoint, TLS material and credentials exist.
+wazuh_filebeat_enabled: false
+wazuh_filebeat_configure: false
+
+wazuh_filebeat_module_url: >-
+  https://packages.wazuh.com/4.x/filebeat/wazuh-filebeat-0.5.tar.gz
+
+wazuh_filebeat_template_url: >-
+  https://raw.githubusercontent.com/wazuh/wazuh/v4.14.7/extensions/elasticsearch/7.x/wazuh-template.json
+
+wazuh_filebeat_config_url: >-
+  https://packages.wazuh.com/4.14/tpl/wazuh/filebeat/filebeat.yml
+
+wazuh_indexer_port: 9200
+
+# Filled in when Gate 3 creates the private Indexer endpoint.
+wazuh_filebeat_indexer_host: ""
+
+
+wazuh_filebeat_cert_dir: /etc/filebeat/certs
