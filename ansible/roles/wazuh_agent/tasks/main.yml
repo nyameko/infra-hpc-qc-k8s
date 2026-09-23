@@ -26,6 +26,8 @@
     update_cache: true
   environment:
     WAZUH_MANAGER: "{{ wazuh_manager_address }}"
+    WAZUH_REGISTRATION_SERVER: "{{ wazuh_manager_address }}"
+    WAZUH_AGENT_NAME: "{{ inventory_hostname }}"
 
 - name: Enable Wazuh agent
   ansible.builtin.systemd:

@@ -1,0 +1,11 @@
+---
+- name: Enroll persistent OpenStack hosts with Wazuh
+  hosts: >-
+    api_lb:control_plane:workers:slurm_controller:slurm_login:slurm_compute:hermes_orchestrator
+  become: true
+  serial: 1
+
+  roles:
+    - role: wazuh_agent
+      tags:
+        - wazuh_agent
