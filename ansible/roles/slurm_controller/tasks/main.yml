@@ -74,7 +74,7 @@
   ansible.builtin.systemd:
     name: slurmctld
     enabled: true
-    state: started
+    state: "{{ 'restarted' if (slurm_common_config is defined and slurm_common_config.changed) else 'started' }}"
 
 - name: Confirm Slurm controller responds locally
   ansible.builtin.command: scontrol ping
