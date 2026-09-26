@@ -29,11 +29,7 @@
 
 - name: Enable Rocky Linux CRB repository
   ansible.builtin.command:
-    argv:
-      - dnf
-      - config-manager
-      - --set-enabled
-      - crb
+    argv: [dnf, config-manager, --set-enabled, crb]
   changed_when: false
 
 - name: Install EPEL release package
@@ -95,9 +91,7 @@
 
 - name: Check whether the pinned core RPM already exists
   ansible.builtin.stat:
-    path: >-
-      {{ slurm_rpm_builder_topdir }}/RPMS/{{ slurm_rpm_arch }}/
-      slurm-{{ slurm_package_version }}-{{ slurm_rpm_release }}.{{ slurm_rpm_arch }}.rpm
+    path: "{{ slurm_rpm_builder_topdir }}/RPMS/{{ slurm_rpm_arch }}/slurm-{{ slurm_package_version }}-{{ slurm_rpm_release }}.{{ slurm_rpm_arch }}.rpm"
   register: slurm_core_rpm
 
 - name: Build Slurm RPMs from official SchedMD source
@@ -111,7 +105,6 @@
       - -ta
       - "{{ slurm_rpm_builder_work_dir }}/{{ slurm_source_archive }}"
   when: not slurm_core_rpm.stat.exists
-  register: slurm_rpmbuild
   changed_when: true
 
 - name: Find built Slurm RPM artifacts
@@ -122,13 +115,19 @@
     file_type: file
   register: slurm_built_rpms
 
-- name: Require expected M1 Slurm RPM outputs
+- name: Check required M1 Slurm RPM outputs
+  ansible.builtin.stat:
+    path: "{{ slurm_rpm_builder_topdir }}/RPMS/{{ slurm_rpm_arch }}/{{ item }}"
+  loop: "{{ slurm_rpm_required_outputs }}"
+  register: slurm_required_rpm_stats
+
+- name: Refuse incomplete Slurm RPM builds
   ansible.builtin.assert:
     that:
-      - >-
-        (slurm_built_rpms.files | map(attribute='path') | map('basename') | list)
-        is superset(slurm_rpm_required_outputs)
-    fail_msg: "The Slurm build did not produce all required controller/compute RPMs."
+      - item.stat.exists
+      - item.stat.isreg
+    fail_msg: "Required Slurm RPM {{ item.item }} was not produced."
+  loop: "{{ slurm_required_rpm_stats.results }}"
 
 - name: Publish built RPMs to the builder artifact directory
   ansible.builtin.copy:
@@ -146,7 +145,7 @@
     sha256sum *.rpm | sort -k2 > SHA256SUMS
   changed_when: true
 
-- name: Create local controller-side artifact directory
+- name: Create local artifact directory
   ansible.builtin.file:
     path: "{{ slurm_rpm_local_artifact_dir }}"
     state: directory
@@ -161,7 +160,7 @@
     flat: true
   loop: "{{ slurm_built_rpms.files }}"
 
-- name: Fetch RPM SHA256 manifest to the Ansible control machine
+- name: Fetch RPM SHA256 manifest
   ansible.builtin.fetch:
     src: "{{ slurm_rpm_remote_artifact_dir }}/SHA256SUMS"
     dest: "{{ slurm_rpm_local_artifact_dir }}/SHA256SUMS"
