@@ -21,16 +21,18 @@
     state: present
     disable_gpg_check: "{{ slurm_allow_unsigned_rpms | bool }}"
 
-- name: Verify installed Slurm release matches approved pin
-  ansible.builtin.command: sinfo -V
-  register: slurm_installed_version
-  changed_when: false
+- name: Read installed Slurm RPM metadata
+  ansible.builtin.package_facts:
+    manager: auto
 
 - name: Reject incompatible or unpinned Slurm builds
   ansible.builtin.assert:
     that:
-      - slurm_installed_version.stdout.split()[-1] == slurm_package_version
-    fail_msg: "Installed Slurm RPM version differs from slurm_package_version."
+      - "'slurm' in ansible_facts.packages"
+      - ansible_facts.packages['slurm'][0].version == slurm_package_version
+    fail_msg: >-
+      Installed Slurm RPM version differs from slurm_package_version
+      or the core slurm RPM is missing.
 
 - name: Ensure Slurm and MUNGE identities exist
   ansible.builtin.user:
