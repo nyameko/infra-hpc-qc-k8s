@@ -1,0 +1,36 @@
+---
+- name: Require locally collected Slurm RPM artifacts
+  ansible.builtin.find:
+    paths: "{{ slurm_rpm_local_artifact_dir }}"
+    patterns: "*.rpm"
+    file_type: file
+  delegate_to: localhost
+  become: false
+  run_once: true
+  register: slurm_local_rpms
+
+- name: Refuse deployment without built Slurm RPMs
+  ansible.builtin.assert:
+    that:
+      - slurm_local_rpms.matched | int > 0
+    fail_msg: >-
+      No Slurm RPMs found in {{ slurm_rpm_local_artifact_dir }}.
+      Run playbooks/slurm-build-rpms.yml first.
+  run_once: true
+
+- name: Create remote Slurm RPM artifact directory
+  ansible.builtin.file:
+    path: "{{ slurm_rpm_remote_artifact_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Stage vetted Slurm RPMs on cluster host
+  ansible.builtin.copy:
+    src: "{{ item.path }}"
+    dest: "{{ slurm_rpm_remote_artifact_dir }}/{{ item.path | basename }}"
+    owner: root
+    group: root
+    mode: "0644"
+  loop: "{{ slurm_local_rpms.files }}"
