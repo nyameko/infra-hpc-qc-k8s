@@ -26,7 +26,7 @@ JobCompType=jobcomp/none
 SchedulerType=sched/backfill
 PriorityType=priority/multifactor
 {% for n in slurm_nodes %}
-NodeName={{ n.name }} NodeAddr={{ n.addr }} CPUs={{ n.cpus }} RealMemory={{ [((n.memory_mb | int) - (slurm_reserve_mem_mb | int)), ((hostvars[n.name].slurm_detected_real_memory_mb | int) - (slurm_reserve_mem_mb | int))] | min }} State=UNKNOWN
+NodeName={{ n.name }} NodeAddr={{ n.addr }} CPUs={{ n.cpus }} RealMemory={{ n.real_memory_mb }} State=UNKNOWN
 {% endfor %}
 PartitionName={{ slurm_partition_small }} Nodes={{ slurm_nodes | selectattr('partition','equalto','small') | map(attribute='name') | join(',') }} Default=YES MaxTime=08:00:00 State=UP
 PartitionName={{ slurm_partition_large }} Nodes={{ slurm_nodes | selectattr('partition','equalto','large') | map(attribute='name') | join(',') }} Default=NO MaxTime=2-00:00:00 State=UP
