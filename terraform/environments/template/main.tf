@@ -11,6 +11,7 @@ module "network" {
   mgmt_pool_end         = "10.50.0.240"
   k8s_pool_start        = "10.51.0.50"
   k8s_pool_end          = "10.51.0.99"
+  dns_nameservers        = ["10.50.0.10"]
 }
 
 module "security" {
