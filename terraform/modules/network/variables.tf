@@ -12,4 +12,5 @@ variable "k8s_pool_end" { type = string }
 variable "dns_nameservers" {
   description = "DNS resolvers advertised by Neutron DHCP on internal subnets."
   type        = list(string)
+  default     = []
 }
