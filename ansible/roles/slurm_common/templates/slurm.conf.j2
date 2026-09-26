@@ -1,0 +1,32 @@
+ClusterName={{ slurm_cluster_name }}
+SlurmctldHost={{ slurm_controller_hostname }}({{ slurm_controller_address }})
+SlurmUser=slurm
+AuthType=auth/munge
+CredType=cred/munge
+SlurmdUser=root
+StateSaveLocation=/var/spool/slurmctld
+SlurmdSpoolDir=/var/spool/slurmd
+SlurmctldLogFile=/var/log/slurm/slurmctld.log
+SlurmdLogFile=/var/log/slurm/slurmd.log
+SlurmctldPort=6817
+SlurmdPort=6818
+SlurmctldTimeout=120
+SlurmdTimeout=300
+ReturnToService=2
+ProctrackType=proctrack/cgroup
+TaskPlugin=task/cgroup,task/affinity
+SelectType=select/cons_tres
+SelectTypeParameters=CR_CPU_Memory
+AccountingStorageType=accounting_storage/slurmdbd
+AccountingStorageHost={{ slurm_controller_hostname }}
+AccountingStoragePort=6819
+JobAcctGatherType=jobacct_gather/cgroup
+JobAcctGatherFrequency=30
+JobCompType=jobcomp/none
+SchedulerType=sched/backfill
+PriorityType=priority/multifactor
+{% for n in slurm_nodes %}
+NodeName={{ n.name }} NodeAddr={{ n.addr }} CPUs={{ n.cpus }} RealMemory={{ n.memory_mb - slurm_reserve_mem_mb }} State=UNKNOWN
+{% endfor %}
+PartitionName={{ slurm_partition_small }} Nodes={{ slurm_nodes | selectattr('partition','equalto','small') | map(attribute='name') | join(',') }} Default=YES MaxTime=08:00:00 State=UP
+PartitionName={{ slurm_partition_large }} Nodes={{ slurm_nodes | selectattr('partition','equalto','large') | map(attribute='name') | join(',') }} Default=NO MaxTime=2-00:00:00 State=UP

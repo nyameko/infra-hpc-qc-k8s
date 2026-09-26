@@ -10,6 +10,10 @@ variable "hermes_flavor" { type = string }
 variable "slurm_controller_flavor" { type = string }
 variable "login_flavor" { type = string }
 variable "compute_12c_flavor" { type = string }
+variable "compute_64c_flavor" {
+  description = "OpenStack flavor for 64-vCPU / 256-GiB Slurm compute nodes (C64.xlarge in the reference cloud)."
+  type        = string
+}
 variable "k8s_control_plane_flavor" { type = string }
 variable "k8s_worker_flavor" { type = string }
 variable "api_lb_type" {

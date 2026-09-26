@@ -1,12 +1,8 @@
 ---
-- name: Create Slurm configuration directory
-  ansible.builtin.file:
-    path: /etc/slurm
-    state: directory
-    mode: '0755'
-
-- name: Create Slurm client marker
-  ansible.builtin.copy:
-    dest: /etc/slurm/login-node
-    content: "This is a Slurm login/client node; users submit jobs to slurm-controller-01.\n"
-    mode: '0644'
+- name: Check Slurm client can contact the scheduler
+  ansible.builtin.command: sinfo --noheader
+  changed_when: false
+  register: slurm_login_sinfo
+  retries: 6
+  delay: 5
+  until: slurm_login_sinfo.rc == 0

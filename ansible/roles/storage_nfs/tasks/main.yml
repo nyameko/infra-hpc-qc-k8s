@@ -1,0 +1,239 @@
+---
+- name: Require stable device mappings for all three Cinder volumes
+  ansible.builtin.assert:
+    that:
+      - storage_nfs_devices.home | length > 0
+      - storage_nfs_devices.datasets | length > 0
+      - storage_nfs_devices.staging | length > 0
+      - storage_nfs_devices.home != storage_nfs_devices.datasets
+      - storage_nfs_devices.home != storage_nfs_devices.staging
+      - storage_nfs_devices.datasets != storage_nfs_devices.staging
+    fail_msg: >-
+      Set storage_nfs_devices in private inventory using verified stable
+      /dev/disk/by-id paths from storage-nfs-01. Never infer /dev/vdX order.
+
+- name: Install NFS and XFS administration packages
+  ansible.builtin.dnf:
+    name:
+      - nfs-utils
+      - xfsprogs
+    state: present
+
+- name: Verify configured block devices exist
+  ansible.builtin.stat:
+    path: "{{ item.device }}"
+  loop: "{{ storage_nfs_filesystems }}"
+  register: storage_device_stats
+
+- name: Refuse to continue with missing block devices
+  ansible.builtin.assert:
+    that:
+      - item.stat.exists
+      - item.stat.isblk | default(false)
+    fail_msg: "Configured storage device {{ item.item.device }} is not a block device."
+  loop: "{{ storage_device_stats.results }}"
+
+- name: Inspect existing filesystem type without modifying data
+  ansible.builtin.command: "blkid -o value -s TYPE {{ item.device }}"
+  loop: "{{ storage_nfs_filesystems }}"
+  register: storage_blkid
+  changed_when: false
+  failed_when: storage_blkid.rc not in [0, 2]
+
+- name: Refuse to overwrite a non-XFS filesystem
+  ansible.builtin.assert:
+    that:
+      - (item.stdout | trim) in ['', 'xfs']
+    fail_msg: >-
+      {{ item.item.device }} already contains filesystem '{{ item.stdout | trim }}'.
+      M1 will never reformat an unexpected filesystem.
+  loop: "{{ storage_blkid.results }}"
+
+- name: Format blank Cinder volumes as XFS with stable labels
+  ansible.builtin.command:
+    argv:
+      - mkfs.xfs
+      - -L
+      - "{{ item.item.label }}"
+      - "{{ item.item.device }}"
+  loop: "{{ storage_blkid.results }}"
+  when:
+    - (item.stdout | trim) == ''
+    - not ansible_check_mode
+  changed_when: true
+
+- name: Create storage mount points
+  ansible.builtin.file:
+    path: "{{ item.server_mount }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  loop: "{{ storage_nfs_filesystems }}"
+
+- name: Mount XFS filesystems with quota enforcement
+  ansible.posix.mount:
+    path: "{{ item.server_mount }}"
+    src: "LABEL={{ item.label }}"
+    fstype: xfs
+    opts: "{{ item.mount_opts }}"
+    state: mounted
+  loop: "{{ storage_nfs_filesystems }}"
+
+- name: Verify quota accounting/enforcement flags
+  ansible.builtin.command: "xfs_quota -x -c 'state' {{ item.server_mount }}"
+  loop: "{{ storage_nfs_filesystems }}"
+  register: storage_quota_state
+  changed_when: false
+  when: not ansible_check_mode
+
+- name: Create managed home and staging roots
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  loop:
+    - /srv/staging/users
+    - /srv/datasets/programmes
+
+- name: Create M1 per-user home directories
+  ansible.builtin.file:
+    path: "/srv/home/{{ item.username }}"
+    state: directory
+    owner: "{{ item.uid | string }}"
+    group: "{{ item.gid | string }}"
+    mode: "0700"
+  loop: "{{ storage_quota_users }}"
+
+- name: Create M1 per-user staging directories
+  ansible.builtin.file:
+    path: "/srv/staging/users/{{ item.username }}"
+    state: directory
+    owner: "{{ item.uid | string }}"
+    group: "{{ item.gid | string }}"
+    mode: "0700"
+  loop: "{{ storage_quota_users }}"
+
+- name: Enforce per-user home quotas
+  ansible.builtin.command: >-
+    xfs_quota -x -c
+    'limit -u bsoft={{ item.home_soft_gib | default(storage_home_default_soft_gib) }}g
+    bhard={{ item.home_hard_gib | default(storage_home_default_hard_gib) }}g {{ item.uid }}'
+    /srv/home
+  loop: "{{ storage_quota_users }}"
+  changed_when: false
+  when: not ansible_check_mode
+
+- name: Enforce per-user staging quotas
+  ansible.builtin.command: >-
+    xfs_quota -x -c
+    'limit -u bsoft={{ item.staging_soft_gib | default(storage_staging_default_soft_gib) }}g
+    bhard={{ item.staging_hard_gib | default(storage_staging_default_hard_gib) }}g {{ item.uid }}'
+    /srv/staging
+  loop: "{{ storage_quota_users }}"
+  changed_when: false
+  when: not ansible_check_mode
+
+- name: Create programme dataset directories
+  ansible.builtin.file:
+    path: "/srv/datasets/programmes/{{ item.name }}"
+    state: directory
+    owner: root
+    group: "{{ item.gid | string }}"
+    mode: "2770"
+  loop: "{{ storage_programmes }}"
+
+- name: Manage XFS project ID mappings
+  ansible.builtin.blockinfile:
+    path: /etc/projid
+    create: true
+    marker: "# {mark} QUANTUM PLATFORM DATASET PROJECT IDS"
+    block: |
+      {% for programme in storage_programmes %}
+      {{ programme.name }}:{{ programme.project_id }}
+      {% endfor %}
+
+- name: Manage XFS project path mappings
+  ansible.builtin.blockinfile:
+    path: /etc/projects
+    create: true
+    marker: "# {mark} QUANTUM PLATFORM DATASET PROJECT PATHS"
+    block: |
+      {% for programme in storage_programmes %}
+      {{ programme.project_id }}:/srv/datasets/programmes/{{ programme.name }}
+      {% endfor %}
+
+- name: Initialize XFS project quota assignments
+  ansible.builtin.command: >-
+    xfs_quota -x -c 'project -s {{ item.name }}' /srv/datasets
+  loop: "{{ storage_programmes }}"
+  changed_when: false
+  when: not ansible_check_mode
+
+- name: Enforce programme dataset quotas
+  ansible.builtin.command: >-
+    xfs_quota -x -c
+    'limit -p bsoft={{ item.dataset_soft_gib }}g
+    bhard={{ item.dataset_hard_gib }}g {{ item.name }}'
+    /srv/datasets
+  loop: "{{ storage_programmes }}"
+  changed_when: false
+  when: not ansible_check_mode
+
+- name: Configure NFSv4 exports
+  ansible.builtin.template:
+    src: quantum-platform.exports.j2
+    dest: /etc/exports.d/quantum-platform.exports
+    owner: root
+    group: root
+    mode: "0644"
+  notify:
+    - reload nfs exports
+
+- name: Enable NFS server
+  ansible.builtin.systemd:
+    name: nfs-server
+    enabled: true
+    state: started
+
+- name: Apply NFS export changes
+  ansible.builtin.meta: flush_handlers
+
+- name: Verify exported filesystems
+  ansible.builtin.command: exportfs -v
+  register: storage_exports
+  changed_when: false
+  when: not ansible_check_mode
+
+- name: Install notification-gated staging expiry worker
+  ansible.builtin.template:
+    src: staging-expiry.sh.j2
+    dest: /usr/local/sbin/quantum-staging-expiry
+    owner: root
+    group: root
+    mode: "0750"
+
+- name: Install staging expiry systemd service
+  ansible.builtin.template:
+    src: quantum-staging-expiry.service.j2
+    dest: /etc/systemd/system/quantum-staging-expiry.service
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Install staging expiry systemd timer
+  ansible.builtin.template:
+    src: quantum-staging-expiry.timer.j2
+    dest: /etc/systemd/system/quantum-staging-expiry.timer
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Enable staging expiry reconciliation timer
+  ansible.builtin.systemd:
+    name: quantum-staging-expiry.timer
+    enabled: true
+    state: started
+    daemon_reload: true

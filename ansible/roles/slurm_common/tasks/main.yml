@@ -1,0 +1,119 @@
+---
+- name: Require explicit pinned Slurm release and private MUNGE credential
+  ansible.builtin.assert:
+    that:
+      - slurm_package_version | length > 0
+      - slurm_munge_key_b64 | length > 0
+      - slurm_munge_key_b64 | length >= 1368
+      - slurm_nodes | length == 4
+      - slurm_nodes | map(attribute='name') | unique | list | length == 4
+    fail_msg: "Set slurm_package_version and vaulted slurm_munge_key_b64; review inventory."
+  no_log: true
+
+- name: Verify host is part of the declared Slurm cluster
+  ansible.builtin.assert:
+    that:
+      - inventory_hostname == slurm_controller_hostname or inventory_hostname in groups['slurm_login'] or inventory_hostname in (slurm_nodes | map(attribute='name') | list)
+
+- name: Install Slurm role packages
+  ansible.builtin.dnf:
+    name: "{{ slurm_role_packages }}"
+    state: present
+
+- name: Verify installed Slurm release matches approved pin
+  ansible.builtin.command: sinfo -V
+  register: slurm_installed_version
+  changed_when: false
+
+- name: Reject incompatible or unpinned Slurm builds
+  ansible.builtin.assert:
+    that:
+      - slurm_installed_version.stdout.split()[-1] == slurm_package_version
+    fail_msg: "Installed Slurm RPM version differs from slurm_package_version; pin the selected package repository."
+
+- name: Ensure Slurm and MUNGE identities exist
+  ansible.builtin.user:
+    name: "{{ item }}"
+    system: true
+    create_home: false
+    shell: /sbin/nologin
+  loop: [munge, slurm]
+
+- name: Create Slurm configuration directory
+  ansible.builtin.file:
+    path: /etc/slurm
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Create protected MUNGE directory
+  ansible.builtin.file:
+    path: /etc/munge
+    state: directory
+    owner: munge
+    group: munge
+    mode: "0700"
+
+- name: Check existing MUNGE key
+  ansible.builtin.stat:
+    path: /etc/munge/munge.key
+  register: slurm_existing_munge_key
+
+- name: Stage encoded MUNGE key with restricted permissions
+  ansible.builtin.copy:
+    content: "{{ slurm_munge_key_b64 }}"
+    dest: /etc/munge/munge.key.b64
+    owner: root
+    group: root
+    mode: "0400"
+  register: slurm_staged_munge_key
+  no_log: true
+
+- name: Decode binary MUNGE key without putting binary in Jinja text
+  ansible.builtin.shell: |
+    umask 077
+    base64 --decode /etc/munge/munge.key.b64 > /etc/munge/munge.key
+    chown munge:munge /etc/munge/munge.key
+    chmod 0400 /etc/munge/munge.key
+  when: slurm_staged_munge_key.changed or not slurm_existing_munge_key.stat.exists
+  no_log: true
+  notify: restart munge
+
+- name: Template shared Slurm configuration
+  ansible.builtin.template:
+    src: "{{ playbook_dir }}/../roles/slurm_common/templates/slurm.conf.j2"
+    dest: /etc/slurm/slurm.conf
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Enable MUNGE
+  ansible.builtin.systemd:
+    name: munge
+    enabled: true
+    state: started
+
+- name: Apply MUNGE key updates
+  ansible.builtin.meta: flush_handlers
+
+- name: Verify MUNGE locally
+  ansible.builtin.shell: "munge -n | unmunge >/dev/null"
+  changed_when: false
+
+- name: Check shared home filesystem before enabling user jobs
+  ansible.builtin.command: "findmnt --target {{ slurm_home_path }} --noheadings --output FSTYPE"
+  register: slurm_home_fs
+  changed_when: false
+  when:
+    - slurm_require_shared_home | bool
+    - inventory_hostname in groups['slurm_login'] or inventory_hostname in groups['slurm_compute']
+
+- name: Require network/shared filesystem rather than local root
+  ansible.builtin.assert:
+    that:
+      - slurm_home_fs.stdout | trim in ['nfs', 'nfs4', 'lustre', 'beegfs', 'ceph', 'fuse.ceph']
+    fail_msg: "Mount shared /home (Cinder SSD-backed NFS or parallel FS) before starting Slurm."
+  when:
+    - slurm_require_shared_home | bool
+    - inventory_hostname in groups['slurm_login'] or inventory_hostname in groups['slurm_compute']

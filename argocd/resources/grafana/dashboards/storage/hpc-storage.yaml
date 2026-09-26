@@ -1,0 +1,77 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-hpc-storage
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1"
+  annotations:
+    k8s-sidecar-target-directory: "Storage"
+data:
+  hpc-storage.json: |
+    {
+      "title": "HPC Storage — NFS/XFS M1",
+      "uid": "hpc-storage-nfs-m1",
+      "schemaVersion": 39,
+      "version": 1,
+      "refresh": "30s",
+      "tags": ["storage", "nfs", "xfs", "cinder", "m1"],
+      "time": {"from": "now-6h", "to": "now"},
+      "panels": [
+        {
+          "id": 1,
+          "type": "stat",
+          "title": "Storage exporter UP",
+          "gridPos": {"h": 5, "w": 6, "x": 0, "y": 0},
+          "targets": [{"refId": "A", "expr": "max(up{job=\"storage-hosts\"}) or vector(0)"}],
+          "options": {"reduceOptions": {"calcs": ["lastNotNull"], "values": false}}
+        },
+        {
+          "id": 2,
+          "type": "timeseries",
+          "title": "XFS utilization (%)",
+          "gridPos": {"h": 8, "w": 18, "x": 6, "y": 0},
+          "targets": [{"refId": "A", "expr": "100 * (1 - node_filesystem_avail_bytes{job=\"storage-hosts\",fstype=\"xfs\",mountpoint=~\"/srv/(home|datasets|staging)\"} / node_filesystem_size_bytes{job=\"storage-hosts\",fstype=\"xfs\",mountpoint=~\"/srv/(home|datasets|staging)\"})", "legendFormat": "{{mountpoint}}"}],
+          "fieldConfig": {"defaults": {"unit": "percent"}}
+        },
+        {
+          "id": 3,
+          "type": "timeseries",
+          "title": "XFS free bytes",
+          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
+          "targets": [{"refId": "A", "expr": "node_filesystem_avail_bytes{job=\"storage-hosts\",fstype=\"xfs\",mountpoint=~\"/srv/(home|datasets|staging)\"}", "legendFormat": "{{mountpoint}}"}],
+          "fieldConfig": {"defaults": {"unit": "bytes"}}
+        },
+        {
+          "id": 4,
+          "type": "timeseries",
+          "title": "NFSv4 requests / second",
+          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8},
+          "targets": [{"refId": "A", "expr": "sum(rate(node_nfsd_requests_total{job=\"storage-hosts\",proto=\"4\"}[5m])) by (method)", "legendFormat": "{{method}}"}]
+        },
+        {
+          "id": 5,
+          "type": "timeseries",
+          "title": "Disk IO throughput",
+          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 16},
+          "targets": [
+            {"refId": "A", "expr": "sum(rate(node_disk_read_bytes_total{job=\"storage-hosts\"}[5m]))", "legendFormat": "read"},
+            {"refId": "B", "expr": "sum(rate(node_disk_written_bytes_total{job=\"storage-hosts\"}[5m]))", "legendFormat": "write"}
+          ],
+          "fieldConfig": {"defaults": {"unit": "Bps"}}
+        },
+        {
+          "id": 6,
+          "type": "timeseries",
+          "title": "Network throughput",
+          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 16},
+          "targets": [
+            {"refId": "A", "expr": "sum(rate(node_network_receive_bytes_total{job=\"storage-hosts\",device!~\"lo\"}[5m]))", "legendFormat": "receive"},
+            {"refId": "B", "expr": "sum(rate(node_network_transmit_bytes_total{job=\"storage-hosts\",device!~\"lo\"}[5m]))", "legendFormat": "transmit"}
+          ],
+          "fieldConfig": {"defaults": {"unit": "Bps"}}
+        }
+      ],
+      "templating": {"list": []},
+      "annotations": {"list": []}
+    }

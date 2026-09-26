@@ -114,3 +114,12 @@ The capstone is to close a real platform gap with a reviewed Git change while pr
 ## Security tutorial: Wazuh & Suricata
 
 The dedicated [deployment workshop](wazuh-suricata-deployment.md) and [operational drills](wazuh-suricata-operational-drills.md) now supply the security module referenced in the reading order. Its capstone is a **single authorized, benign detection** correlated from Suricata EVE through Wazuh alerts into a private indexed document, supported by an agent-inventory record and a failure-analysis report. ACE can reuse the workshop in an isolated week-long challenge; QCC remains a distinct quantum-workflows teaching track. Neither challenge warrants relaxing production firewall, authentication or agent privilege boundaries.
+
+## M1 CPU HPC + storage workshops
+
+The M1 CPU fabric is intentionally split into two operational tutorials:
+
+1. [Persistent research storage with Cinder SSD, XFS quotas and NFSv4](m1-storage-nfs-xfs.md) — format only verified Cinder devices, enforce home/programme/staging quotas, export NFSv4, mount clients, validate Wazuh and storage telemetry.
+2. [CPU Slurm fabric deployment and acceptance](m1-slurm-cpu-fabric.md) — MUNGE, slurmctld/slurmd, slurmdbd/MariaDB accounting, cgroups, node telemetry and scheduler acceptance.
+
+Run storage acceptance before Slurm so `/home`, `/datasets` and `/staging` are real shared filesystems before user jobs can start. Scratch remains compute-local and ephemeral.
