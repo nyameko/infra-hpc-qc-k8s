@@ -25,7 +25,7 @@ slurm_munge_key_b64: ""
 slurm_db_password: ""
 slurm_database_name: slurm_acct_db
 slurm_database_user: slurm
-slurm_home_path: /home
+slurm_home_path: /home/research
 slurm_require_shared_home: true
 slurm_reserve_mem_mb: 1024
 slurm_nodes:
