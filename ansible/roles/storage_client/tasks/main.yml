@@ -27,6 +27,7 @@
   loop: "{{ storage_nfs_filesystems }}"
   register: storage_client_mounts
   changed_when: false
+  when: not ansible_check_mode
 
 - name: Refuse local fallback storage
   ansible.builtin.assert:
@@ -34,6 +35,7 @@
       - item.stdout is regex('^nfs')
     fail_msg: "Shared mount {{ item.item.client_mount }} is not backed by NFS."
   loop: "{{ storage_client_mounts.results }}"
+  when: not ansible_check_mode
 
 - name: Allow SELinux use of NFS-backed research homes
   ansible.posix.seboolean:

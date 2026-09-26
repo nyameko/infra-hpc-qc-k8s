@@ -22,6 +22,7 @@
 - name: Verify configured block devices exist
   ansible.builtin.stat:
     path: "{{ item.device }}"
+    follow: true
   loop: "{{ storage_nfs_filesystems }}"
   register: storage_device_stats
 
