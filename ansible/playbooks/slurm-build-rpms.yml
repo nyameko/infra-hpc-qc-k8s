@@ -1,0 +1,11 @@
+---
+- name: Build and collect pinned SchedMD Slurm RPMs
+  hosts: slurm_controller
+  become: true
+  gather_facts: true
+  vars_files:
+    - ../group_vars/slurm_cluster.yml
+  roles:
+    # Install host telemetry before the compile so build CPU/RAM/IO is visible.
+    - node_exporter
+    - slurm_rpm_builder

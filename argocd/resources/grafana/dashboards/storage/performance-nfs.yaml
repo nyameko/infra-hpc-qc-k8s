@@ -1,0 +1,72 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-hpc-storage-performance
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1"
+  annotations:
+    k8s-sidecar-target-directory: "Storage"
+data:
+  hpc-storage-performance.json: |
+    {
+      "title": "Performance & NFS",
+      "uid": "hpc-storage-performance",
+      "schemaVersion": 39,
+      "version": 1,
+      "refresh": "15s",
+      "tags": ["storage", "nfs", "performance", "xfs"],
+      "time": {"from": "now-3h", "to": "now"},
+      "panels": [
+        {
+          "id": 1,
+          "type": "timeseries",
+          "title": "NFSv4 operations / second",
+          "gridPos": {"h": 8, "w": 24, "x": 0, "y": 0},
+          "targets": [{"refId": "A", "expr": "sum(rate(node_nfsd_requests_total{job=\"storage-hosts\",proto=\"4\"}[5m])) by (method)", "legendFormat": "{{method}}"}]
+        },
+        {
+          "id": 2,
+          "type": "timeseries",
+          "title": "Block throughput",
+          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
+          "targets": [
+            {"refId": "A", "expr": "sum(rate(node_disk_read_bytes_total{job=\"storage-hosts\"}[5m]))", "legendFormat": "read"},
+            {"refId": "B", "expr": "sum(rate(node_disk_written_bytes_total{job=\"storage-hosts\"}[5m]))", "legendFormat": "write"}
+          ],
+          "fieldConfig": {"defaults": {"unit": "Bps"}}
+        },
+        {
+          "id": 3,
+          "type": "timeseries",
+          "title": "Disk I/O operations / second",
+          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8},
+          "targets": [
+            {"refId": "A", "expr": "sum(rate(node_disk_reads_completed_total{job=\"storage-hosts\"}[5m]))", "legendFormat": "reads"},
+            {"refId": "B", "expr": "sum(rate(node_disk_writes_completed_total{job=\"storage-hosts\"}[5m]))", "legendFormat": "writes"}
+          ],
+          "fieldConfig": {"defaults": {"unit": "ops"}}
+        },
+        {
+          "id": 4,
+          "type": "timeseries",
+          "title": "CPU I/O wait (%)",
+          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 16},
+          "targets": [{"refId": "A", "expr": "100 * avg(rate(node_cpu_seconds_total{job=\"storage-hosts\",mode=\"iowait\"}[5m]))", "legendFormat": "iowait"}],
+          "fieldConfig": {"defaults": {"unit": "percent"}}
+        },
+        {
+          "id": 5,
+          "type": "timeseries",
+          "title": "Network throughput",
+          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 16},
+          "targets": [
+            {"refId": "A", "expr": "sum(rate(node_network_receive_bytes_total{job=\"storage-hosts\",device!~\"lo\"}[5m]))", "legendFormat": "receive"},
+            {"refId": "B", "expr": "sum(rate(node_network_transmit_bytes_total{job=\"storage-hosts\",device!~\"lo\"}[5m]))", "legendFormat": "transmit"}
+          ],
+          "fieldConfig": {"defaults": {"unit": "Bps"}}
+        }
+      ],
+      "templating": {"list": []},
+      "annotations": {"list": []}
+    }
