@@ -3,7 +3,7 @@ storage_nfs_host: storage-nfs-01
 storage_nfs_address: 10.50.0.40
 storage_nfs_export_cidr: 10.50.0.0/24
 
-storage_nfs_allow_format: true
+storage_nfs_allow_format: false
 
 # Device paths MUST be supplied from the private inventory after verifying
 # lsblk -o NAME,SERIAL,SIZE,FSTYPE,MOUNTPOINTS on storage-nfs-01.
@@ -22,13 +22,13 @@ storage_nfs_filesystems:
     mount_opts: defaults,noatime,uquota
   - key: datasets
     device: "{{ storage_nfs_devices.datasets }}"
-    label: QUANTUM_DATASETS
+    label: QUANTUM_DS
     server_mount: /srv/datasets
     client_mount: /datasets
     mount_opts: defaults,noatime,prjquota
   - key: staging
     device: "{{ storage_nfs_devices.staging }}"
-    label: QUANTUM_STAGING
+    label: QUANTUM_STAG
     server_mount: /srv/staging
     client_mount: /staging
     mount_opts: defaults,noatime,uquota,prjquota
