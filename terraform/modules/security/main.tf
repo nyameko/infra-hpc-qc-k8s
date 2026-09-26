@@ -608,6 +608,26 @@ resource "openstack_networking_secgroup_rule_v2" "edge_dns_k8s_tcp" {
 }
 
 
+resource "openstack_networking_secgroup_rule_v2" "edge_dns_vpn" {
+  direction         = "ingress"
+  ethertype         = "IPv4"
+  protocol          = "udp"
+  port_range_min    = 53
+  port_range_max    = 53
+  remote_ip_prefix  = var.vpn_cidr
+  security_group_id = openstack_networking_secgroup_v2.this["edge"].id
+}
+
+resource "openstack_networking_secgroup_rule_v2" "edge_dns_vpn_tcp" {
+  direction         = "ingress"
+  ethertype         = "IPv4"
+  protocol          = "tcp"
+  port_range_min    = 53
+  port_range_max    = 53
+  remote_ip_prefix  = var.vpn_cidr
+  security_group_id = openstack_networking_secgroup_v2.this["edge"].id
+}
+
 # M1 Slurm accounting: private management network only.
 resource "openstack_networking_secgroup_rule_v2" "slurmdbd_mgmt" {
   direction         = "ingress"

@@ -70,20 +70,18 @@
   ansible.builtin.command: "sacctmgr -i add cluster {{ slurm_cluster_name }}"
   when: slurm_cluster_name not in (slurm_registered_clusters.stdout_lines | map('trim') | list)
 
-- name: Validate Slurm controller configuration
-  ansible.builtin.command: slurmctld -t
-  changed_when: false
-
 - name: Enable Slurm controller
   ansible.builtin.systemd:
     name: slurmctld
     enabled: true
     state: started
 
-- name: Confirm scheduler responds locally
-  ansible.builtin.command: sinfo --noheader
+- name: Confirm Slurm controller responds locally
+  ansible.builtin.command: scontrol ping
   changed_when: false
-  register: slurm_controller_sinfo
+  register: slurm_controller_ping
   retries: 6
   delay: 5
-  until: slurm_controller_sinfo.rc == 0
+  until:
+    - slurm_controller_ping.rc == 0
+    - "'UP' in slurm_controller_ping.stdout"

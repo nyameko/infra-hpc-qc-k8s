@@ -18,7 +18,8 @@
     name: "{{ slurm_rpm_builder_user }}"
     group: "{{ slurm_rpm_builder_group }}"
     system: true
-    create_home: false
+    home: "{{ slurm_rpm_builder_home }}"
+    create_home: true
     shell: /sbin/nologin
     state: present
 

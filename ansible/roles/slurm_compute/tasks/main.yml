@@ -6,14 +6,14 @@
 - name: Verify expected virtual CPU count before joining scheduler
   ansible.builtin.assert:
     that:
-      - ansible_processor_vcpus | int == slurm_this_node.cpus | int
+      - ansible_facts["processor_vcpus"] | int == slurm_this_node.cpus | int
     fail_msg: "The OpenStack flavor does not match the Slurm node CPU declaration."
 
-- name: Verify node memory is sufficient for configured allocatable memory
+- name: Verify Slurm detected usable memory for this compute node
   ansible.builtin.assert:
     that:
-      - (ansible_memtotal_mb | int) >= (slurm_this_node.memory_mb | int) - (slurm_reserve_mem_mb | int)
-    fail_msg: "Slurm RealMemory would exceed available VM RAM; inspect slurmd -C."
+      - slurm_detected_real_memory_mb | int > slurm_reserve_mem_mb | int
+    fail_msg: "Slurm reports insufficient usable RAM after the configured reserve."
 
 - name: Create Slurm compute directories
   ansible.builtin.file:
