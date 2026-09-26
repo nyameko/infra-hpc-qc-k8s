@@ -19,6 +19,7 @@
   ansible.builtin.dnf:
     name: "{{ slurm_role_packages }}"
     state: present
+    disable_gpg_check: "{{ slurm_allow_unsigned_rpms | bool }}"
 
 - name: Verify installed Slurm release matches approved pin
   ansible.builtin.command: sinfo -V
