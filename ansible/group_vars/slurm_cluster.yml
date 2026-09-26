@@ -40,7 +40,7 @@ slurm_home_path: /home/research
 slurm_require_shared_home: true
 slurm_reserve_mem_mb: 1024
 slurm_nodes:
-  - {name: slurm-cpu-01, addr: 10.50.0.30, cpus: 12, memory_mb: 24576, partition: small}
-  - {name: slurm-cpu-02, addr: 10.50.0.31, cpus: 12, memory_mb: 24576, partition: small}
-  - {name: slurm-cpu-03, addr: 10.50.0.32, cpus: 64, memory_mb: 262144, partition: large}
-  - {name: slurm-cpu-04, addr: 10.50.0.33, cpus: 64, memory_mb: 262144, partition: large}
+  - {name: slurm-cpu-01, addr: 10.50.0.30, cpus: 12, memory_mb: 24576, real_memory_mb: 23552, partition: small}
+  - {name: slurm-cpu-02, addr: 10.50.0.31, cpus: 12, memory_mb: 24576, real_memory_mb: 23552, partition: small}
+  - {name: slurm-cpu-03, addr: 10.50.0.32, cpus: 64, memory_mb: 262144, real_memory_mb: 256192, partition: large}
+  - {name: slurm-cpu-04, addr: 10.50.0.33, cpus: 64, memory_mb: 262144, real_memory_mb: 256192, partition: large}
