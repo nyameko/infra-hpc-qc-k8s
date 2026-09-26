@@ -19,7 +19,6 @@
   ansible.builtin.dnf:
     name: "{{ slurm_role_packages }}"
     state: present
-    disable_gpg_check: true
 
 - name: Verify installed Slurm release matches approved pin
   ansible.builtin.command: sinfo -V
