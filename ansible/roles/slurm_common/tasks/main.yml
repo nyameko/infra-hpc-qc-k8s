@@ -5,8 +5,8 @@
       - slurm_package_version | length > 0
       - slurm_munge_key_b64 | length > 0
       - slurm_munge_key_b64 | length >= 1368
-      - slurm_nodes | length == 4
-      - slurm_nodes | map(attribute='name') | unique | list | length == 4
+      - slurm_nodes | length >= 4
+      - slurm_nodes | map(attribute='name') | unique | list | length == slurm_nodes
     fail_msg: "Set slurm_package_version and vaulted slurm_munge_key_b64; review inventory."
   no_log: true
 
@@ -113,7 +113,7 @@
   ansible.builtin.assert:
     that:
       - slurm_home_fs.stdout | trim in ['nfs', 'nfs4', 'lustre', 'beegfs', 'ceph', 'fuse.ceph']
-    fail_msg: "Mount shared /home (Cinder SSD-backed NFS or parallel FS) before starting Slurm."
+    fail_msg: "Mount shared {{ slurm_home_path }} (Cinder SSD-backed NFS or parallel FS) before starting Slurm."
   when:
     - slurm_require_shared_home | bool
     - inventory_hostname in groups['slurm_login'] or inventory_hostname in groups['slurm_compute']

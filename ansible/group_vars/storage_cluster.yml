@@ -7,16 +7,16 @@ storage_nfs_export_cidr: 10.50.0.0/24
 # lsblk -o NAME,SERIAL,SIZE,FSTYPE,MOUNTPOINTS on storage-nfs-01.
 # Prefer stable /dev/disk/by-id paths. Do not rely on /dev/vdX attachment order.
 storage_nfs_devices:
-  home: ""
-  datasets: ""
-  staging: ""
+  home: /dev/disk/by-id/virtio-d0be1e79-9e41-4c33-a
+  datasets: /dev/disk/by-id/virtio-8620474b-60da-4f9f-9
+  staging: /dev/disk/by-id/virtio-c8710020-7ba3-4a49-b
 
 storage_nfs_filesystems:
   - key: home
     device: "{{ storage_nfs_devices.home }}"
     label: QUANTUM_HOME
     server_mount: /srv/home
-    client_mount: /home
+    client_mount: /home/research
     mount_opts: defaults,noatime,uquota
   - key: datasets
     device: "{{ storage_nfs_devices.datasets }}"
