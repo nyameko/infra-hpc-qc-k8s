@@ -3,6 +3,8 @@ storage_nfs_host: storage-nfs-01
 storage_nfs_address: 10.50.0.40
 storage_nfs_export_cidr: 10.50.0.0/24
 
+storage_nfs_allow_format: true
+
 # Device paths MUST be supplied from the private inventory after verifying
 # lsblk -o NAME,SERIAL,SIZE,FSTYPE,MOUNTPOINTS on storage-nfs-01.
 # Prefer stable /dev/disk/by-id paths. Do not rely on /dev/vdX attachment order.

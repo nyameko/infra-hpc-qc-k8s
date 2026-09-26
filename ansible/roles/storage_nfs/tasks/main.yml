@@ -60,6 +60,7 @@
       - "{{ item.item.device }}"
   loop: "{{ storage_blkid.results }}"
   when:
+    - storage_nfs_allow_format | bool
     - (item.stdout | trim) == ''
     - not ansible_check_mode
   changed_when: true

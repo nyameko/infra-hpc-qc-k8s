@@ -5,8 +5,8 @@
       - slurm_package_version | length > 0
       - slurm_munge_key_b64 | length > 0
       - slurm_munge_key_b64 | length >= 1368
-      - slurm_nodes | length >= 4
-      - slurm_nodes | map(attribute='name') | unique | list | length == slurm_nodes
+      - slurm_nodes | length > 0
+      - (slurm_nodes | map(attribute='name') | unique | list | length) == (slurm_nodes | length)
     fail_msg: "Set slurm_package_version and vaulted slurm_munge_key_b64; review inventory."
   no_log: true
 

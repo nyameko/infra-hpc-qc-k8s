@@ -1,23 +1,62 @@
 ---
-- name: Install Rocky Linux EPEL release package
-  ansible.builtin.dnf:
-    name: epel-release
+- name: Create Node Exporter system group
+  ansible.builtin.group:
+    name: "{{ node_exporter_group }}"
+    system: true
     state: present
 
-- name: Install pinned Node Exporter
-  ansible.builtin.dnf:
-    name: "{{ node_exporter_package }}"
+- name: Create Node Exporter system user
+  ansible.builtin.user:
+    name: "{{ node_exporter_user }}"
+    group: "{{ node_exporter_group }}"
+    system: true
+    shell: /sbin/nologin
+    create_home: false
     state: present
+
+- name: Download pinned Node Exporter release
+  ansible.builtin.get_url:
+    url: "{{ node_exporter_download_url }}"
+    dest: "/tmp/{{ node_exporter_archive }}"
+    checksum: "{{ node_exporter_checksum }}"
+    mode: "0644"
+
+- name: Extract Node Exporter release
+  ansible.builtin.unarchive:
+    src: "/tmp/{{ node_exporter_archive }}"
+    dest: /tmp
+    remote_src: true
+
+- name: Install Node Exporter binary
+  ansible.builtin.copy:
+    src: >-
+      /tmp/node_exporter-{{ node_exporter_version }}.linux-{{ node_exporter_arch }}/node_exporter
+    dest: "{{ node_exporter_install_dir }}/node_exporter"
+    owner: root
+    group: root
+    mode: "0755"
+    remote_src: true
+  notify: restart node exporter
+
+- name: Install Node Exporter systemd unit
+  ansible.builtin.template:
+    src: node_exporter.service.j2
+    dest: /etc/systemd/system/node_exporter.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify: restart node exporter
 
 - name: Enable Node Exporter
   ansible.builtin.systemd:
     name: "{{ node_exporter_service }}"
     enabled: true
     state: started
+    daemon_reload: true
 
 - name: Verify local Node Exporter endpoint
   ansible.builtin.uri:
-    url: http://127.0.0.1:9100/metrics
+    url: "http://{{ node_exporter_probe_address }}:{{ node_exporter_port }}{{ node_exporter_metrics_path }}"
     status_code: 200
     return_content: false
   register: node_exporter_probe
