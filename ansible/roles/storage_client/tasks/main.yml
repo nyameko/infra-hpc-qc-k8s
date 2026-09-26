@@ -34,3 +34,12 @@
       - item.stdout is regex('^nfs')
     fail_msg: "Shared mount {{ item.item.client_mount }} is not backed by NFS."
   loop: "{{ storage_client_mounts.results }}"
+
+- name: Allow SELinux use of NFS-backed research homes
+  ansible.posix.seboolean:
+    name: use_nfs_home_dirs
+    state: true
+    persistent: true
+  when:
+    - ansible_selinux is defined
+    - ansible_selinux.status == "enabled"
