@@ -11,6 +11,10 @@ slurm_rpm_arch: "x86_64"
 slurm_rpm_remote_artifact_dir: "/var/cache/quantum-platform/slurm-rpms/{{ slurm_package_version }}"
 slurm_rpm_local_artifact_dir: "{{ playbook_dir }}/../artifacts/slurm/{{ slurm_package_version }}"
 
+# M1 RPMs are built locally from checksum-verified SchedMD source and are not
+# yet GPG-signed. Issue #41 replaces this with signed CI-published RPMs.
+slurm_allow_unsigned_rpms: true
+
 slurm_controller_packages:
   - "{{ slurm_rpm_remote_artifact_dir }}/slurm-{{ slurm_package_version }}-{{ slurm_rpm_release }}.{{ slurm_rpm_arch }}.rpm"
   - "{{ slurm_rpm_remote_artifact_dir }}/slurm-slurmctld-{{ slurm_package_version }}-{{ slurm_rpm_release }}.{{ slurm_rpm_arch }}.rpm"
