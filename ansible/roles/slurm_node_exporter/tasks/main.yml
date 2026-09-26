@@ -1,0 +1,22 @@
+---
+- name: Install Rocky Linux EPEL release package
+  ansible.builtin.dnf:
+    name: epel-release
+    state: present
+- name: Install pinned Node Exporter
+  ansible.builtin.dnf:
+    name: "{{ slurm_node_exporter_package }}"
+    state: present
+- name: Enable Node Exporter
+  ansible.builtin.systemd:
+    name: "{{ slurm_node_exporter_service }}"
+    enabled: true
+    state: started
+- name: Verify local Node Exporter endpoint
+  ansible.builtin.uri:
+    url: http://127.0.0.1:9100/metrics
+    status_code: 200
+  register: slurm_node_exporter_probe
+  retries: 5
+  delay: 2
+  until: slurm_node_exporter_probe.status == 200

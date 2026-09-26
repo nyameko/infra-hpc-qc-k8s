@@ -8,6 +8,7 @@ locals {
     "api-lb",
     "k8s-control-plane",
     "k8s-worker",
+    "storage-nfs",
   ])
 }
 
@@ -518,6 +519,44 @@ resource "openstack_networking_secgroup_rule_v2" "slurm_login_ssh" {
   security_group_id = openstack_networking_secgroup_v2.this["slurm-login"].id
 }
 
+resource "openstack_networking_secgroup_rule_v2" "storage_nfs_clients" {
+  for_each = toset([
+    "slurm-login",
+    "slurm-compute",
+  ])
+
+  direction = "ingress"
+  ethertype = "IPv4"
+  protocol  = "tcp"
+
+  port_range_min = 2049
+  port_range_max = 2049
+
+  remote_group_id = openstack_networking_secgroup_v2.this[each.key].id
+
+  security_group_id = openstack_networking_secgroup_v2.this["storage-nfs"].id
+}
+
+resource "openstack_networking_secgroup_rule_v2" "storage_nfs_metrics" {
+  direction         = "ingress"
+  ethertype         = "IPv4"
+  protocol          = "tcp"
+  port_range_min    = 9100
+  port_range_max    = 9100
+  remote_ip_prefix  = var.k8s_cidr
+  security_group_id = openstack_networking_secgroup_v2.this["storage-nfs"].id
+}
+
+resource "openstack_networking_secgroup_rule_v2" "storage_nfs_ssh_vpn" {
+  direction         = "ingress"
+  ethertype         = "IPv4"
+  protocol          = "tcp"
+  port_range_min    = 22
+  port_range_max    = 22
+  remote_ip_prefix  = var.vpn_cidr
+  security_group_id = openstack_networking_secgroup_v2.this["storage-nfs"].id
+}
+
 resource "openstack_networking_secgroup_rule_v2" "hermes_ssh" {
   direction         = "ingress"
   ethertype         = "IPv4"
@@ -566,4 +605,28 @@ resource "openstack_networking_secgroup_rule_v2" "edge_dns_k8s_tcp" {
   port_range_max    = 53
   remote_ip_prefix  = var.k8s_cidr
   security_group_id = openstack_networking_secgroup_v2.this["edge"].id
+}
+
+
+# M1 Slurm accounting: private management network only.
+resource "openstack_networking_secgroup_rule_v2" "slurmdbd_mgmt" {
+  direction         = "ingress"
+  ethertype         = "IPv4"
+  protocol          = "tcp"
+  port_range_min    = 6819
+  port_range_max    = 6819
+  remote_ip_prefix  = var.mgmt_cidr
+  security_group_id = openstack_networking_secgroup_v2.this["slurm-controller"].id
+}
+
+# External host exporters are scraped by Prometheus from the Kubernetes network.
+resource "openstack_networking_secgroup_rule_v2" "slurm_node_exporters" {
+  for_each          = toset(["slurm-controller", "slurm-login", "slurm-compute"])
+  direction         = "ingress"
+  ethertype         = "IPv4"
+  protocol          = "tcp"
+  port_range_min    = 9100
+  port_range_max    = 9100
+  remote_ip_prefix  = var.k8s_cidr
+  security_group_id = openstack_networking_secgroup_v2.this[each.key].id
 }

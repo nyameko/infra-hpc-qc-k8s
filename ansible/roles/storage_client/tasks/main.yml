@@ -1,0 +1,36 @@
+---
+- name: Install NFS client utilities
+  ansible.builtin.dnf:
+    name: nfs-utils
+    state: present
+
+- name: Create shared storage client mount points
+  ansible.builtin.file:
+    path: "{{ item.client_mount }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  loop: "{{ storage_nfs_filesystems }}"
+
+- name: Mount Quantum Platform shared filesystems over NFSv4
+  ansible.posix.mount:
+    path: "{{ item.client_mount }}"
+    src: "{{ storage_nfs_address }}:{{ item.server_mount }}"
+    fstype: nfs4
+    opts: "{{ storage_client_mount_options }}"
+    state: mounted
+  loop: "{{ storage_nfs_filesystems }}"
+
+- name: Verify all shared filesystems are mounted as NFS
+  ansible.builtin.command: "findmnt --target {{ item.client_mount }} --noheadings --output FSTYPE,SOURCE"
+  loop: "{{ storage_nfs_filesystems }}"
+  register: storage_client_mounts
+  changed_when: false
+
+- name: Refuse local fallback storage
+  ansible.builtin.assert:
+    that:
+      - item.stdout is regex('^nfs')
+    fail_msg: "Shared mount {{ item.item.client_mount }} is not backed by NFS."
+  loop: "{{ storage_client_mounts.results }}"

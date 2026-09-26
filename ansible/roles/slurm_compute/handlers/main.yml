@@ -1,0 +1,5 @@
+---
+- name: restart slurmd
+  ansible.builtin.systemd:
+    name: slurmd
+    state: restarted

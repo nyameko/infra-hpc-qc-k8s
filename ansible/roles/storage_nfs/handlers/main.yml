@@ -1,0 +1,9 @@
+---
+- name: reload nfs exports
+  ansible.builtin.command: exportfs -rav
+  changed_when: true
+
+- name: restart nfs server
+  ansible.builtin.systemd:
+    name: nfs-server
+    state: restarted

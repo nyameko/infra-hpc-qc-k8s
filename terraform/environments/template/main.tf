@@ -81,6 +81,12 @@ locals {
     slurm_cpu_02 = {
       name = "slurm-cpu-02", network_id = module.network.mgmt_network_id, subnet_id = module.network.mgmt_subnet_id, fixed_ip = "10.50.0.31", flavor_name = var.compute_12c_flavor, image_id = var.image_id, security_groups = [module.security.group_ids["slurm-compute"]], key_pair = var.ssh_key_name
     }
+    slurm_cpu_03 = {
+      name = "slurm-cpu-03", network_id = module.network.mgmt_network_id, subnet_id = module.network.mgmt_subnet_id, fixed_ip = "10.50.0.32", flavor_name = var.compute_64c_flavor, image_id = var.image_id, security_groups = [module.security.group_ids["slurm-compute"]], key_pair = var.ssh_key_name
+    }
+    slurm_cpu_04 = {
+      name = "slurm-cpu-04", network_id = module.network.mgmt_network_id, subnet_id = module.network.mgmt_subnet_id, fixed_ip = "10.50.0.33", flavor_name = var.compute_64c_flavor, image_id = var.image_id, security_groups = [module.security.group_ids["slurm-compute"]], key_pair = var.ssh_key_name
+    }
     k8s_cp_01 = {
       name = "k8s-cp-01", network_id = module.network.k8s_network_id, subnet_id = module.network.k8s_subnet_id, fixed_ip = "10.51.0.11", flavor_name = var.k8s_control_plane_flavor, image_id = var.image_id, security_groups = [module.security.group_ids["k8s-control-plane"]], key_pair = var.ssh_key_name
     }

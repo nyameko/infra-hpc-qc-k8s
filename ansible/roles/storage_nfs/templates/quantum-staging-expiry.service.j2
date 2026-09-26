@@ -1,0 +1,8 @@
+[Unit]
+Description=Quantum Platform staging expiry reconciliation
+After=network-online.target srv-staging.mount
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/quantum-staging-expiry

@@ -62,3 +62,29 @@ extraScrapeConfigs: |
     static_configs:
       - targets:
           - quantum-platform-user-api.quantum-platform.svc.cluster.local:8000
+
+  - job_name: slurm-hosts
+    static_configs:
+      - targets:
+          - 10.50.0.12:9100
+        labels:
+          slurm_role: controller
+      - targets:
+          - 10.50.0.20:9100
+          - 10.50.0.21:9100
+        labels:
+          slurm_role: login
+      - targets:
+          - 10.50.0.30:9100
+          - 10.50.0.31:9100
+          - 10.50.0.32:9100
+          - 10.50.0.33:9100
+        labels:
+          slurm_role: compute
+
+  - job_name: storage-hosts
+    static_configs:
+      - targets:
+          - 10.50.0.40:9100
+        labels:
+          storage_role: nfs

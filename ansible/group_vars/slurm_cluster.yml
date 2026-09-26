@@ -1,0 +1,39 @@
+---
+# M1 reference values. Pin package versions/repository in private inventory before deployment.
+slurm_cluster_name: quantum-cpu
+slurm_controller_hostname: slurm-controller-01
+slurm_controller_address: 10.50.0.12
+slurm_partition_small: cpu-small
+slurm_partition_large: cpu-large
+slurm_package_version: ""  # Fill from the chosen Rocky 9 / OpenHPC repository.
+slurm_controller_packages:
+  - slurm
+  - slurm-slurmctld
+  - slurm-slurmdbd
+  - mariadb-server
+  - python3-PyMySQL
+  - munge
+slurm_compute_packages:
+  - slurm
+  - slurm-slurmd
+  - munge
+slurm_login_packages:
+  - slurm
+  - munge
+# Set in an encrypted private vars file; never commit a real key/password.
+slurm_munge_key_b64: ""
+slurm_db_password: ""
+slurm_database_name: slurm_acct_db
+slurm_database_user: slurm
+slurm_home_path: /home
+slurm_require_shared_home: true
+slurm_reserve_mem_mb: 1024
+slurm_nodes:
+  - {name: slurm-cpu-01, addr: 10.50.0.30, cpus: 12, memory_mb: 24576, partition: small}
+  - {name: slurm-cpu-02, addr: 10.50.0.31, cpus: 12, memory_mb: 24576, partition: small}
+  - {name: slurm-cpu-03, addr: 10.50.0.32, cpus: 64, memory_mb: 262144, partition: large}
+  - {name: slurm-cpu-04, addr: 10.50.0.33, cpus: 64, memory_mb: 262144, partition: large}
+
+# Pinned EPEL 9 x86_64 build; update deliberately after repository validation.
+slurm_node_exporter_package: node-exporter-1.12.1-1.el9
+slurm_node_exporter_service: node_exporter

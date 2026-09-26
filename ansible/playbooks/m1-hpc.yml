@@ -1,0 +1,4 @@
+---
+# M1 ordering is intentional: persistent shared storage first, then Slurm.
+- import_playbook: storage.yml
+- import_playbook: slurm.yml
