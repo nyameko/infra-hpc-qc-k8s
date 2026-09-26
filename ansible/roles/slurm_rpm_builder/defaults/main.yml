@@ -1,0 +1,39 @@
+---
+slurm_package_version: "25.11.8"
+slurm_rpm_release: "1.el9"
+slurm_rpm_arch: "x86_64"
+
+slurm_rpm_builder_user: slurm-builder
+slurm_rpm_builder_group: slurm-builder
+slurm_rpm_builder_work_dir: /var/tmp/slurm-rpm-builder
+slurm_rpm_builder_topdir: /var/tmp/slurm-rpmbuild
+slurm_rpm_remote_artifact_dir: "/var/cache/quantum-platform/slurm-rpms/{{ slurm_package_version }}"
+slurm_rpm_local_artifact_dir: "{{ playbook_dir }}/../artifacts/slurm/{{ slurm_package_version }}"
+
+slurm_source_archive: "slurm-{{ slurm_package_version }}.tar.bz2"
+slurm_source_url: "https://download.schedmd.com/slurm/{{ slurm_source_archive }}"
+slurm_source_checksum: "sha256:34ace13f81011add6094569d13bfc4006ad8868201c2236e2905443c7e526393"
+
+slurm_rpm_builder_bootstrap_packages:
+  - dnf-plugins-core
+  - rpm-build
+  - rpmdevtools
+  - curl
+  - tar
+  - bzip2
+
+# The official Slurm spec remains authoritative for the full BuildRequires set.
+# These are explicit M1 requirements for the features we rely on, especially
+# MUNGE and cgroup v2 support.
+slurm_rpm_builder_feature_packages:
+  - munge-devel
+  - hwloc-devel
+  - dbus-devel
+  - libbpf-devel
+  - kernel-headers
+
+slurm_rpm_required_outputs:
+  - "slurm-{{ slurm_package_version }}-{{ slurm_rpm_release }}.{{ slurm_rpm_arch }}.rpm"
+  - "slurm-slurmctld-{{ slurm_package_version }}-{{ slurm_rpm_release }}.{{ slurm_rpm_arch }}.rpm"
+  - "slurm-slurmd-{{ slurm_package_version }}-{{ slurm_rpm_release }}.{{ slurm_rpm_arch }}.rpm"
+  - "slurm-slurmdbd-{{ slurm_package_version }}-{{ slurm_rpm_release }}.{{ slurm_rpm_arch }}.rpm"

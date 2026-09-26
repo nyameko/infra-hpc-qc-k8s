@@ -1,0 +1,167 @@
+---
+- name: Require Rocky Linux 9 RPM builder
+  ansible.builtin.assert:
+    that:
+      - ansible_facts.distribution == "Rocky"
+      - ansible_facts.distribution_major_version == "9"
+      - ansible_facts.architecture == "x86_64"
+    fail_msg: "M1 Slurm RPM builds are validated on Rocky Linux 9 x86_64."
+
+- name: Create dedicated Slurm RPM builder group
+  ansible.builtin.group:
+    name: "{{ slurm_rpm_builder_group }}"
+    system: true
+    state: present
+
+- name: Create dedicated Slurm RPM builder user
+  ansible.builtin.user:
+    name: "{{ slurm_rpm_builder_user }}"
+    group: "{{ slurm_rpm_builder_group }}"
+    system: true
+    create_home: false
+    shell: /sbin/nologin
+    state: present
+
+- name: Install RPM build tooling
+  ansible.builtin.dnf:
+    name: "{{ slurm_rpm_builder_bootstrap_packages }}"
+    state: present
+
+- name: Enable Rocky Linux CRB repository
+  ansible.builtin.command:
+    argv: [dnf, config-manager, --set-enabled, crb]
+  changed_when: false
+
+- name: Install EPEL release package
+  ansible.builtin.dnf:
+    name: epel-release
+    state: present
+
+- name: Install explicit Slurm feature build dependencies
+  ansible.builtin.dnf:
+    name: "{{ slurm_rpm_builder_feature_packages }}"
+    state: present
+
+- name: Create Slurm RPM build directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ slurm_rpm_builder_user }}"
+    group: "{{ slurm_rpm_builder_group }}"
+    mode: "0755"
+  loop:
+    - "{{ slurm_rpm_builder_work_dir }}"
+    - "{{ slurm_rpm_builder_topdir }}"
+    - "{{ slurm_rpm_builder_topdir }}/BUILD"
+    - "{{ slurm_rpm_builder_topdir }}/BUILDROOT"
+    - "{{ slurm_rpm_builder_topdir }}/RPMS"
+    - "{{ slurm_rpm_builder_topdir }}/SOURCES"
+    - "{{ slurm_rpm_builder_topdir }}/SPECS"
+    - "{{ slurm_rpm_builder_topdir }}/SRPMS"
+    - "{{ slurm_rpm_remote_artifact_dir }}"
+
+- name: Download pinned official SchedMD source archive
+  ansible.builtin.get_url:
+    url: "{{ slurm_source_url }}"
+    dest: "{{ slurm_rpm_builder_work_dir }}/{{ slurm_source_archive }}"
+    checksum: "{{ slurm_source_checksum }}"
+    owner: "{{ slurm_rpm_builder_user }}"
+    group: "{{ slurm_rpm_builder_group }}"
+    mode: "0644"
+
+- name: Extract official Slurm RPM spec for dependency resolution
+  ansible.builtin.shell: >-
+    tar -xOf {{ slurm_rpm_builder_work_dir }}/{{ slurm_source_archive }}
+    slurm-{{ slurm_package_version }}/slurm.spec
+    > {{ slurm_rpm_builder_work_dir }}/slurm.spec
+  args:
+    creates: "{{ slurm_rpm_builder_work_dir }}/slurm.spec"
+
+- name: Install BuildRequires declared by the official Slurm RPM spec
+  ansible.builtin.command:
+    argv:
+      - dnf
+      - builddep
+      - -y
+      - "{{ slurm_rpm_builder_work_dir }}/slurm.spec"
+  register: slurm_builddep
+  changed_when: >-
+    'Installing:' in slurm_builddep.stdout or
+    'Upgrading:' in slurm_builddep.stdout
+
+- name: Check whether the pinned core RPM already exists
+  ansible.builtin.stat:
+    path: "{{ slurm_rpm_builder_topdir }}/RPMS/{{ slurm_rpm_arch }}/slurm-{{ slurm_package_version }}-{{ slurm_rpm_release }}.{{ slurm_rpm_arch }}.rpm"
+  register: slurm_core_rpm
+
+- name: Build Slurm RPMs from official SchedMD source
+  become: true
+  become_user: "{{ slurm_rpm_builder_user }}"
+  ansible.builtin.command:
+    argv:
+      - rpmbuild
+      - --define
+      - "_topdir {{ slurm_rpm_builder_topdir }}"
+      - -ta
+      - "{{ slurm_rpm_builder_work_dir }}/{{ slurm_source_archive }}"
+  when: not slurm_core_rpm.stat.exists
+  changed_when: true
+
+- name: Find built Slurm RPM artifacts
+  ansible.builtin.find:
+    paths: "{{ slurm_rpm_builder_topdir }}/RPMS"
+    patterns: "*.rpm"
+    recurse: true
+    file_type: file
+  register: slurm_built_rpms
+
+- name: Check required M1 Slurm RPM outputs
+  ansible.builtin.stat:
+    path: "{{ slurm_rpm_builder_topdir }}/RPMS/{{ slurm_rpm_arch }}/{{ item }}"
+  loop: "{{ slurm_rpm_required_outputs }}"
+  register: slurm_required_rpm_stats
+
+- name: Refuse incomplete Slurm RPM builds
+  ansible.builtin.assert:
+    that:
+      - item.stat.exists
+      - item.stat.isreg
+    fail_msg: "Required Slurm RPM {{ item.item }} was not produced."
+  loop: "{{ slurm_required_rpm_stats.results }}"
+
+- name: Publish built RPMs to the builder artifact directory
+  ansible.builtin.copy:
+    src: "{{ item.path }}"
+    dest: "{{ slurm_rpm_remote_artifact_dir }}/{{ item.path | basename }}"
+    remote_src: true
+    owner: root
+    group: root
+    mode: "0644"
+  loop: "{{ slurm_built_rpms.files }}"
+
+- name: Generate SHA256 manifest for built RPMs
+  ansible.builtin.shell: >-
+    cd {{ slurm_rpm_remote_artifact_dir }} &&
+    sha256sum *.rpm | sort -k2 > SHA256SUMS
+  changed_when: true
+
+- name: Create local artifact directory
+  ansible.builtin.file:
+    path: "{{ slurm_rpm_local_artifact_dir }}"
+    state: directory
+    mode: "0755"
+  delegate_to: localhost
+  become: false
+
+- name: Fetch built RPMs to the Ansible control machine
+  ansible.builtin.fetch:
+    src: "{{ item.path }}"
+    dest: "{{ slurm_rpm_local_artifact_dir }}/{{ item.path | basename }}"
+    flat: true
+  loop: "{{ slurm_built_rpms.files }}"
+
+- name: Fetch RPM SHA256 manifest
+  ansible.builtin.fetch:
+    src: "{{ slurm_rpm_remote_artifact_dir }}/SHA256SUMS"
+    dest: "{{ slurm_rpm_local_artifact_dir }}/SHA256SUMS"
+    flat: true

@@ -1,0 +1,4 @@
+---
+slurm_package_version: "25.11.8"
+slurm_rpm_local_artifact_dir: "{{ playbook_dir }}/../artifacts/slurm/{{ slurm_package_version }}"
+slurm_rpm_remote_artifact_dir: "/var/cache/quantum-platform/slurm-rpms/{{ slurm_package_version }}"

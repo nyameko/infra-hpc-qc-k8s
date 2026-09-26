@@ -1,4 +1,13 @@
 ---
+- name: Stage vetted Slurm RPMs on controller, login and compute hosts
+  hosts: slurm_controller:slurm_login:slurm_compute
+  become: true
+  gather_facts: false
+  vars_files:
+    - ../group_vars/slurm_cluster.yml
+  roles:
+    - slurm_rpm_stage
+
 - name: Configure Slurm controller, login and compute with one configuration
   hosts: slurm_controller:slurm_login:slurm_compute
   become: true

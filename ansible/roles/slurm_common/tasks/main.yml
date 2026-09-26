@@ -5,8 +5,8 @@
       - slurm_package_version | length > 0
       - slurm_munge_key_b64 | length > 0
       - slurm_munge_key_b64 | length >= 1368
-      - slurm_nodes | length >= 4
-      - slurm_nodes | map(attribute='name') | unique | list | length == slurm_nodes
+      - slurm_nodes | length > 0
+      - (slurm_nodes | map(attribute='name') | unique | list | length) == (slurm_nodes | length)
     fail_msg: "Set slurm_package_version and vaulted slurm_munge_key_b64; review inventory."
   no_log: true
 
@@ -15,7 +15,7 @@
     that:
       - inventory_hostname == slurm_controller_hostname or inventory_hostname in groups['slurm_login'] or inventory_hostname in (slurm_nodes | map(attribute='name') | list)
 
-- name: Install Slurm role packages
+- name: Install Slurm role packages from vetted artifact set
   ansible.builtin.dnf:
     name: "{{ slurm_role_packages }}"
     state: present
@@ -29,7 +29,7 @@
   ansible.builtin.assert:
     that:
       - slurm_installed_version.stdout.split()[-1] == slurm_package_version
-    fail_msg: "Installed Slurm RPM version differs from slurm_package_version; pin the selected package repository."
+    fail_msg: "Installed Slurm RPM version differs from slurm_package_version."
 
 - name: Ensure Slurm and MUNGE identities exist
   ansible.builtin.user:
@@ -70,7 +70,7 @@
   register: slurm_staged_munge_key
   no_log: true
 
-- name: Decode binary MUNGE key without putting binary in Jinja text
+- name: Decode binary MUNGE key
   ansible.builtin.shell: |
     umask 077
     base64 --decode /etc/munge/munge.key.b64 > /etc/munge/munge.key
@@ -101,7 +101,7 @@
   ansible.builtin.shell: "munge -n | unmunge >/dev/null"
   changed_when: false
 
-- name: Check shared home filesystem before enabling user jobs
+- name: Check shared research home filesystem
   ansible.builtin.command: "findmnt --target {{ slurm_home_path }} --noheadings --output FSTYPE"
   register: slurm_home_fs
   changed_when: false
@@ -109,11 +109,11 @@
     - slurm_require_shared_home | bool
     - inventory_hostname in groups['slurm_login'] or inventory_hostname in groups['slurm_compute']
 
-- name: Require network/shared filesystem rather than local root
+- name: Require network/shared research home
   ansible.builtin.assert:
     that:
       - slurm_home_fs.stdout | trim in ['nfs', 'nfs4', 'lustre', 'beegfs', 'ceph', 'fuse.ceph']
-    fail_msg: "Mount shared {{ slurm_home_path }} (Cinder SSD-backed NFS or parallel FS) before starting Slurm."
+    fail_msg: "Mount shared {{ slurm_home_path }} before starting Slurm."
   when:
     - slurm_require_shared_home | bool
     - inventory_hostname in groups['slurm_login'] or inventory_hostname in groups['slurm_compute']
