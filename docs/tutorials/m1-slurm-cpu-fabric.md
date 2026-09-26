@@ -18,6 +18,12 @@ not user notebook kernels or batch scientific compute. Portal origin:
 * Kubernetes application desired state: Argo CD. M1 does not install
   JupyterHub or start user compute in Kubernetes.
 
+## M1 infrastructure state — 26 September 2026
+
+Terraform M1 infrastructure was applied successfully with **22 additions, 0 changes and 0 destroys**: `slurm-cpu-03`, `slurm-cpu-04`, `storage-nfs-01`, the three Cinder SSD volumes and their scoped network/security resources. The storage tutorial is now a hard prerequisite for enabling user jobs.
+
+Run [m1-storage-nfs-xfs.md](m1-storage-nfs-xfs.md) first. The Slurm common role deliberately rejects a local `/home` on login/compute nodes.
+
 ## Verified capacity from 23 September 2026 operator evidence
 
 OpenStack reports `C64.xlarge` as 64 vCPUs / 262144 MiB RAM.
@@ -135,9 +141,7 @@ The Prometheus `slurm-hosts` static job targets controller, both
 login nodes and four compute nodes on private `:9100`. Install and
 verify a **version-pinned** node_exporter service on each before
 enabling alert rules. No user notebook content, credentials or public
-keys should appear in metric labels. Scheduler metrics need a compatible
-Slurm exporter with known metric names, followed by GitOps dashboards
-for scheduler partitions, queue depth, job efficiency and accounting.
+keys should appear in metric labels. Scheduler metrics are tracked in issue #36. Select the exporter/native metrics path only after the exact deployed Slurm release is known; then add GitOps dashboards for partitions, queue depth, job efficiency and accounting.
 Wazuh agents should enroll new persistent nodes using the existing
 agent playbook; Suricata belongs at the relevant visibility boundary,
 not separately on every compute node.
@@ -185,7 +189,4 @@ some database/service commands depend on packages already installed.
 Use the private inventory and vault only after the required shared
 filesystem is mounted and backed up.
 
-In the reference Nova quota, the two large compute VMs leave just
-four vCPUs. A new C4 storage VM would exhaust that vCPU quota; request
-quota headroom or use an approved existing storage/Manila service before
-provisioning a dedicated Cinder-backed NFS gateway.
+The M1 apply now includes the dedicated 4-vCPU / 32-GiB `storage-nfs-01` gateway in addition to both C64 compute nodes. This consumes the previously observed vCPU quota headroom, so obtain additional Nova quota before further VM growth. Cinder capacity remains a separate quota and must be monitored independently.
