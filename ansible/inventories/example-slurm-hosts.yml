@@ -22,8 +22,22 @@ all:
           ansible_host: 10.50.0.32
         slurm-cpu-04:
           ansible_host: 10.50.0.33
+    storage_nfs:
+      hosts:
+        storage-nfs-01:
+          ansible_host: 10.50.0.40
     slurm_cluster:
       children:
         slurm_controller: {}
         slurm_login: {}
         slurm_compute: {}
+    m1_hpc:
+      children:
+        slurm_cluster: {}
+        storage_nfs: {}
+    # Merge these children into the existing private wazuh_agents group so
+    # the new CPU and storage hosts use the same manager/version policy.
+    wazuh_agents:
+      children:
+        slurm_cluster: {}
+        storage_nfs: {}

@@ -63,9 +63,6 @@ extraScrapeConfigs: |
       - targets:
           - quantum-platform-user-api.quantum-platform.svc.cluster.local:8000
 
-
-  # M1 host-exporter endpoints. These targets will be DOWN until a verified,
-  # private node_exporter service is installed on the seven Slurm hosts.
   - job_name: slurm-hosts
     static_configs:
       - targets:
@@ -84,3 +81,10 @@ extraScrapeConfigs: |
           - 10.50.0.33:9100
         labels:
           slurm_role: compute
+
+  - job_name: storage-hosts
+    static_configs:
+      - targets:
+          - 10.50.0.40:9100
+        labels:
+          storage_role: nfs

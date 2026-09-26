@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+root="{{ (storage_nfs_filesystems | selectattr('key','equalto','staging') | first).server_mount }}"
+now="$(date +%s)"
+deleted=0
+blocked=0
+
+while IFS= read -r marker; do
+  dir="$(dirname "$marker")"
+  expiry="$(tr -dc '0-9' < "$marker")"
+  [[ -n "$expiry" ]] || continue
+  if (( expiry <= now )); then
+    if [[ -f "$dir/.notifications_complete" ]]; then
+      logger -t quantum-staging-expiry "deleting expired staging object: $dir"
+      rm -rf --one-file-system "$dir"
+      ((deleted+=1))
+    else
+      logger -t quantum-staging-expiry "expired but notification gate incomplete: $dir"
+      ((blocked+=1))
+    fi
+  fi
+done < <(find "$root" -mindepth 3 -maxdepth 4 -type f -name .expires_at -print)
+
+logger -t quantum-staging-expiry "run complete deleted=$deleted blocked=$blocked"

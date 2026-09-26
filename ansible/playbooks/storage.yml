@@ -1,0 +1,20 @@
+---
+- name: Configure persistent XFS/NFS storage server
+  hosts: storage_nfs
+  become: true
+  gather_facts: true
+  vars_files:
+    - ../group_vars/storage_cluster.yml
+  roles:
+    - storage_nfs
+    - node_exporter
+    - wazuh_agent
+
+- name: Mount shared storage on Slurm login and compute nodes
+  hosts: slurm_login:slurm_compute
+  become: true
+  gather_facts: true
+  vars_files:
+    - ../group_vars/storage_cluster.yml
+  roles:
+    - storage_client

@@ -1,0 +1,3 @@
+{% for fs in storage_nfs_filesystems %}
+{{ fs.server_mount }} {{ storage_nfs_export_cidr }}({{ storage_nfs_export_options }})
+{% endfor %}

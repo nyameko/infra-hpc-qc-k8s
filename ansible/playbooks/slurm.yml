@@ -42,7 +42,11 @@
 - name: Publish Slurm host metrics to Prometheus
   hosts: slurm_controller:slurm_login:slurm_compute
   become: true
-  vars_files:
-    - ../group_vars/slurm_cluster.yml
   roles:
-    - slurm_node_exporter
+    - node_exporter
+
+- name: Enroll all Slurm hosts with Wazuh
+  hosts: slurm_controller:slurm_login:slurm_compute
+  become: true
+  roles:
+    - wazuh_agent

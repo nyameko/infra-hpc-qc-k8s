@@ -1,0 +1,64 @@
+---
+storage_nfs_host: storage-nfs-01
+storage_nfs_address: 10.50.0.40
+storage_nfs_export_cidr: 10.50.0.0/24
+
+# Device paths MUST be supplied from the private inventory after verifying
+# lsblk -o NAME,SERIAL,SIZE,FSTYPE,MOUNTPOINTS on storage-nfs-01.
+# Prefer stable /dev/disk/by-id paths. Do not rely on /dev/vdX attachment order.
+storage_nfs_devices:
+  home: ""
+  datasets: ""
+  staging: ""
+
+storage_nfs_filesystems:
+  - key: home
+    device: "{{ storage_nfs_devices.home }}"
+    label: QUANTUM_HOME
+    server_mount: /srv/home
+    client_mount: /home
+    mount_opts: defaults,noatime,uquota
+  - key: datasets
+    device: "{{ storage_nfs_devices.datasets }}"
+    label: QUANTUM_DATASETS
+    server_mount: /srv/datasets
+    client_mount: /datasets
+    mount_opts: defaults,noatime,prjquota
+  - key: staging
+    device: "{{ storage_nfs_devices.staging }}"
+    label: QUANTUM_STAGING
+    server_mount: /srv/staging
+    client_mount: /staging
+    mount_opts: defaults,noatime,uquota,prjquota
+
+# M1 defaults. Quantum Platform provisioning may override these per user/programme.
+storage_home_default_soft_gib: 20
+storage_home_default_hard_gib: 25
+storage_staging_default_soft_gib: 100
+storage_staging_default_hard_gib: 125
+storage_staging_retention_days: 14
+
+# Populate from protected/private provisioning data. UID/GID are authoritative
+# mappings from Quantum Platform; do not maintain a second identity database here.
+storage_quota_users: []
+# Example:
+# storage_quota_users:
+#   - username: researcher
+#     uid: 20001
+#     gid: 20001
+#     home_soft_gib: 20
+#     home_hard_gib: 25
+#     staging_soft_gib: 100
+#     staging_hard_gib: 125
+
+storage_programmes: []
+# Example:
+# storage_programmes:
+#   - name: exoplanets
+#     gid: 30001
+#     project_id: 40001
+#     dataset_soft_gib: 400
+#     dataset_hard_gib: 500
+
+storage_nfs_export_options: rw,sync,root_squash,no_subtree_check,sec=sys
+storage_client_mount_options: rw,hard,_netdev,nfsvers=4.2,timeo=600,retrans=2
