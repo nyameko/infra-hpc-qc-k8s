@@ -40,6 +40,7 @@
   register: storage_blkid
   changed_when: false
   failed_when: storage_blkid.rc not in [0, 2]
+  check_mode: false
 
 - name: Refuse to overwrite a non-XFS filesystem
   ansible.builtin.assert:
@@ -238,3 +239,4 @@
     enabled: true
     state: started
     daemon_reload: true
+  when: not ansible_check_mode
