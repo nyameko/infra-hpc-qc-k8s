@@ -57,7 +57,9 @@
       - "{{ item.item.label }}"
       - "{{ item.item.device }}"
   loop: "{{ storage_blkid.results }}"
-  when: (item.stdout | trim) == ''
+  when:
+    - (item.stdout | trim) == ''
+    - not ansible_check_mode
   changed_when: true
 
 - name: Create storage mount points
@@ -83,6 +85,7 @@
   loop: "{{ storage_nfs_filesystems }}"
   register: storage_quota_state
   changed_when: false
+  when: not ansible_check_mode
 
 - name: Create managed home and staging roots
   ansible.builtin.file:
@@ -121,6 +124,7 @@
     /srv/home
   loop: "{{ storage_quota_users }}"
   changed_when: false
+  when: not ansible_check_mode
 
 - name: Enforce per-user staging quotas
   ansible.builtin.command: >-
@@ -130,6 +134,7 @@
     /srv/staging
   loop: "{{ storage_quota_users }}"
   changed_when: false
+  when: not ansible_check_mode
 
 - name: Create programme dataset directories
   ansible.builtin.file:
@@ -165,6 +170,7 @@
     xfs_quota -x -c 'project -s {{ item.name }}' /srv/datasets
   loop: "{{ storage_programmes }}"
   changed_when: false
+  when: not ansible_check_mode
 
 - name: Enforce programme dataset quotas
   ansible.builtin.command: >-
@@ -174,6 +180,7 @@
     /srv/datasets
   loop: "{{ storage_programmes }}"
   changed_when: false
+  when: not ansible_check_mode
 
 - name: Configure NFSv4 exports
   ansible.builtin.template:
@@ -198,6 +205,7 @@
   ansible.builtin.command: exportfs -v
   register: storage_exports
   changed_when: false
+  when: not ansible_check_mode
 
 - name: Install notification-gated staging expiry worker
   ansible.builtin.template:
