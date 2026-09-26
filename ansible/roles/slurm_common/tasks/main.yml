@@ -34,6 +34,30 @@
       Installed Slurm RPM version differs from slurm_package_version
       or the core slurm RPM is missing.
 
+- name: Discover Slurm-visible compute resources before rendering configuration
+  ansible.builtin.command: slurmd -C
+  register: slurm_common_discovery
+  changed_when: false
+  when: inventory_hostname in groups['slurm_compute']
+
+- name: Record Slurm-detected compute memory
+  ansible.builtin.set_fact:
+    slurm_detected_real_memory_mb: >-
+      {{
+        (slurm_common_discovery.stdout
+        | regex_findall('RealMemory=([0-9]+)')
+        | first)
+        | int
+      }}
+  when: inventory_hostname in groups['slurm_compute']
+
+- name: Require usable compute memory beyond the scheduler reserve
+  ansible.builtin.assert:
+    that:
+      - slurm_detected_real_memory_mb | int > slurm_reserve_mem_mb | int
+    fail_msg: "slurmd -C reported insufficient usable memory for the configured reserve."
+  when: inventory_hostname in groups['slurm_compute']
+
 - name: Ensure Slurm and MUNGE identities exist
   ansible.builtin.user:
     name: "{{ item }}"
