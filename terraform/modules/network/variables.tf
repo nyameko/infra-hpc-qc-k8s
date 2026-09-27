@@ -8,8 +8,9 @@ variable "mgmt_pool_start" { type = string }
 variable "mgmt_pool_end" { type = string }
 variable "k8s_pool_start" { type = string }
 variable "k8s_pool_end" { type = string }
+
 variable "dns_nameservers" {
   description = "DNS resolvers advertised by Neutron DHCP on internal subnets."
   type        = list(string)
-  default     = []
+  default     = ["10.50.0.10"]
 }
