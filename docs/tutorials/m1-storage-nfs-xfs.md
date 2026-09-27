@@ -1,7 +1,7 @@
 # M1 — Persistent research storage with Cinder SSD, XFS quotas and NFSv4
 
 M1 deliberately separates durable storage from compute. The OpenStack deployment
-creates `storage-nfs-01` at `10.50.0.40` and attaches three independent
+creates `storage-nfs-01` at `<STORAGE_ADDR>` and attaches three independent
 Ceph-backed Cinder SSD block volumes:
 
 | Filesystem | Size | Server mount | Client mount | Policy |

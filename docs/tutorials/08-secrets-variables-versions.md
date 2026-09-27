@@ -30,9 +30,9 @@ rather than after the first accidental commit.
 ## 8.2 Canonical variable model
 
 ```yaml
-mgmt_cidr: 10.50.0.0/24
-k8s_cidr:  10.51.0.0/24
-vpn_cidr:  10.60.0.0/24
+mgmt_cidr: <MGMT_CIDR>
+k8s_cidr:  <K8S_CIDR>
+vpn_cidr:  <VPN_CIDR>
 ```
 
 - Use the **same logical names** in Terraform and Ansible wherever the concept is the same — this is what
