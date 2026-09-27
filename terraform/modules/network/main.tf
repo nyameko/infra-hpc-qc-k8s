@@ -7,12 +7,12 @@ resource "openstack_networking_network_v2" "mgmt" {
 }
 
 resource "openstack_networking_subnet_v2" "mgmt" {
-  name              = "${var.name_prefix}-mgmt-subnet"
-  network_id        = openstack_networking_network_v2.mgmt.id
-  cidr              = var.mgmt_cidr
-  ip_version        = 4
-  gateway_ip        = var.mgmt_gateway_ip
-  dns_nameservers   = var.dns_nameservers
+  name            = "${var.name_prefix}-mgmt-subnet"
+  network_id      = openstack_networking_network_v2.mgmt.id
+  cidr            = var.mgmt_cidr
+  ip_version      = 4
+  gateway_ip      = var.mgmt_gateway_ip
+  dns_nameservers = var.dns_nameservers
   allocation_pool {
     start = var.mgmt_pool_start
     end   = var.mgmt_pool_end
@@ -24,12 +24,12 @@ resource "openstack_networking_network_v2" "k8s" {
 }
 
 resource "openstack_networking_subnet_v2" "k8s" {
-  name              = "${var.name_prefix}-k8s-subnet"
-  network_id        = openstack_networking_network_v2.k8s.id
-  cidr              = var.k8s_cidr
-  ip_version        = 4
-  gateway_ip        = var.k8s_gateway_ip
-  dns_nameservers   = var.dns_nameservers
+  name            = "${var.name_prefix}-k8s-subnet"
+  network_id      = openstack_networking_network_v2.k8s.id
+  cidr            = var.k8s_cidr
+  ip_version      = 4
+  gateway_ip      = var.k8s_gateway_ip
+  dns_nameservers = var.dns_nameservers
   allocation_pool {
     start = var.k8s_pool_start
     end   = var.k8s_pool_end
