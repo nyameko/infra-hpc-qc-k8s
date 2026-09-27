@@ -50,7 +50,7 @@ extraScrapeConfigs: |
   - job_name: haproxy
     static_configs:
       - targets:
-          - 10.51.0.100:8404
+          - api-lb.internal:8404
 
   - job_name: quantum-platform-postgres
     static_configs:
@@ -66,25 +66,25 @@ extraScrapeConfigs: |
   - job_name: slurm-hosts
     static_configs:
       - targets:
-          - 10.50.0.12:9100
+          - slurm-controller.internal:9100
         labels:
           slurm_role: controller
       - targets:
-          - 10.50.0.20:9100
-          - 10.50.0.21:9100
+          - slurm-login-1.internal:9100
+          - slurm-login-2.internal:9100
         labels:
           slurm_role: login
       - targets:
-          - 10.50.0.30:9100
-          - 10.50.0.31:9100
-          - 10.50.0.32:9100
-          - 10.50.0.33:9100
+          - slurm-cpu-small-1.internal:9100
+          - slurm-cpu-small-2.internal:9100
+          - slurm-cpu-large-1.internal:9100
+          - slurm-cpu-large-2.internal:9100
         labels:
           slurm_role: compute
 
   - job_name: storage-hosts
     static_configs:
       - targets:
-          - 10.50.0.40:9100
+          - storage.internal:9100
         labels:
           storage_role: nfs
