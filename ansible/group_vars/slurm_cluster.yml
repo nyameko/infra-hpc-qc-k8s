@@ -1,19 +1,27 @@
 ---
 slurm_cluster_name: quantum-cpu
 slurm_controller_hostname: slurm-controller-01
-slurm_controller_address: "<SLURM_CONTROLLER_ADDR>"
+slurm_controller_address: 10.50.0.12
 slurm_partition_small: cpu-small
 slurm_partition_large: cpu-large
+
+# Canonical numeric service identities. These must be identical across every
+# Slurm host because MUNGE-authenticated Slurm RPCs carry numeric credentials.
 slurm_service_uid: 5000
 slurm_service_gid: 5000
 munge_service_uid: 5001
 munge_service_gid: 5001
+
 slurm_package_version: "25.11.8"
 slurm_rpm_release: "1.el9"
 slurm_rpm_arch: "x86_64"
 slurm_rpm_remote_artifact_dir: "/var/cache/quantum-platform/slurm-rpms/{{ slurm_package_version }}"
 slurm_rpm_local_artifact_dir: "{{ playbook_dir }}/../artifacts/slurm/{{ slurm_package_version }}"
+
+# M1 RPMs are built locally from checksum-verified SchedMD source and are not
+# yet GPG-signed. Issue #41 replaces this with signed CI-published RPMs.
 slurm_allow_unsigned_rpms: true
+
 slurm_controller_packages:
   - "{{ slurm_rpm_remote_artifact_dir }}/slurm-{{ slurm_package_version }}-{{ slurm_rpm_release }}.{{ slurm_rpm_arch }}.rpm"
   - "{{ slurm_rpm_remote_artifact_dir }}/slurm-slurmctld-{{ slurm_package_version }}-{{ slurm_rpm_release }}.{{ slurm_rpm_arch }}.rpm"
@@ -21,13 +29,16 @@ slurm_controller_packages:
   - mariadb-server
   - python3-PyMySQL
   - munge
+
 slurm_compute_packages:
   - "{{ slurm_rpm_remote_artifact_dir }}/slurm-{{ slurm_package_version }}-{{ slurm_rpm_release }}.{{ slurm_rpm_arch }}.rpm"
   - "{{ slurm_rpm_remote_artifact_dir }}/slurm-slurmd-{{ slurm_package_version }}-{{ slurm_rpm_release }}.{{ slurm_rpm_arch }}.rpm"
   - munge
+
 slurm_login_packages:
   - "{{ slurm_rpm_remote_artifact_dir }}/slurm-{{ slurm_package_version }}-{{ slurm_rpm_release }}.{{ slurm_rpm_arch }}.rpm"
   - munge
+
 slurm_munge_key_b64: ""
 slurm_db_password: ""
 slurm_database_name: slurm_acct_db
@@ -35,7 +46,8 @@ slurm_database_user: slurm
 slurm_home_path: /home/research
 slurm_require_shared_home: true
 slurm_reserve_mem_mb: 1024
-# Schema-only examples. Protected inventory replaces this list.
 slurm_nodes:
-  - {name: slurm-cpu-small-N, addr: "<SLURM_CPU_SMALL_ADDR_N>", cpus: 12, memory_mb: 24576, real_memory_mb: 23552, partition: small}
-  - {name: slurm-cpu-large-N, addr: "<SLURM_CPU_LARGE_ADDR_N>", cpus: 64, memory_mb: 262144, real_memory_mb: 256192, partition: large}
+  - {name: slurm-cpu-01, addr: 10.50.0.30, cpus: 12, memory_mb: 24576, real_memory_mb: 23552, partition: small}
+  - {name: slurm-cpu-02, addr: 10.50.0.31, cpus: 12, memory_mb: 24576, real_memory_mb: 23552, partition: small}
+  - {name: slurm-cpu-03, addr: 10.50.0.32, cpus: 64, memory_mb: 262144, real_memory_mb: 256192, partition: large}
+  - {name: slurm-cpu-04, addr: 10.50.0.33, cpus: 64, memory_mb: 262144, real_memory_mb: 256192, partition: large}
