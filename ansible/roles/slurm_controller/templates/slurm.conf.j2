@@ -9,6 +9,7 @@ StateSaveLocation=/var/spool/slurmctld
 SlurmctldLogFile=/var/log/slurm/slurmctld.log
 AccountingStorageType=accounting_storage/slurmdbd
 AccountingStorageHost=10.50.0.12
+SrunPortRange=60001-61000
 
 {% for n in slurm_compute_nodes %}
 NodeName={{ n.name }} NodeAddr={{ n.addr }} CPUs={{ n.cpus }} State=UNKNOWN

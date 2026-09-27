@@ -5,6 +5,13 @@ slurm_controller_address: 10.50.0.12
 slurm_partition_small: cpu-small
 slurm_partition_large: cpu-large
 
+# Canonical numeric service identities. These must be identical across every
+# Slurm host because MUNGE-authenticated Slurm RPCs carry numeric credentials.
+slurm_service_uid: 5000
+slurm_service_gid: 5000
+munge_service_uid: 5001
+munge_service_gid: 5001
+
 slurm_package_version: "25.11.8"
 slurm_rpm_release: "1.el9"
 slurm_rpm_arch: "x86_64"
@@ -40,7 +47,7 @@ slurm_home_path: /home/research
 slurm_require_shared_home: true
 slurm_reserve_mem_mb: 1024
 slurm_nodes:
-  - {name: slurm-cpu-01, addr: 10.50.0.30, cpus: 12, memory_mb: 24576, partition: small}
-  - {name: slurm-cpu-02, addr: 10.50.0.31, cpus: 12, memory_mb: 24576, partition: small}
-  - {name: slurm-cpu-03, addr: 10.50.0.32, cpus: 64, memory_mb: 262144, partition: large}
-  - {name: slurm-cpu-04, addr: 10.50.0.33, cpus: 64, memory_mb: 262144, partition: large}
+  - {name: slurm-cpu-01, addr: 10.50.0.30, cpus: 12, memory_mb: 24576, real_memory_mb: 23552, partition: small}
+  - {name: slurm-cpu-02, addr: 10.50.0.31, cpus: 12, memory_mb: 24576, real_memory_mb: 23552, partition: small}
+  - {name: slurm-cpu-03, addr: 10.50.0.32, cpus: 64, memory_mb: 262144, real_memory_mb: 256192, partition: large}
+  - {name: slurm-cpu-04, addr: 10.50.0.33, cpus: 64, memory_mb: 262144, real_memory_mb: 256192, partition: large}

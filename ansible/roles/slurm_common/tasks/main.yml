@@ -15,6 +15,42 @@
     that:
       - inventory_hostname == slurm_controller_hostname or inventory_hostname in groups['slurm_login'] or inventory_hostname in (slurm_nodes | map(attribute='name') | list)
 
+- name: Create canonical Slurm service group before package installation
+  ansible.builtin.group:
+    name: slurm
+    gid: "{{ slurm_service_gid }}"
+    system: true
+    state: present
+
+- name: Create canonical MUNGE service group before package installation
+  ansible.builtin.group:
+    name: munge
+    gid: "{{ munge_service_gid }}"
+    system: true
+    state: present
+
+- name: Create canonical Slurm service user before package installation
+  ansible.builtin.user:
+    name: slurm
+    uid: "{{ slurm_service_uid }}"
+    group: slurm
+    home: /home/slurm
+    system: true
+    create_home: false
+    shell: /sbin/nologin
+    state: present
+
+- name: Create canonical MUNGE service user before package installation
+  ansible.builtin.user:
+    name: munge
+    uid: "{{ munge_service_uid }}"
+    group: munge
+    home: /run/munge
+    system: true
+    create_home: false
+    shell: /sbin/nologin
+    state: present
+
 - name: Install Slurm role packages from vetted artifact set
   ansible.builtin.dnf:
     name: "{{ slurm_role_packages }}"
@@ -33,38 +69,6 @@
     fail_msg: >-
       Installed Slurm RPM version differs from slurm_package_version
       or the core slurm RPM is missing.
-
-- name: Discover Slurm-visible compute resources before rendering configuration
-  ansible.builtin.command: slurmd -C
-  register: slurm_common_discovery
-  changed_when: false
-  when: inventory_hostname in groups['slurm_compute']
-
-- name: Record Slurm-detected compute memory
-  ansible.builtin.set_fact:
-    slurm_detected_real_memory_mb: >-
-      {{
-        (slurm_common_discovery.stdout
-        | regex_findall('RealMemory=([0-9]+)')
-        | first)
-        | int
-      }}
-  when: inventory_hostname in groups['slurm_compute']
-
-- name: Require usable compute memory beyond the scheduler reserve
-  ansible.builtin.assert:
-    that:
-      - slurm_detected_real_memory_mb | int > slurm_reserve_mem_mb | int
-    fail_msg: "slurmd -C reported insufficient usable memory for the configured reserve."
-  when: inventory_hostname in groups['slurm_compute']
-
-- name: Ensure Slurm and MUNGE identities exist
-  ansible.builtin.user:
-    name: "{{ item }}"
-    system: true
-    create_home: false
-    shell: /sbin/nologin
-  loop: [munge, slurm]
 
 - name: Create Slurm configuration directory
   ansible.builtin.file:
@@ -114,6 +118,7 @@
     owner: root
     group: root
     mode: "0644"
+  register: slurm_common_config
 
 - name: Enable MUNGE
   ansible.builtin.systemd:

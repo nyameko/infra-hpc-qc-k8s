@@ -9,11 +9,28 @@
       - ansible_facts["processor_vcpus"] | int == slurm_this_node.cpus | int
     fail_msg: "The OpenStack flavor does not match the Slurm node CPU declaration."
 
-- name: Verify Slurm detected usable memory for this compute node
+- name: Verify configured Slurm memory does not exceed detected node memory
+  ansible.builtin.command: slurmd -C
+  register: slurmd_discovery
+  changed_when: false
+
+- name: Record Slurm-detected compute memory
+  ansible.builtin.set_fact:
+    slurm_detected_real_memory_mb: >-
+      {{
+        (slurmd_discovery.stdout
+        | regex_findall('RealMemory=([0-9]+)')
+        | first)
+        | int
+      }}
+
+- name: Require configured allocatable memory to fit detected memory
   ansible.builtin.assert:
     that:
-      - slurm_detected_real_memory_mb | int > slurm_reserve_mem_mb | int
-    fail_msg: "Slurm reports insufficient usable RAM after the configured reserve."
+      - slurm_this_node.real_memory_mb | int <= slurm_detected_real_memory_mb | int
+    fail_msg: >-
+      Configured Slurm RealMemory exceeds slurmd -C detected memory;
+      lower real_memory_mb for this node.
 
 - name: Create Slurm compute directories
   ansible.builtin.file:
@@ -35,11 +52,6 @@
     mode: "0644"
   notify: restart slurmd
 
-- name: Report Slurm's actual CPU and RAM discovery
-  ansible.builtin.command: slurmd -C
-  register: slurmd_discovery
-  changed_when: false
-
 - name: Require discovered CPU count to agree with configuration
   ansible.builtin.assert:
     that:
@@ -50,4 +62,4 @@
   ansible.builtin.systemd:
     name: slurmd
     enabled: true
-    state: started
+    state: "{{ 'restarted' if (slurm_common_config is defined and slurm_common_config.changed) else 'started' }}"
