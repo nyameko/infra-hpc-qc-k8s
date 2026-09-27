@@ -1,0 +1,83 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: jupyterhub-config
+data:
+  jupyterhub_config.py: |
+    import os
+    from jupyterhub.auth import DummyAuthenticator
+    from kubespawner import KubeSpawner
+
+    c = get_config()
+
+    # M2a bootstrap only. M3 replaces this with Quantum Platform identity.
+    c.JupyterHub.authenticator_class = DummyAuthenticator
+    c.Authenticator.allowed_users = {"jhub-smoke"}
+    c.DummyAuthenticator.password = os.environ["JUPYTERHUB_SMOKE_PASSWORD"]
+
+    c.JupyterHub.spawner_class = KubeSpawner
+    c.JupyterHub.bind_url = "http://0.0.0.0:8000"
+    c.JupyterHub.hub_bind_url = "http://0.0.0.0:8081"
+    c.JupyterHub.hub_connect_url = "http://jupyterhub.jupyterhub.svc.cluster.local:8081"
+    c.JupyterHub.db_url = "sqlite:////srv/jupyterhub/jupyterhub.sqlite"
+    c.JupyterHub.cookie_secret_file = "/srv/jupyterhub/jupyterhub_cookie_secret"
+
+    c.KubeSpawner.namespace = "jupyterhub"
+    c.KubeSpawner.image = "ghcr.io/nyameko/infra-hpc-qc-k8s-jupyter-workbench:dev"
+    c.KubeSpawner.image_pull_policy = "IfNotPresent"
+    c.KubeSpawner.cmd = ["/usr/local/bin/start-workbench"]
+
+    # Cheap long-lived workbench; substantial compute is submitted elsewhere.
+    c.KubeSpawner.cpu_guarantee = 0.25
+    c.KubeSpawner.cpu_limit = 2
+    c.KubeSpawner.mem_guarantee = "1G"
+    c.KubeSpawner.mem_limit = "4G"
+
+    # M2a smoke identity. Future M3 derives uid/gid from platform provisioning.
+    c.KubeSpawner.uid = 20999
+    c.KubeSpawner.fs_gid = 20999
+    c.KubeSpawner.working_dir = "/home/research/{unescaped_username}"
+
+    # Dedicated workbench pool. No taint initially; selector gives placement
+    # without risking Cilium/CSI/monitoring DaemonSet compatibility.
+    c.KubeSpawner.node_selector = {"node-pool": "jupyter"}
+
+    # Same authoritative POSIX home as SSH and Slurm.
+    c.KubeSpawner.volumes = [
+        {
+            "name": "research-home",
+            "nfs": {
+                "server": "storage.internal",
+                "path": "/srv/home",
+                "readOnly": False,
+            },
+        }
+    ]
+    c.KubeSpawner.volume_mounts = [
+        {
+            "name": "research-home",
+            "mountPath": "/home/research/{unescaped_username}",
+            "subPath": "{unescaped_username}",
+            "readOnly": False,
+        }
+    ]
+
+    c.KubeSpawner.automount_service_account_token = False
+    c.KubeSpawner.environment = {
+        "PYTHONNOUSERSITE": "1",
+        "QUANTUM_PLATFORM_EXECUTION_MODE": "burst",
+    }
+
+    c.JupyterHub.services = [
+        {
+            "name": "idle-culler",
+            "admin": True,
+            "command": [
+                "python",
+                "-m",
+                "jupyterhub_idle_culler",
+                "--timeout=14400",
+                "--cull-every=600",
+            ],
+        }
+    ]

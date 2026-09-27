@@ -4,7 +4,6 @@ module "network" {
   external_network_name = var.external_network_name
   mgmt_cidr             = var.mgmt_cidr
   k8s_cidr              = var.k8s_cidr
-  api_lb_cidr           = var.k8s_cidr
   mgmt_gateway_ip       = var.mgmt_gateway_ip
   k8s_gateway_ip        = var.k8s_gateway_ip
   mgmt_pool_start       = var.mgmt_pool_start
@@ -109,9 +108,25 @@ locals {
   }
 }
 
+locals {
+  jupyter_nodes = {
+    for key, node in var.jupyter_workers :
+    key => {
+      name            = node.name
+      network_id      = module.network.k8s_network_id
+      subnet_id       = module.network.k8s_subnet_id
+      fixed_ip        = node.fixed_ip
+      flavor_name     = coalesce(try(node.flavor_name, null), var.k8s_worker_flavor)
+      image_id        = var.image_id
+      security_groups = [module.security.group_ids["k8s-worker"]]
+      key_pair        = var.ssh_key_name
+    }
+  }
+}
+
 module "compute" {
   source = "../../modules/compute"
-  nodes  = local.nodes
+  nodes  = merge(local.nodes, local.jupyter_nodes)
 }
 
 # Optional Octavia example omitted from the public topology template.
