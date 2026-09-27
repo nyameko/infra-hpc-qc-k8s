@@ -155,45 +155,41 @@ The current implementation uses an OpenStack cloud and Rocky Linux virtual machi
 ### Networks
 
 ```text
-Management:   10.50.0.0/24
-Kubernetes:   10.51.0.0/24
-WireGuard:    10.60.0.0/24
+Management:   <MGMT_CIDR>
+Kubernetes:   <K8S_CIDR>
+WireGuard:    <VPN_CIDR>
 ```
 
 The network names used in code are intentionally canonical:
 
 ```yaml
-mgmt_cidr: 10.50.0.0/24
-k8s_cidr:  10.51.0.0/24
-vpn_cidr:  10.60.0.0/24
+mgmt_cidr: <MGMT_CIDR>
+k8s_cidr:  <K8S_CIDR>
+vpn_cidr:  <VPN_CIDR>
 ```
 
 ### Virtual-machine topology
 
-| Node | Address | Role |
-|---|---|---|
-| `edge` | `10.50.0.10` | WireGuard, Pi-hole, nftables, Suricata IDS, SSH bastion, Wazuh manager/edge security |
-| `hermes-orchestrator-01` | `10.50.0.11` | provisional orchestration host; role may evolve with Agent Control Plane / Paperclip work |
-| `slurm-controller-01` | `10.50.0.12` | Slurm controller, slurmdbd and MariaDB accounting |
-| `login1` | `10.50.0.20` | user-facing SSH login + Slurm client |
-| `login2` | `10.50.0.21` | user-facing SSH login + Slurm client |
-| `slurm-cpu-01` | `10.50.0.30` | 12-vCPU / 24-GiB `cpu-small` compute node |
-| `slurm-cpu-02` | `10.50.0.31` | 12-vCPU / 24-GiB `cpu-small` compute node |
-| `slurm-cpu-03` | `10.50.0.32` | 64-vCPU / 256-GiB `cpu-large` compute node |
-| `slurm-cpu-04` | `10.50.0.33` | 64-vCPU / 256-GiB `cpu-large` compute node |
-| `storage-nfs-01` | `10.50.0.40` | Cinder-backed NFSv4 gateway for research home, datasets and staging |
-| `api-lb-01` | `10.51.0.100` | HAProxy Kubernetes API endpoint |
-| `k8s-cp-01` | `10.51.0.11` | Kubernetes control plane |
-| `k8s-cp-02` | `10.51.0.12` | Kubernetes control plane |
-| `k8s-cp-03` | `10.51.0.13` | Kubernetes control plane |
-| `k8s-worker-01` | `10.51.0.21` | Kubernetes worker |
-| `k8s-worker-02` | `10.51.0.22` | Kubernetes worker |
-| `k8s-worker-03` | `10.51.0.23` | Kubernetes worker |
+The public repository documents **roles and relationships**, not the authoritative live host/IP map. Exact addresses, peer mappings, node counts and provider IDs belong in private inventory and private Terraform variables.
+
+| Role pattern | Purpose |
+|---|---|
+| `edge` | VPN entry, DNS, firewalling and edge security telemetry |
+| `agent-oob` | optional out-of-band administrative agent/orchestrator host |
+| `slurm-controller-01` | Slurm controller and accounting services |
+| `login-01 ... login-N` | user-facing SSH/login and Slurm clients |
+| `slurm-cpu-01 ... slurm-cpu-N` | CPU compute fabric |
+| `storage-01 ... storage-N` | persistent research storage gateways/services |
+| `api-lb-01` | stable Kubernetes API endpoint |
+| `k8s-cp-01 ... k8s-cp-N` | Kubernetes control plane |
+| `k8s-core-01 ... k8s-core-N` | core/service worker pool |
+| `k8s-user-01 ... k8s-user-N` | Jupyter/user-workbench worker pool |
+| `k8s-agent-01 ... k8s-agent-N` | optional agent/harness runtime worker pool |
 
 Kubernetes clients use the stable API endpoint:
 
 ```text
-10.51.0.100:6443
+<K8S_API_VIP>:6443
         │
       HAProxy
      /  |  \
@@ -202,7 +198,7 @@ Kubernetes clients use the stable API endpoint:
 
 The API load-balancer implementation is intentionally replaceable. The important contract is the stable Kubernetes control-plane endpoint, not HAProxy itself.
 
-Pi-hole at `10.50.0.10` is now advertised by Neutron DHCP to the management and Kubernetes subnets. Local OpenStack hosts therefore use the edge DNS service rather than depending only on provider defaults. Kubernetes pods still use CoreDNS; the intended path is `pod → CoreDNS → Pi-hole → upstream DNS`.
+Pi-hole at `<EDGE_IP>` is now advertised by Neutron DHCP to the management and Kubernetes subnets. Local OpenStack hosts therefore use the edge DNS service rather than depending only on provider defaults. Kubernetes pods still use CoreDNS; the intended path is `pod → CoreDNS → Pi-hole → upstream DNS`.
 
 ## Defense in depth
 
@@ -289,7 +285,7 @@ Kubernetes currently exposes Cinder-backed StorageClasses for application/PVC wo
 The validated M1 research storage layout is:
 
 ```text
-storage-nfs-01 10.50.0.40
+storage-nfs-01 <STORAGE_IP>
 
 /srv/home      → /home/research on login/compute nodes
 /srv/datasets  → /datasets
@@ -749,7 +745,7 @@ The repository is a work in progress, so distinguish **manifest present** from *
 - ✅ OpenStack network/VM foundation
 - ✅ Rocky Linux base hosts
 - ✅ three-control-plane / three-worker Kubernetes cluster
-- ✅ stable HAProxy Kubernetes API endpoint at `10.51.0.100:6443`
+- ✅ stable HAProxy Kubernetes API endpoint at `<K8S_API_VIP>:6443`
 - ✅ containerd / CRI
 - ✅ Cilium baseline
 - ✅ Cinder CSI persistent storage
@@ -759,7 +755,7 @@ The repository is a work in progress, so distinguish **manifest present** from *
 - ✅ Prometheus and Grafana
 - ✅ Git-managed platform dashboards
 - ✅ edge WireGuard/private-access path
-- ✅ Pi-hole internal DNS at `10.50.0.10`
+- ✅ Pi-hole internal DNS at `<EDGE_IP>`
 - ✅ Neutron DHCP advertises Pi-hole to management and Kubernetes subnets
 
 ### M1 persistent research storage

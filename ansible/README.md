@@ -204,9 +204,9 @@ The current `api_lb_haproxy` role already follows the pattern of deriving API ba
 Keep network vocabulary consistent across roles:
 
 ```yaml
-mgmt_cidr: 10.50.0.0/24
-k8s_cidr: 10.51.0.0/24
-vpn_cidr: 10.60.0.0/24
+mgmt_cidr: <MGMT_CIDR>
+k8s_cidr: <K8S_CIDR>
+vpn_cidr: <VPN_CIDR>
 ```
 
 Avoid introducing aliases such as `management_cidr` or `wireguard_cidr` when the repository already has canonical names.
@@ -303,7 +303,7 @@ Terraform creates:
 
 ```text
 api-lb-01
-10.51.0.100
+<K8S_API_VIP>
 ```
 
 Ansible configures:
@@ -343,7 +343,7 @@ Private DNS
     ↓
 Pi-hole on edge
     ↓
-10.51.0.100 / internal services
+<K8S_API_VIP> / internal services
 ```
 
 The workstation's WireGuard interface may use split DNS so that only `~quantum.nyameko.com` is resolved by Pi-hole while ordinary Internet DNS remains unchanged.
