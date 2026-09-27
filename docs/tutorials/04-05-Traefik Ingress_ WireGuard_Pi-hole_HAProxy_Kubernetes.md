@@ -75,13 +75,13 @@ The Kubernetes node network is:
 For the current cluster:
 
 ```text
-k8s-cp-01       <K8S_CP_1_ADDR>
-k8s-cp-02       <K8S_CP_2_ADDR>
-k8s-cp-03       <K8S_CP_3_ADDR>
+k8s-cp-01       <K8S_CP_1_IP>
+k8s-cp-02       <K8S_CP_2_IP>
+k8s-cp-03       <K8S_CP_N_IP>
 
-k8s-worker-01   <K8S_WORKER_1_ADDR>
-k8s-worker-02   <K8S_WORKER_2_ADDR>
-k8s-worker-03   <K8S_WORKER_3_ADDR>
+k8s-worker-01   <K8S_WORKER_1_IP>
+k8s-worker-02   <K8S_WORKER_2_IP>
+k8s-worker-03   <K8S_WORKER_N_IP>
 
 api-lb-01       <K8S_API_VIP>
 ```
@@ -214,9 +214,9 @@ Internet / WireGuard client
 HAProxy
         │
         ▼
-<K8S_WORKER_1_ADDR>:31924
-<K8S_WORKER_2_ADDR>:31924
-<K8S_WORKER_3_ADDR>:31924
+<K8S_WORKER_1_IP>:31924
+<K8S_WORKER_2_IP>:31924
+<K8S_WORKER_N_IP>:31924
 ```
 
 is the intended path.
@@ -259,17 +259,17 @@ may show nothing.
 The correct test is to connect to the **node IP**, not the Pod IP:
 
 ```bash
-curl http://<K8S_WORKER_1_ADDR>:31818/
-curl http://<K8S_WORKER_2_ADDR>:31818/
-curl http://<K8S_WORKER_3_ADDR>:31818/
+curl http://<K8S_WORKER_1_IP>:31818/
+curl http://<K8S_WORKER_2_IP>:31818/
+curl http://<K8S_WORKER_N_IP>:31818/
 ```
 
 The same applies to HTTPS:
 
 ```bash
-curl -vk https://<K8S_WORKER_1_ADDR>:31924/
-curl -vk https://<K8S_WORKER_2_ADDR>:31924/
-curl -vk https://<K8S_WORKER_3_ADDR>:31924/
+curl -vk https://<K8S_WORKER_1_IP>:31924/
+curl -vk https://<K8S_WORKER_2_IP>:31924/
+curl -vk https://<K8S_WORKER_N_IP>:31924/
 ```
 
 ---
@@ -288,9 +288,9 @@ Those addresses are Traefik Pod addresses.
 NodePort belongs to the node:
 
 ```text
-<K8S_WORKER_1_ADDR>:31818
-<K8S_WORKER_2_ADDR>:31818
-<K8S_WORKER_3_ADDR>:31818
+<K8S_WORKER_1_IP>:31818
+<K8S_WORKER_2_IP>:31818
+<K8S_WORKER_N_IP>:31818
 ```
 
 Once the correct addresses were used, the connection succeeded.
@@ -298,7 +298,7 @@ Once the correct addresses were used, the connection succeeded.
 For example:
 
 ```text
-Connected to <K8S_WORKER_1_ADDR> port 31818
+Connected to <K8S_WORKER_1_IP> port 31818
 HTTP/1.1 404 Not Found
 ```
 
@@ -382,7 +382,7 @@ The client reaches it through WireGuard:
 WireGuard client
        │
        ▼
-<VPN_GATEWAY_ADDR>
+<VPN_GATEWAY_IP>
        │
        ▼
 Pi-hole :53
@@ -487,7 +487,7 @@ This should be treated as a reusable Podman-on-Rocky pattern for future edge ser
 From a WireGuard-connected client:
 
 ```bash
-dig @<VPN_GATEWAY_ADDR> traefik-test.quantum.nyameko.com
+dig @<VPN_GATEWAY_IP> traefik-test.quantum.nyameko.com
 ```
 
 The expected result is:
@@ -799,9 +799,9 @@ The existing `api-lb-01` VM owns:
 The Kubernetes workers are:
 
 ```text
-<K8S_WORKER_1_ADDR>
-<K8S_WORKER_2_ADDR>
-<K8S_WORKER_3_ADDR>
+<K8S_WORKER_1_IP>
+<K8S_WORKER_2_IP>
+<K8S_WORKER_N_IP>
 ```
 
 HAProxy therefore targets the worker NodePorts.
@@ -814,9 +814,9 @@ frontend ingress_http
     default_backend traefik_http
 
 backend traefik_http
-    server worker01 <K8S_WORKER_1_ADDR>:31818 check
-    server worker02 <K8S_WORKER_2_ADDR>:31818 check
-    server worker03 <K8S_WORKER_3_ADDR>:31818 check
+    server worker01 <K8S_WORKER_1_IP>:31818 check
+    server worker02 <K8S_WORKER_2_IP>:31818 check
+    server worker03 <K8S_WORKER_N_IP>:31818 check
 ```
 
 and:
@@ -827,9 +827,9 @@ frontend ingress_https
     default_backend traefik_https
 
 backend traefik_https
-    server worker01 <K8S_WORKER_1_ADDR>:31924 check
-    server worker02 <K8S_WORKER_2_ADDR>:31924 check
-    server worker03 <K8S_WORKER_3_ADDR>:31924 check
+    server worker01 <K8S_WORKER_1_IP>:31924 check
+    server worker02 <K8S_WORKER_2_IP>:31924 check
+    server worker03 <K8S_WORKER_N_IP>:31924 check
 ```
 
 The exact HAProxy syntax should follow the existing Ansible role/configuration in this repository rather than being copied as an independent configuration model.
@@ -853,9 +853,9 @@ api-lb → worker-03:31924
 From `api-lb-01`:
 
 ```bash
-curl -v http://<K8S_WORKER_1_ADDR>:31818/
-curl -v http://<K8S_WORKER_2_ADDR>:31818/
-curl -v http://<K8S_WORKER_3_ADDR>:31818/
+curl -v http://<K8S_WORKER_1_IP>:31818/
+curl -v http://<K8S_WORKER_2_IP>:31818/
+curl -v http://<K8S_WORKER_N_IP>:31818/
 ```
 
 A successful connection returning:
@@ -883,9 +883,9 @@ is functioning.
 For HTTPS:
 
 ```bash
-curl -vk https://<K8S_WORKER_1_ADDR>:31924/
-curl -vk https://<K8S_WORKER_2_ADDR>:31924/
-curl -vk https://<K8S_WORKER_3_ADDR>:31924/
+curl -vk https://<K8S_WORKER_1_IP>:31924/
+curl -vk https://<K8S_WORKER_2_IP>:31924/
+curl -vk https://<K8S_WORKER_N_IP>:31924/
 ```
 
 A successful TLS handshake using:
@@ -913,13 +913,13 @@ It means the request reached Traefik but Traefik did not find a router matching 
 For example:
 
 ```bash
-curl http://<K8S_WORKER_1_ADDR>:31818/
+curl http://<K8S_WORKER_1_IP>:31818/
 ```
 
 produces a Host header similar to:
 
 ```text
-Host: <K8S_WORKER_1_ADDR>:31818
+Host: <K8S_WORKER_1_IP>:31818
 ```
 
 but the intended route is:
@@ -933,7 +933,7 @@ Therefore test the hostname explicitly:
 ```bash
 curl -v \
   -H 'Host: traefik-test.quantum.nyameko.com' \
-  http://<K8S_WORKER_1_ADDR>:31818/
+  http://<K8S_WORKER_1_IP>:31818/
 ```
 
 ---
@@ -1183,7 +1183,7 @@ From `api-lb-01`:
 ```bash
 curl -v \
   -H 'Host: traefik-test.quantum.nyameko.com' \
-  http://<K8S_WORKER_1_ADDR>:31818/
+  http://<K8S_WORKER_1_IP>:31818/
 ```
 
 A successful result should now contain the nginx response rather than:
@@ -1268,7 +1268,7 @@ Once routing and TLS are proven, replace the manual test certificate with your p
 From a WireGuard-connected client:
 
 ```bash
-dig @<VPN_GATEWAY_ADDR> traefik-test.quantum.nyameko.com
+dig @<VPN_GATEWAY_IP> traefik-test.quantum.nyameko.com
 ```
 
 Expected:
@@ -1299,7 +1299,7 @@ Blackmyth
    │
    │ WireGuard
    ▼
-EDGE <VPN_GATEWAY_ADDR>
+EDGE <VPN_GATEWAY_IP>
    │
    │ Pi-hole DNS
    ▼
@@ -1338,7 +1338,7 @@ This sequence is the important operational lesson from the exercise.
 ## DNS failure
 
 ```bash
-dig @<VPN_GATEWAY_ADDR> traefik-test.quantum.nyameko.com
+dig @<VPN_GATEWAY_IP> traefik-test.quantum.nyameko.com
 ```
 
 Expected:
@@ -1360,7 +1360,7 @@ WireGuard / Pi-hole / DNS configuration
 From `api-lb`:
 
 ```bash
-curl -v http://<K8S_WORKER_1_ADDR>:31818/
+curl -v http://<K8S_WORKER_1_IP>:31818/
 ```
 
 If this times out:
@@ -1489,9 +1489,9 @@ Those are ephemeral Pod addresses.
 Use:
 
 ```text
-<K8S_WORKER_1_ADDR>:31924
-<K8S_WORKER_2_ADDR>:31924
-<K8S_WORKER_3_ADDR>:31924
+<K8S_WORKER_1_IP>:31924
+<K8S_WORKER_2_IP>:31924
+<K8S_WORKER_N_IP>:31924
 ```
 
 ### ClusterIP is not the external backend
@@ -1532,7 +1532,7 @@ The finished exercise should be able to demonstrate every layer independently.
 
 ```text
 [ ] WireGuard handshake
-[ ] client reaches <VPN_GATEWAY_ADDR>
+[ ] client reaches <VPN_GATEWAY_IP>
 [ ] dig reaches Pi-hole
 [ ] private hostname resolves to <K8S_API_VIP>
 

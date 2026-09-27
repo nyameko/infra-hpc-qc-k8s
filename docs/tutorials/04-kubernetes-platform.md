@@ -35,12 +35,12 @@ v1.36.4
 Nodes:
 
 ```text
-CP1 <K8S_CP_1_ADDR>
-CP2 <K8S_CP_2_ADDR>
-CP3 <K8S_CP_3_ADDR>
-W1  <K8S_WORKER_1_ADDR>
-W2  <K8S_WORKER_2_ADDR>
-W3  <K8S_WORKER_3_ADDR>
+CP1 <K8S_CP_1_IP>
+CP2 <K8S_CP_2_IP>
+CP3 <K8S_CP_N_IP>
+W1  <K8S_WORKER_1_IP>
+W2  <K8S_WORKER_2_IP>
+W3  <K8S_WORKER_N_IP>
 ```
 
 API endpoint:
@@ -298,7 +298,7 @@ ClusterIP
 and then failed at:
 
 ```text
-NodePort <K8S_CP_2_ADDR>:31196
+NodePort <K8S_CP_2_IP>:31196
 ```
 
 In an earlier run it failed against CP1; in the later debug run it selected CP2. The exact node is not important.
@@ -533,18 +533,18 @@ The individual control planes do not expose their API directly to VPN clients.
 The edge firewall protects:
 
 ```text
-edge <EDGE_ADDR>
+edge <EDGE_IP>
 ```
 
 The OpenStack Kubernetes SG protects:
 
 ```text
-<K8S_CP_1_ADDR>
-<K8S_CP_2_ADDR>
-<K8S_CP_3_ADDR>
-<K8S_WORKER_1_ADDR>
-<K8S_WORKER_2_ADDR>
-<K8S_WORKER_3_ADDR>
+<K8S_CP_1_IP>
+<K8S_CP_2_IP>
+<K8S_CP_N_IP>
+<K8S_WORKER_1_IP>
+<K8S_WORKER_2_IP>
+<K8S_WORKER_N_IP>
 ```
 
 Therefore NodePort, VXLAN and Kubernetes health rules are cloud-network rules for the Kubernetes VMs.

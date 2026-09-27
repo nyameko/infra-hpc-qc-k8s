@@ -114,10 +114,10 @@ The repository's current networking tutorial makes the same ownership distinctio
 WireGuard provides the administrative entry path:
 
 ```text
-<VPN_CLIENT_CIDR>   workstation
+<VPN_CLIENT_IP>/32   workstation
        │
        ▼
-<VPN_GATEWAY_CIDR>   edge
+<VPN_GATEWAY_IP>/24   edge
        │
        ▼
 private networks
@@ -168,7 +168,7 @@ Kubernetes pod
       ↓
 CoreDNS
       ↓
-<EDGE_ADDR>:53
+<EDGE_IP>:53
       ↓
 Pi-hole
       ↓

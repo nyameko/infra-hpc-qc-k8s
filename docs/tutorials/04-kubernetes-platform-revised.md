@@ -18,7 +18,7 @@ The current Kubernetes platform consists of:
                ┌────────────┼────────────┐
                │            │            │
                ▼            ▼            ▼
-          CP1 <K8S_CP_1_ADDR> CP2 .12      CP3 .13
+          CP1 <K8S_CP_1_IP> CP2 .12      CP3 .13
                │            │            │
                └────────────┼────────────┘
                             │
@@ -273,9 +273,9 @@ HAProxy runs on `api-lb-01`.
 The HAProxy backend is:
 
 ```text
-CP1 → <K8S_CP_1_ADDR>:6443
-CP2 → <K8S_CP_2_ADDR>:6443
-CP3 → <K8S_CP_3_ADDR>:6443
+CP1 → <K8S_CP_1_IP>:6443
+CP2 → <K8S_CP_2_IP>:6443
+CP3 → <K8S_CP_N_IP>:6443
 ```
 
 The HAProxy listener can exist before Kubernetes is initialized. At that point its backend health checks are expected to fail.
@@ -386,7 +386,7 @@ This concentrates the API entry point around one stable endpoint and makes the H
 The first control plane is:
 
 ```text
-k8s-cp-01 = <K8S_CP_1_ADDR>
+k8s-cp-01 = <K8S_CP_1_IP>
 ```
 
 The cluster uses:
@@ -403,7 +403,7 @@ The conceptual kubeadm configuration is:
 apiVersion: kubeadm.k8s.io/v1beta4
 kind: InitConfiguration
 localAPIEndpoint:
-  advertiseAddress: <K8S_CP_1_ADDR>
+  advertiseAddress: <K8S_CP_1_IP>
   bindPort: 6443
 nodeRegistration:
   criSocket: unix:///run/containerd/containerd.sock
@@ -423,7 +423,7 @@ The CP1 initialization succeeded.
 The API server was healthy directly on:
 
 ```text
-<K8S_CP_1_ADDR>:6443
+<K8S_CP_1_IP>:6443
 ```
 
 and subsequently through HAProxy:

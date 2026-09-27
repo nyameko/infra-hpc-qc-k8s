@@ -18,8 +18,8 @@ Terraform owns OpenStack resources: networks, routers, ports, security groups, V
 Current local resolver contract:
 
 ```text
-management subnet DNS  → <EDGE_ADDR>
-Kubernetes subnet DNS  → <EDGE_ADDR>
+management subnet DNS  → <EDGE_IP>
+Kubernetes subnet DNS  → <EDGE_IP>
 ```
 
 Pi-hole runs on `edge`.
@@ -112,7 +112,7 @@ getent hosts slurm-controller-01
 Expected resolver:
 
 ```text
-nameserver <EDGE_ADDR>
+nameserver <EDGE_IP>
 ```
 
 OpenStack may still add search suffixes such as `openstacklocal` or `novalocal`; that is separate from the resolver choice.
@@ -123,14 +123,14 @@ Kubernetes pods should use:
 pod → CoreDNS → Pi-hole → upstream
 ```
 
-WireGuard clients should use `<VPN_GATEWAY_ADDR>` as DNS where supported.
+WireGuard clients should use `<VPN_GATEWAY_IP>` as DNS where supported.
 
 ## 8. Research storage
 
 Storage server:
 
 ```text
-storage-nfs-01  <STORAGE_ADDR>
+storage-nfs-01  <STORAGE_IP>
 ```
 
 Exports/mounts:

@@ -62,20 +62,20 @@ The current OpenStack environment contains:
 
 | VM | IP | Purpose |
 |---|---:|---|
-| `edge` | `<EDGE_ADDR>` | WireGuard, Pi-hole, nftables, Wazuh manager, Suricata, bastion |
-| `hermes-orchestrator-01` | `<AGENT_ORCHESTRATOR_ADDR>` | isolated infrastructure Hermes, read/report first |
-| `slurm-controller-01` | `<SLURM_CONTROLLER_ADDR>` | Slurm controller/accounting services |
-| `login1` | `<SLURM_LOGIN_1_ADDR>` | Slurm login |
-| `login2` | `<SLURM_LOGIN_2_ADDR>` | Slurm login |
-| `slurm-cpu-01` | `<SLURM_CPU_SMALL_1_ADDR>` | Slurm compute |
-| `slurm-cpu-02` | `<SLURM_CPU_SMALL_2_ADDR>` | Slurm compute |
+| `edge` | `<EDGE_IP>` | WireGuard, Pi-hole, nftables, Wazuh manager, Suricata, bastion |
+| `hermes-orchestrator-01` | `<AGENT_OOB_IP>` | isolated infrastructure Hermes, read/report first |
+| `slurm-controller-01` | `<SLURM_CONTROLLER_IP>` | Slurm controller/accounting services |
+| `login1` | `<SLURM_LOGIN_1_IP>` | Slurm login |
+| `login2` | `<SLURM_LOGIN_N_IP>` | Slurm login |
+| `slurm-cpu-01` | `<SLURM_COMPUTE_1_IP>` | Slurm compute |
+| `slurm-cpu-02` | `<SLURM_COMPUTE_2_IP>` | Slurm compute |
 | `api-lb-01` | `<K8S_API_VIP>` | HAProxy Kubernetes API load balancer |
-| `k8s-cp-01` | `<K8S_CP_1_ADDR>` | Kubernetes control plane |
-| `k8s-cp-02` | `<K8S_CP_2_ADDR>` | Kubernetes control plane |
-| `k8s-cp-03` | `<K8S_CP_3_ADDR>` | Kubernetes control plane |
-| `k8s-worker-01` | `<K8S_WORKER_1_ADDR>` | Kubernetes worker |
-| `k8s-worker-02` | `<K8S_WORKER_2_ADDR>` | Kubernetes worker |
-| `k8s-worker-03` | `<K8S_WORKER_3_ADDR>` | Kubernetes worker |
+| `k8s-cp-01` | `<K8S_CP_1_IP>` | Kubernetes control plane |
+| `k8s-cp-02` | `<K8S_CP_2_IP>` | Kubernetes control plane |
+| `k8s-cp-03` | `<K8S_CP_N_IP>` | Kubernetes control plane |
+| `k8s-worker-01` | `<K8S_WORKER_1_IP>` | Kubernetes worker |
+| `k8s-worker-02` | `<K8S_WORKER_2_IP>` | Kubernetes worker |
+| `k8s-worker-03` | `<K8S_WORKER_N_IP>` | Kubernetes worker |
 
 The Kubernetes control endpoint is:
 
@@ -241,7 +241,7 @@ VM / Pod
    ↓
 CoreDNS
    ↓
-<EDGE_ADDR>:53
+<EDGE_IP>:53
    ↓
 Pi-hole
    ↓

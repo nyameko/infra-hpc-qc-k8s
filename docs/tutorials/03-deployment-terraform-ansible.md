@@ -239,9 +239,9 @@ api-lb-01
 Backends:
 
 ```text
-<K8S_CP_1_ADDR>:6443
-<K8S_CP_2_ADDR>:6443
-<K8S_CP_3_ADDR>:6443
+<K8S_CP_1_IP>:6443
+<K8S_CP_2_IP>:6443
+<K8S_CP_N_IP>:6443
 ```
 
 The first service deployment exposed a useful distinction:

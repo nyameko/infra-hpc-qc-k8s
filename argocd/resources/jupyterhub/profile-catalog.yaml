@@ -1,0 +1,58 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: jupyterhub-profile-catalog
+data:
+  catalog.json: |
+    {
+      "schema_version": 1,
+      "resource_classes": {
+        "cpu-dev-v1": {
+          "partition": "cpu-small",
+          "cpus": 2,
+          "memory": "4G",
+          "walltime": "02:00:00",
+          "account": "jupyterhub-smoke",
+          "gres": "",
+          "qos": ""
+        },
+        "cpu-large-v1": {
+          "partition": "cpu-large",
+          "cpus": 64,
+          "memory": "232G",
+          "walltime": "04:00:00",
+          "account": "jupyterhub-smoke",
+          "gres": "",
+          "qos": ""
+        }
+      },
+      "environments": {
+        "m2-smoke-v1": {
+          "runtime": "apptainer",
+          "image": "/var/cache/quantum-platform/containers/jupyter-singleuser-m2.sif",
+          "container_flags": "",
+          "mounts": [
+            "/datasets:/datasets:ro",
+            "/staging:/staging:rw"
+          ]
+        }
+      },
+      "offerings": [
+        {
+          "id": "m2-cpu-dev",
+          "display_name": "Development — 2 CPU / 4 GiB / 2 h",
+          "mode": "interactive",
+          "resource_class": "cpu-dev-v1",
+          "environment": "m2-smoke-v1",
+          "enabled": true
+        },
+        {
+          "id": "m2-cpu-large",
+          "display_name": "Large interactive — 64 CPU / 232 GiB / 4 h",
+          "mode": "interactive",
+          "resource_class": "cpu-large-v1",
+          "environment": "m2-smoke-v1",
+          "enabled": true
+        }
+      ]
+    }

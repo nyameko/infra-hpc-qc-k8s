@@ -124,3 +124,13 @@ The M1 CPU fabric is intentionally split into two operational tutorials:
 3. [Slurm service identity recovery](slurm-service-identity-recovery.md) — recover an already-installed fabric from inconsistent Slurm/MUNGE/Node Exporter UID/GID allocation without turning one-time surgery into the normal deployment path.
 
 Run storage acceptance before Slurm so `/home`, `/datasets` and `/staging` are real shared filesystems before user jobs can start. Scratch remains compute-local and ephemeral.
+
+
+## M2 Jupyter research experience
+
+The Jupyter milestone is deliberately split:
+
+1. [M2a — KubeSpawner research workbench and burst compute](m2a-jupyterhub-kubespawner-workbench.md) — the default user experience: cheap Kubernetes notebook pods, shared research home, and on-demand CPU/GPU/QPU execution.
+2. [M2b — BatchSpawner interactive-HPC sessions](m2-jupyterhub-slurm.md) — an explicit secondary mode for workloads that genuinely need the notebook server itself inside a Slurm allocation.
+
+The split is architectural: **workspace resources are not execution resources**.

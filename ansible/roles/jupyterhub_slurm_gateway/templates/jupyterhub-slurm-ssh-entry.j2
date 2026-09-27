@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+case "${SSH_ORIGINAL_COMMAND:-}" in
+  submit\ *|query\ *|cancel\ *)
+    read -r op arg extra <<<"${SSH_ORIGINAL_COMMAND}"
+    [[ -z "${extra:-}" ]] || exit 64
+    exec sudo /usr/local/sbin/jupyterhub-slurm-helper "$op" "$arg"
+    ;;
+  *)
+    echo "JupyterHub Slurm gateway: command rejected" >&2
+    exit 64
+    ;;
+esac

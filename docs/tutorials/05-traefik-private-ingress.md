@@ -20,7 +20,7 @@ blackmyth / private client
         │ WireGuard
         ▼
 edge
-<VPN_GATEWAY_ADDR>
+<VPN_GATEWAY_IP>
         │
         │ Pi-hole split DNS
         ▼
@@ -78,9 +78,9 @@ Therefore:
 
 ```text
 correct:
-<K8S_WORKER_1_ADDR>:31924
-<K8S_WORKER_2_ADDR>:31924
-<K8S_WORKER_3_ADDR>:31924
+<K8S_WORKER_1_IP>:31924
+<K8S_WORKER_2_IP>:31924
+<K8S_WORKER_N_IP>:31924
 
 incorrect:
 10.0.0.x:31924
@@ -95,7 +95,7 @@ The Cilium Pod CIDR is not the NodePort listen address.
 Before involving DNS, WireGuard, or HAProxy, test each worker directly.
 
 ```bash
-for node in <K8S_WORKER_1_ADDR> <K8S_WORKER_2_ADDR> <K8S_WORKER_3_ADDR>; do
+for node in <K8S_WORKER_1_IP> <K8S_WORKER_2_IP> <K8S_WORKER_N_IP>; do
   echo "=== $node ==="
   curl -skv \
     --resolve traefik-test.quantum.nyameko.com:31924:$node \
@@ -148,7 +148,7 @@ Pi-hole returns:
 Test Pi-hole directly:
 
 ```bash
-dig @<VPN_GATEWAY_ADDR> traefik-test.quantum.nyameko.com
+dig @<VPN_GATEWAY_IP> traefik-test.quantum.nyameko.com
 ```
 
 The answer should contain:
@@ -168,7 +168,7 @@ WireGuard provides reachability; it does not automatically change the workstatio
 On a system using `systemd-resolved`, a suitable test configuration is:
 
 ```bash
-sudo resolvectl dns wg_infra_hpc_qc <VPN_GATEWAY_ADDR>
+sudo resolvectl dns wg_infra_hpc_qc <VPN_GATEWAY_IP>
 sudo resolvectl domain wg_infra_hpc_qc '~quantum.nyameko.com'
 ```
 
@@ -373,7 +373,7 @@ Use `curl --resolve` so that the TCP destination is the worker NodePort while TL
 
 ```bash
 curl -vk \
-  --resolve traefik-test.quantum.nyameko.com:31924:<K8S_WORKER_1_ADDR> \
+  --resolve traefik-test.quantum.nyameko.com:31924:<K8S_WORKER_1_IP> \
   https://traefik-test.quantum.nyameko.com:31924/
 ```
 

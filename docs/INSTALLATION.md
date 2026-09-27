@@ -59,28 +59,28 @@ WireGuard:  <VPN_CIDR>
 Current reference hosts:
 
 ```text
-edge                 <EDGE_ADDR>
-hermes host          <AGENT_ORCHESTRATOR_ADDR>
-slurm controller     <SLURM_CONTROLLER_ADDR>
-login1               <SLURM_LOGIN_1_ADDR>
-login2               <SLURM_LOGIN_2_ADDR>
-slurm-cpu-01         <SLURM_CPU_SMALL_1_ADDR>   12 vCPU / 24 GiB
-slurm-cpu-02         <SLURM_CPU_SMALL_2_ADDR>   12 vCPU / 24 GiB
-slurm-cpu-03         <SLURM_CPU_LARGE_1_ADDR>   64 vCPU / 256 GiB
-slurm-cpu-04         <SLURM_CPU_LARGE_2_ADDR>   64 vCPU / 256 GiB
-storage-nfs-01       <STORAGE_ADDR>
+edge                 <EDGE_IP>
+hermes host          <AGENT_OOB_IP>
+slurm controller     <SLURM_CONTROLLER_IP>
+login1               <SLURM_LOGIN_1_IP>
+login2               <SLURM_LOGIN_N_IP>
+slurm-cpu-01         <SLURM_COMPUTE_1_IP>   12 vCPU / 24 GiB
+slurm-cpu-02         <SLURM_COMPUTE_2_IP>   12 vCPU / 24 GiB
+slurm-cpu-03         <SLURM_COMPUTE_3_IP>   64 vCPU / 256 GiB
+slurm-cpu-04         <SLURM_COMPUTE_N_IP>   64 vCPU / 256 GiB
+storage-nfs-01       <STORAGE_IP>
 api-lb-01            <K8S_API_VIP>
-k8s-cp-01            <K8S_CP_1_ADDR>
-k8s-cp-02            <K8S_CP_2_ADDR>
-k8s-cp-03            <K8S_CP_3_ADDR>
-k8s-worker-01        <K8S_WORKER_1_ADDR>
-k8s-worker-02        <K8S_WORKER_2_ADDR>
-k8s-worker-03        <K8S_WORKER_3_ADDR>
+k8s-cp-01            <K8S_CP_1_IP>
+k8s-cp-02            <K8S_CP_2_IP>
+k8s-cp-03            <K8S_CP_N_IP>
+k8s-worker-01        <K8S_WORKER_1_IP>
+k8s-worker-02        <K8S_WORKER_2_IP>
+k8s-worker-03        <K8S_WORKER_N_IP>
 ```
 
 The edge provides WireGuard, Pi-hole, nftables, Wazuh Manager and network-security telemetry. The Kubernetes API is fronted by HAProxy at `<K8S_API_VIP>:6443`.
 
-Pi-hole at `<EDGE_ADDR>` is also the resolver advertised by Neutron DHCP to the management and Kubernetes subnets. This is intentionally an infrastructure service rather than a convenience-only ad blocker.
+Pi-hole at `<EDGE_IP>` is also the resolver advertised by Neutron DHCP to the management and Kubernetes subnets. This is intentionally an infrastructure service rather than a convenience-only ad blocker.
 
 # 3. Security boundaries
 
@@ -107,9 +107,9 @@ Keep the recovery/console path available while changing host firewall policy.
 WireGuard is the normal private administrative path:
 
 ```text
-client <VPN_CLIENT_ADDR>
+client <VPN_CLIENT_IP>
        ↓
-edge <VPN_GATEWAY_ADDR>
+edge <VPN_GATEWAY_IP>
        ↓
 <MGMT_CIDR> + <K8S_CIDR> + <VPN_CIDR>
 ```
@@ -128,7 +128,7 @@ Pi-hole runs on the edge and is the current internal resolver for the local Open
 
 ```text
 management VM ─┐
-Kubernetes node ├─→ Pi-hole <EDGE_ADDR> → upstream DNS
+Kubernetes node ├─→ Pi-hole <EDGE_IP> → upstream DNS
 WireGuard client┘
 ```
 
@@ -143,7 +143,7 @@ Do not point pods directly at Pi-hole and bypass CoreDNS service discovery.
 Neutron subnet configuration advertises:
 
 ```text
-<EDGE_ADDR>
+<EDGE_IP>
 ```
 
 as the DNS server for both local OpenStack subnets. Existing VMs may need a DHCP lease refresh before the new resolver appears.
@@ -161,7 +161,7 @@ A typical NetworkManager-generated resolver file may still contain OpenStack sea
 
 ```text
 search openstacklocal novalocal
-nameserver <EDGE_ADDR>
+nameserver <EDGE_IP>
 ```
 
 That suffix behavior is separate from the resolver choice. The long-term internal naming taxonomy is tracked in issue #49.
@@ -169,7 +169,7 @@ That suffix behavior is separate from the resolver choice. The long-term interna
 WireGuard clients should use the edge's tunnel address as DNS:
 
 ```text
-DNS = <VPN_GATEWAY_ADDR>
+DNS = <VPN_GATEWAY_IP>
 ```
 
 where supported by the client manager. External A100/H200/third-party compute sites are not implicitly placed under this DNS authority.

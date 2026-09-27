@@ -1,25 +1,28 @@
 ---
-# Schema-only example. Keep the live host/address map in protected inventory.
+# Example shape only. Copy this into protected inventory and supply real
+# addresses there. Public Git deliberately omits the live topology.
 all:
   children:
     slurm_controller:
       hosts:
-        slurm-controller-N:
-          ansible_host: "<SLURM_CONTROLLER_ADDR_N>"
+        slurm-controller-01:
+          ansible_host: "<SLURM_CONTROLLER_IP>"
     slurm_login:
       hosts:
+        login-01:
+          ansible_host: "<SLURM_LOGIN_1_IP>"
         login-N:
-          ansible_host: "<SLURM_LOGIN_ADDR_N>"
+          ansible_host: "<SLURM_LOGIN_N_IP>"
     slurm_compute:
       hosts:
-        slurm-cpu-small-N:
-          ansible_host: "<SLURM_CPU_SMALL_ADDR_N>"
-        slurm-cpu-large-N:
-          ansible_host: "<SLURM_CPU_LARGE_ADDR_N>"
+        slurm-cpu-01:
+          ansible_host: "<SLURM_COMPUTE_1_IP>"
+        slurm-cpu-N:
+          ansible_host: "<SLURM_COMPUTE_N_IP>"
     storage_nfs:
       hosts:
-        storage-N:
-          ansible_host: "<STORAGE_ADDR_N>"
+        storage-01:
+          ansible_host: "<STORAGE_IP>"
     slurm_cluster:
       children:
         slurm_controller: {}

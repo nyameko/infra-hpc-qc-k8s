@@ -162,34 +162,47 @@ The public repository documents **roles and trust boundaries**, not the authorit
 Management:   <MGMT_CIDR>
 Kubernetes:   <K8S_CIDR>
 WireGuard:    <VPN_CIDR>
-Pod network:  <POD_CIDR>
 ```
 
-### Logical topology
+The network names used in code are intentionally canonical:
 
-| Node pattern | Address placeholder | Role |
-|---|---|---|
-| `edge` | `<EDGE_ADDR>` | WireGuard, DNS, firewall/security edge services |
-| `agent-orchestrator-N` | `<AGENT_ORCHESTRATOR_ADDR_N>` | optional out-of-band agent/orchestration host |
-| `slurm-controller-N` | `<SLURM_CONTROLLER_ADDR_N>` | Slurm control/accounting |
-| `login-N` | `<SLURM_LOGIN_ADDR_N>` | user-facing SSH/login tier |
-| `slurm-cpu-N` | `<SLURM_COMPUTE_ADDR_N>` | CPU compute classes |
-| `storage-N` | `<STORAGE_ADDR_N>` | shared research storage |
-| `api-lb-N` | `<K8S_API_VIP>` | stable Kubernetes API endpoint |
-| `k8s-cp-N` | `<K8S_CP_ADDR_N>` | Kubernetes control plane |
-| `k8s-worker-N` | `<K8S_WORKER_ADDR_N>` | Kubernetes worker pools |
+```yaml
+mgmt_cidr: <MGMT_CIDR>
+k8s_cidr:  <K8S_CIDR>
+vpn_cidr:  <VPN_CIDR>
+```
 
-Kubernetes clients use the private stable endpoint:
+### Virtual-machine topology
+
+The public repository documents **roles and relationships**, not the authoritative live host/IP map. Exact addresses, peer mappings, node counts and provider IDs belong in private inventory and private Terraform variables.
+
+| Role pattern | Purpose |
+|---|---|
+| `edge` | VPN entry, DNS, firewalling and edge security telemetry |
+| `agent-oob` | optional out-of-band administrative agent/orchestrator host |
+| `slurm-controller-01` | Slurm controller and accounting services |
+| `login-01 ... login-N` | user-facing SSH/login and Slurm clients |
+| `slurm-cpu-01 ... slurm-cpu-N` | CPU compute fabric |
+| `storage-01 ... storage-N` | persistent research storage gateways/services |
+| `api-lb-01` | stable Kubernetes API endpoint |
+| `k8s-cp-01 ... k8s-cp-N` | Kubernetes control plane |
+| `k8s-core-01 ... k8s-core-N` | core/service worker pool |
+| `k8s-user-01 ... k8s-user-N` | Jupyter/user-workbench worker pool |
+| `k8s-agent-01 ... k8s-agent-N` | optional agent/harness runtime worker pool |
+
+Kubernetes clients use the stable API endpoint:
 
 ```text
 <K8S_API_VIP>:6443
-        |
-   API load balancer
-        |
-   CP-01 ... CP-N
+        │
+      HAProxy
+     /  |  \
+   CP1  CP2  CP3
 ```
 
-Private DNS resolves role names to the current environment addresses. The live mapping is intentionally not duplicated in public documentation.
+The API load-balancer implementation is intentionally replaceable. The important contract is the stable Kubernetes control-plane endpoint, not HAProxy itself.
+
+Pi-hole at `<EDGE_IP>` is now advertised by Neutron DHCP to the management and Kubernetes subnets. Local OpenStack hosts therefore use the edge DNS service rather than depending only on provider defaults. Kubernetes pods still use CoreDNS; the intended path is `pod → CoreDNS → Pi-hole → upstream DNS`.
 
 ## Defense in depth
 
@@ -276,7 +289,7 @@ Kubernetes currently exposes Cinder-backed StorageClasses for application/PVC wo
 The validated M1 research storage layout is:
 
 ```text
-storage-nfs-01 <STORAGE_ADDR>
+storage-nfs-01 <STORAGE_IP>
 
 /srv/home      → /home/research on login/compute nodes
 /srv/datasets  → /datasets
@@ -440,7 +453,7 @@ cpu-large:
 
 CPU and memory isolation use cgroup v2 through `proctrack/cgroup`, `task/cgroup` and `task/affinity`. Slurm accounting is registered as cluster `quantum-cpu`.
 
-The separation between Kubernetes and Slurm remains intentional: Kubernetes runs platform services; Slurm schedules researcher compute. The next major integration is JupyterHub in Kubernetes using Slurm for **all** notebook compute rather than running user kernels directly in Kubernetes.
+The separation between Kubernetes and Slurm remains intentional: Kubernetes runs platform services and the default low-cost Jupyter workbench; Slurm schedules scarce or substantial researcher compute. The primary JupyterHub path is therefore **KubeSpawner for lightweight workbench pods**, with CPU/GPU/QPU work submitted on demand through the platform execution interface. BatchSpawner remains a supported secondary mode for explicit interactive-HPC sessions where the notebook server itself must live inside a Slurm allocation.
 
 For the full recovery history and operational lessons, see [docs/tutorials/slurm-service-identity-recovery.md](docs/tutorials/slurm-service-identity-recovery.md).
 
@@ -746,7 +759,7 @@ The repository is a work in progress, so distinguish **manifest present** from *
 - ✅ Prometheus and Grafana
 - ✅ Git-managed platform dashboards
 - ✅ edge WireGuard/private-access path
-- ✅ Pi-hole internal DNS at `<EDGE_ADDR>`
+- ✅ Pi-hole internal DNS at `<EDGE_IP>`
 - ✅ Neutron DHCP advertises Pi-hole to management and Kubernetes subnets
 
 ### M1 persistent research storage
@@ -928,7 +941,7 @@ The CPU execution substrate is now real, so the priority shifts from bringing up
 2. **Service identity:** finish the deterministic infrastructure UID/GID registry for Node Exporter and the RPM builder; future human/research identities remain owned by Quantum Platform.
 3. **DNS/time:** finish Pi-hole/CoreDNS/WireGuard resolver validation and formalize the internal DNS and Chrony topology.
 4. **Observability/security:** revalidate Slurm/Node Exporter dashboards, Wazuh agents and Suricata/Wazuh evidence using fresh time windows.
-5. **JupyterHub → Slurm:** keep the Hub in Kubernetes while launching every user notebook through a Slurm allocation on the compute fabric.
+5. **JupyterHub workbench + burst compute:** run ordinary notebook servers cheaply with KubeSpawner on dedicated Kubernetes user workers; submit substantial CPU/GPU work to Slurm and QPU work to the future broker only when a cell/workflow needs it. Retain BatchSpawner as an explicit interactive-HPC profile, not the default.
 6. **Quantum Platform provisioning:** approved platform identity → deterministic POSIX identity → shared home → SSH/WireGuard keys → Slurm account/association/QoS.
 7. **Accelerators and external compute:** add A100/H200 and external Slurm/Lengau adapters only after the CPU/Jupyter path is authoritative.
 8. **Agent Control Plane:** layer controlled agent orchestration onto already-authoritative Kubernetes/Slurm/storage/security systems rather than bypassing them.

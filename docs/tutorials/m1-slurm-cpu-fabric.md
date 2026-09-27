@@ -82,7 +82,7 @@ role checks `findmnt` on login/compute nodes.
 1. In the **private** Terraform environment, copy the two `slurm_cpu_03`
    and `slurm_cpu_04` entries, set `compute_64c_flavor = "C64.xlarge"`,
    and apply the scoped security-group additions. Verify that proposed
-   `<SLURM_CPU_LARGE_1_ADDR>` and `<SLURM_CPU_LARGE_2_ADDR>` are unused. Take a state backup.
+   `<SLURM_COMPUTE_3_IP>` and `<SLURM_COMPUTE_N_IP>` are unused. Take a state backup.
 2. Run `terraform fmt -check`, `terraform validate`,
    `terraform plan -out=m1.tfplan`. Review `terraform show m1.tfplan`.
    No existing resources should be replaced or deleted. Apply only

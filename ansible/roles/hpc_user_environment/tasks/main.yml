@@ -1,0 +1,26 @@
+---
+- name: Enable EPEL for HPC user-space tooling
+  ansible.builtin.package:
+    name: "{{ hpc_user_environment_epel_package }}"
+    state: present
+
+- name: Install Lmod and Apptainer
+  ansible.builtin.package:
+    name: "{{ hpc_user_environment_packages }}"
+    state: present
+
+- name: Create root-owned local container cache
+  ansible.builtin.file:
+    path: "{{ hpc_container_cache_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Publish Apptainer through Lmod
+  ansible.builtin.template:
+    src: apptainer.lua.j2
+    dest: /etc/modulefiles/apptainer.lua
+    owner: root
+    group: root
+    mode: "0644"

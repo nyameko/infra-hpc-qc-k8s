@@ -4,13 +4,14 @@ module "network" {
   external_network_name = var.external_network_name
   mgmt_cidr             = var.mgmt_cidr
   k8s_cidr              = var.k8s_cidr
+  api_lb_cidr           = var.k8s_cidr
   mgmt_gateway_ip       = var.mgmt_gateway_ip
   k8s_gateway_ip        = var.k8s_gateway_ip
   mgmt_pool_start       = var.mgmt_pool_start
   mgmt_pool_end         = var.mgmt_pool_end
   k8s_pool_start        = var.k8s_pool_start
   k8s_pool_end          = var.k8s_pool_end
-  dns_nameservers       = var.dns_nameservers
+  dns_nameservers        = var.dns_nameservers
 }
 
 module "security" {
