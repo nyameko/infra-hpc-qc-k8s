@@ -46,5 +46,5 @@ jobs:
           context: ${{ matrix.context }}
           push: ${{ github.event_name == 'push' }}
           tags: |
-            ghcr.io/nyameko/${{ matrix.image }}:${{ github.ref_name }}
             ghcr.io/nyameko/${{ matrix.image }}:sha-${{ github.sha }}
+            ghcr.io/nyameko/${{ matrix.image }}:${{ github.event_name == 'push' && github.ref_name || 'pr-check' }}
