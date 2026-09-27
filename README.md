@@ -453,7 +453,7 @@ cpu-large:
 
 CPU and memory isolation use cgroup v2 through `proctrack/cgroup`, `task/cgroup` and `task/affinity`. Slurm accounting is registered as cluster `quantum-cpu`.
 
-The separation between Kubernetes and Slurm remains intentional: Kubernetes runs platform services; Slurm schedules researcher compute. The next major integration is JupyterHub in Kubernetes using Slurm for **all** notebook compute rather than running user kernels directly in Kubernetes.
+The separation between Kubernetes and Slurm remains intentional: Kubernetes runs platform services and the default low-cost Jupyter workbench; Slurm schedules scarce or substantial researcher compute. The primary JupyterHub path is therefore **KubeSpawner for lightweight workbench pods**, with CPU/GPU/QPU work submitted on demand through the platform execution interface. BatchSpawner remains a supported secondary mode for explicit interactive-HPC sessions where the notebook server itself must live inside a Slurm allocation.
 
 For the full recovery history and operational lessons, see [docs/tutorials/slurm-service-identity-recovery.md](docs/tutorials/slurm-service-identity-recovery.md).
 
@@ -941,7 +941,7 @@ The CPU execution substrate is now real, so the priority shifts from bringing up
 2. **Service identity:** finish the deterministic infrastructure UID/GID registry for Node Exporter and the RPM builder; future human/research identities remain owned by Quantum Platform.
 3. **DNS/time:** finish Pi-hole/CoreDNS/WireGuard resolver validation and formalize the internal DNS and Chrony topology.
 4. **Observability/security:** revalidate Slurm/Node Exporter dashboards, Wazuh agents and Suricata/Wazuh evidence using fresh time windows.
-5. **JupyterHub → Slurm:** keep the Hub in Kubernetes while launching every user notebook through a Slurm allocation on the compute fabric.
+5. **JupyterHub workbench + burst compute:** run ordinary notebook servers cheaply with KubeSpawner on dedicated Kubernetes user workers; submit substantial CPU/GPU work to Slurm and QPU work to the future broker only when a cell/workflow needs it. Retain BatchSpawner as an explicit interactive-HPC profile, not the default.
 6. **Quantum Platform provisioning:** approved platform identity → deterministic POSIX identity → shared home → SSH/WireGuard keys → Slurm account/association/QoS.
 7. **Accelerators and external compute:** add A100/H200 and external Slurm/Lengau adapters only after the CPU/Jupyter path is authoritative.
 8. **Agent Control Plane:** layer controlled agent orchestration onto already-authoritative Kubernetes/Slurm/storage/security systems rather than bypassing them.
