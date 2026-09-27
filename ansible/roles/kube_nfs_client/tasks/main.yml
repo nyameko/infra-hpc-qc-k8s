@@ -1,0 +1,24 @@
+---
+- name: Install NFS client utilities on Kubernetes workers
+  ansible.builtin.dnf:
+    name:
+      - nfs-utils
+    state: present
+
+- name: Verify NFSv4 mount helper is installed
+  ansible.builtin.command:
+    cmd: command -v mount.nfs4
+  changed_when: false
+
+- name: Verify private research-storage DNS resolves
+  ansible.builtin.command:
+    cmd: "getent ahostsv4 {{ research_home_nfs_server }}"
+  register: research_home_dns
+  changed_when: false
+
+- name: Verify Kubernetes worker can reach NFSv4 service
+  ansible.builtin.wait_for:
+    host: "{{ research_home_nfs_server }}"
+    port: 2049
+    timeout: 5
+    state: started
