@@ -15,6 +15,42 @@
     that:
       - inventory_hostname == slurm_controller_hostname or inventory_hostname in groups['slurm_login'] or inventory_hostname in (slurm_nodes | map(attribute='name') | list)
 
+- name: Create canonical Slurm service group before package installation
+  ansible.builtin.group:
+    name: slurm
+    gid: "{{ slurm_service_gid }}"
+    system: true
+    state: present
+
+- name: Create canonical MUNGE service group before package installation
+  ansible.builtin.group:
+    name: munge
+    gid: "{{ munge_service_gid }}"
+    system: true
+    state: present
+
+- name: Create canonical Slurm service user before package installation
+  ansible.builtin.user:
+    name: slurm
+    uid: "{{ slurm_service_uid }}"
+    group: slurm
+    home: /home/slurm
+    system: true
+    create_home: false
+    shell: /sbin/nologin
+    state: present
+
+- name: Create canonical MUNGE service user before package installation
+  ansible.builtin.user:
+    name: munge
+    uid: "{{ munge_service_uid }}"
+    group: munge
+    home: /run/munge
+    system: true
+    create_home: false
+    shell: /sbin/nologin
+    state: present
+
 - name: Install Slurm role packages from vetted artifact set
   ansible.builtin.dnf:
     name: "{{ slurm_role_packages }}"
@@ -33,14 +69,6 @@
     fail_msg: >-
       Installed Slurm RPM version differs from slurm_package_version
       or the core slurm RPM is missing.
-
-- name: Ensure Slurm and MUNGE identities exist
-  ansible.builtin.user:
-    name: "{{ item }}"
-    system: true
-    create_home: false
-    shell: /sbin/nologin
-  loop: [munge, slurm]
 
 - name: Create Slurm configuration directory
   ansible.builtin.file:
