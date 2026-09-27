@@ -1,5 +1,5 @@
 output "edge_floating_ip" { value = openstack_networking_floatingip_v2.edge.address }
-output "k8s_api_vip" { value = module.octavia.vip_address }
+output "k8s_api_vip" { value = var.api_lb_address }
 output "node_ips" { value = module.compute.ips }
 output "kubernetes_api_endpoint" {
   value = (
