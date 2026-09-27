@@ -5,6 +5,13 @@ slurm_controller_address: 10.50.0.12
 slurm_partition_small: cpu-small
 slurm_partition_large: cpu-large
 
+# Canonical numeric service identities. These must be identical across every
+# Slurm host because MUNGE-authenticated Slurm RPCs carry numeric credentials.
+slurm_service_uid: 991
+slurm_service_gid: 988
+munge_service_uid: 992
+munge_service_gid: 989
+
 slurm_package_version: "25.11.8"
 slurm_rpm_release: "1.el9"
 slurm_rpm_arch: "x86_64"
