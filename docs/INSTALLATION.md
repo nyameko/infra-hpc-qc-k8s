@@ -56,24 +56,31 @@ Kubernetes: 10.51.0.0/24
 WireGuard:  10.60.0.0/24
 ```
 
-Reference hosts:
+Current reference hosts:
 
 ```text
-edge             10.50.0.10
-hermes host      10.50.0.11
-slurm controller 10.50.0.12
-login1           10.50.0.20
-login2           10.50.0.21
-api-lb-01        10.51.0.100
-k8s-cp-01        10.51.0.11
-k8s-cp-02        10.51.0.12
-k8s-cp-03        10.51.0.13
-k8s-worker-01    10.51.0.21
-k8s-worker-02    10.51.0.22
-k8s-worker-03    10.51.0.23
+edge                 10.50.0.10
+hermes host          10.50.0.11
+slurm controller     10.50.0.12
+login1               10.50.0.20
+login2               10.50.0.21
+slurm-cpu-01         10.50.0.30   12 vCPU / 24 GiB
+slurm-cpu-02         10.50.0.31   12 vCPU / 24 GiB
+slurm-cpu-03         10.50.0.32   64 vCPU / 256 GiB
+slurm-cpu-04         10.50.0.33   64 vCPU / 256 GiB
+storage-nfs-01       10.50.0.40
+api-lb-01            10.51.0.100
+k8s-cp-01            10.51.0.11
+k8s-cp-02            10.51.0.12
+k8s-cp-03            10.51.0.13
+k8s-worker-01        10.51.0.21
+k8s-worker-02        10.51.0.22
+k8s-worker-03        10.51.0.23
 ```
 
-The edge provides WireGuard, Pi-hole, nftables, Wazuh Manager and network security telemetry. The Kubernetes API is fronted by HAProxy at `10.51.0.100:6443`.
+The edge provides WireGuard, Pi-hole, nftables, Wazuh Manager and network-security telemetry. The Kubernetes API is fronted by HAProxy at `10.51.0.100:6443`.
+
+Pi-hole at `10.50.0.10` is also the resolver advertised by Neutron DHCP to the management and Kubernetes subnets. This is intentionally an infrastructure service rather than a convenience-only ad blocker.
 
 # 3. Security boundaries
 
@@ -117,28 +124,55 @@ ip route
 
 # 5. Pi-hole and DNS baseline
 
-Pi-hole runs at the edge because DNS is foundational infrastructure.
+Pi-hole runs on the edge and is the current internal resolver for the local OpenStack fabric.
 
 ```text
-client / host
-   ↓
-edge :53
-   ↓
-Pi-hole
-   ↓
-upstream DNS
+management VM ─┐
+Kubernetes node ├─→ Pi-hole 10.50.0.10 → upstream DNS
+WireGuard client┘
 ```
 
-Validate:
+Kubernetes pods should retain Kubernetes DNS semantics:
+
+```text
+pod → CoreDNS → node/upstream resolver → Pi-hole → upstream DNS
+```
+
+Do not point pods directly at Pi-hole and bypass CoreDNS service discovery.
+
+Neutron subnet configuration advertises:
+
+```text
+10.50.0.10
+```
+
+as the DNS server for both local OpenStack subnets. Existing VMs may need a DHCP lease refresh before the new resolver appears.
+
+Validate from a management VM:
 
 ```bash
-sudo ss -lunpt | grep ':53'
-dig @10.60.0.1 pi.hole
+cat /etc/resolv.conf
+resolvectl status || true
+getent hosts edge
+getent hosts slurm-controller-01
 ```
 
-A DNS daemon being active is not proof that clients can resolve names. Test from the client network.
+A typical NetworkManager-generated resolver file may still contain OpenStack search domains such as:
 
-A Pi-hole GUI/password-rendering issue is tracked separately from the critical platform path; do not let that issue delay the rest of the deployment.
+```text
+search openstacklocal novalocal
+nameserver 10.50.0.10
+```
+
+That suffix behavior is separate from the resolver choice. The long-term internal naming taxonomy is tracked in issue #49.
+
+WireGuard clients should use the edge's tunnel address as DNS:
+
+```text
+DNS = 10.60.0.1
+```
+
+where supported by the client manager. External A100/H200/third-party compute sites are not implicitly placed under this DNS authority.
 
 # 6. HAProxy: Kubernetes API endpoint
 
@@ -203,9 +237,9 @@ cilium connectivity test --debug
 
 The validated baseline has passed the current connectivity suite. Treat skipped tests separately from failures and understand why they were skipped.
 
-# 9. OpenStack CCM and Cinder CSI
+# 9. Persistent storage: Kubernetes and HPC
 
-Persistent storage path:
+Kubernetes persistent storage uses OpenStack Cinder through Cinder CSI:
 
 ```text
 PVC
@@ -223,7 +257,45 @@ Pod
 
 The persistence test must survive Pod recreation.
 
-Likely consumers include Wazuh Indexer, Grafana, PostgreSQL, JupyterHub and user/application state.
+The HPC/research plane is separate. M1 uses `storage-nfs-01` as a dedicated NFSv4 gateway over three Cinder SSD-backed XFS filesystems:
+
+```text
+/srv/home      512 GiB → /home/research
+/srv/datasets    2 TiB → /datasets
+/srv/staging   512 GiB → /staging
+```
+
+Quota policy:
+
+```text
+home      user accounting/enforcement
+datasets  project accounting/enforcement
+staging   user + project accounting/enforcement
+```
+
+The storage VM owns each Cinder block attachment. Login and compute hosts mount the NFS exports; they do not attach the same block device directly.
+
+Validate on storage:
+
+```bash
+findmnt /srv/home /srv/datasets /srv/staging
+xfs_quota -x -c 'state' /srv/home
+xfs_quota -x -c 'state' /srv/datasets
+xfs_quota -x -c 'state' /srv/staging
+exportfs -v
+```
+
+Validate on login/compute nodes:
+
+```bash
+findmnt /home/research
+findmnt /datasets
+findmnt /staging
+```
+
+Slurm treats shared `/home/research` as a prerequisite. Scratch remains node-local and ephemeral.
+
+See [tutorials/m1-storage-nfs-xfs.md](tutorials/m1-storage-nfs-xfs.md) for the full storage deployment and acceptance path.
 
 # 10. Argo CD GitOps
 
@@ -415,28 +487,167 @@ Grafana supplements, rather than replaces, the Wazuh Dashboard.
 
 # 14. Slurm
 
-Slurm remains outside Kubernetes and remains authoritative for HPC scheduling.
+Slurm remains outside Kubernetes and is authoritative for researcher compute scheduling.
 
-Initial topology:
+## 14.1 Validated M1 topology
 
 ```text
-slurm-controller
-   ├── login1
-   ├── login2
-   └── compute nodes
+slurm-controller-01
+  ├── slurmctld
+  ├── slurmdbd
+  └── MariaDB / slurm_acct_db
+
+login1 / login2
+  └── supported user-facing submission tier
+
+cpu-small
+  ├── slurm-cpu-01  12 vCPU / RealMemory=23552 MiB
+  └── slurm-cpu-02  12 vCPU / RealMemory=23552 MiB
+
+cpu-large
+  ├── slurm-cpu-03  64 vCPU / RealMemory=256192 MiB
+  └── slurm-cpu-04  64 vCPU / RealMemory=256192 MiB
 ```
 
-Validate:
+The controller is an infrastructure host. Normal researchers should submit through the login tier rather than logging into or launching interactive work from the controller.
+
+## 14.2 Packages
+
+M1 builds Slurm 25.11.8 from checksum-pinned official SchedMD source into Rocky Linux 9 RPMs:
 
 ```bash
-sinfo
-squeue
-scontrol show nodes
+cd ansible
+ansible-playbook \
+  -i inventories/private/hosts.yml \
+  playbooks/slurm-build-rpms.yml
 ```
 
-The minimum acceptance gate is a partition with at least one usable node and a sample job that completes.
+The same artifact set is staged to controller/login/compute nodes before role-specific packages are installed. Locally built M1 RPMs are unsigned but explicitly checksum-verified; issue #41 owns signed CI artifacts, SBOM/provenance and an internal Yum/DNF repository.
 
-A Slurm Grafana dashboard should be added after the scheduler is operational.
+## 14.3 Secrets and accounting
+
+Private Vault variables contain:
+
+```yaml
+slurm_munge_key_b64: "<base64 of the shared binary key>"
+slurm_db_password: "<database password>"
+```
+
+Do not commit either secret.
+
+Accounting topology:
+
+```text
+slurmctld → slurmdbd :6819 → MariaDB
+```
+
+The registered Slurm cluster is:
+
+```text
+quantum-cpu
+```
+
+## 14.4 Numeric service identities
+
+The service accounts are pinned because Slurm/MUNGE authenticated RPCs carry numeric credentials:
+
+```text
+slurm  5000:5000
+munge  5001:5001
+```
+
+A real M1 failure used the same account names but different numeric UIDs on the controller and compute nodes. That produced:
+
+```text
+cred/munge: Unexpected uid (...) != Slurm uid (...)
+_verify_signature: failed decode
+Malformed RPC
+Header lengths are longer than data received
+```
+
+Do not diagnose old journal entries as current failures. Use fresh time windows after service restarts.
+
+The one-time recovery path belongs in [tutorials/slurm-service-identity-recovery.md](tutorials/slurm-service-identity-recovery.md), not in normal deployment automation.
+
+## 14.5 Interactive callback traffic
+
+Interactive `srun` opens listening sockets on the machine where the client command runs. Compute-side `slurmstepd` must connect back to those sockets.
+
+M1 constrains this with:
+
+```text
+SrunPortRange=60001-61000
+```
+
+Without a matching compute → login-node security-group rule, allocation succeeds but task launch fails with:
+
+```text
+connect io: Connection timed out
+_fork_all_tasks: IO setup failed: Slurmd could not connect IO
+```
+
+The intended security boundary is:
+
+```text
+slurm-compute SG → TCP 60001-61000 → slurm-login SG
+```
+
+The controller does not need to remain a normal interactive `srun` endpoint after acceptance testing.
+
+## 14.6 Deploy
+
+From `ansible/`:
+
+```bash
+ansible-playbook \
+  -i inventories/private/hosts.yml \
+  playbooks/slurm.yml \
+  --ask-vault-pass \
+  -e @inventories/private/slurm-secrets.vault.yml
+```
+
+The playbook validates package version, MUNGE material, shared home, declared CPU/memory resources, accounting and daemon health.
+
+## 14.7 Validated execution
+
+From `login1` or `login2`:
+
+```bash
+sinfo -N -l
+squeue -a
+scontrol show nodes
+sacctmgr -nP show cluster format=Cluster
+```
+
+M1 has passed:
+
+```bash
+srun \
+  --partition=cpu-small \
+  --nodes=1 \
+  --ntasks=1 \
+  --time=00:01:00 \
+  /usr/bin/hostname
+```
+
+with output from `slurm-cpu-01`, and:
+
+```bash
+srun \
+  --partition=cpu-large \
+  --nodes=1 \
+  --ntasks=1 \
+  --cpus-per-task=32 \
+  --mem=128G \
+  --time=00:01:00 \
+  bash -lc 'hostname; nproc; free -h'
+```
+
+with a 32-CPU allocation on `slurm-cpu-03`.
+
+The next hardening gate is to formalize `sbatch`, `sacct`, cancellation, walltime, cgroup enforcement, two-node execution and MPI/PMIx acceptance. That work is tracked in issue #56.
+
+See [tutorials/m1-slurm-cpu-fabric.md](tutorials/m1-slurm-cpu-fabric.md) for architecture/deployment detail and [tutorials/slurm-service-identity-recovery.md](tutorials/slurm-service-identity-recovery.md) for the incident-recovery sequence.
 
 # 15. PostgreSQL
 
@@ -458,11 +669,43 @@ Backups and HA remain later hardening concerns.
 
 # 16. JupyterHub
 
-JupyterHub provides researcher-facing interactive computing.
+JupyterHub is the next major integration after M1 Slurm hardening.
 
-The intended resource model will allow notebooks and user environments to interact with Kubernetes and, through controlled integration, Slurm resources.
+The architectural rule is already fixed:
 
-Quantum-computing toolkits and profiles belong here rather than in the infrastructure layer.
+```text
+browser
+   ↓
+JupyterHub in Kubernetes
+   ↓
+Slurm submission
+   ↓
+allocated compute node
+   ↓
+jupyterhub-singleuser
+   ↓
+shared /home/research
+```
+
+Kubernetes hosts the Hub/control service. User notebook servers and kernels must consume Slurm allocations; there is no silent Kubernetes fallback compute path.
+
+Start with a deliberately small profile set, for example:
+
+```text
+development  → small cpu-small allocation
+research     → larger bounded allocation
+```
+
+Before exposing additional profiles, prove:
+
+- allocation and cancellation;
+- wall-time expiry;
+- CPU/memory cgroup limits;
+- persistent shared home;
+- Slurm accounting;
+- notebook termination when the Slurm allocation ends.
+
+Identity provisioning is not completed by manually creating research users. Quantum Platform will own the later approved-user → POSIX/storage/Slurm association flow.
 
 # 17. Hermes / Heretic
 
