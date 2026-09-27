@@ -59,7 +59,7 @@ providers:
       enabled: false
 
     ingressEndpoint:
-      ip: 10.51.0.100
+      hostname: api-lb.internal
 
 securityContext:
   capabilities:
