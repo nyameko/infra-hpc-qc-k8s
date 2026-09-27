@@ -196,7 +196,7 @@ Cilium's ClusterPool IPAM currently allocated pod addresses from its own pool, o
 This must not be confused with the kubeadm `--pod-network-cidr` value:
 
 ```text
-10.244.0.0/16
+<POD_CIDR>
 ```
 
 Those address spaces represent different layers of the deployment.

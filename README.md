@@ -10,6 +10,10 @@ The goal is not merely to produce a working cluster. The goal is to show, in a p
 
 ---
 
+## Public topology policy
+
+This repository is intentionally public, but the live network map is not part of the public API. Documentation uses semantic placeholders; deployable environment values live in protected Terraform variables and Ansible inventory. Historical Git commits may still contain earlier reference values, so secrecy is provided by access controls and key management rather than by assuming those old values are confidential.
+
 ## The platform in one picture
 
 ```text
@@ -148,9 +152,9 @@ The project has several simultaneous goals:
 
 ---
 
-## Current reference environment
+## Public reference topology
 
-The current implementation uses an OpenStack cloud and Rocky Linux virtual machines. The Kubernetes cluster consists of three control planes and three workers, fronted by a dedicated HAProxy API endpoint.
+The public repository documents **roles and trust boundaries**, not the authoritative live address map. Exact CIDRs, fixed addresses, OpenStack IDs and environment node counts belong in protected environment variables/inventory.
 
 ### Networks
 
@@ -242,8 +246,8 @@ containerd
       ▼
 kubeadm
       │
-      ├── control plane × 3
-      └── workers × 3
+      ├── control plane × N
+      └── worker pools × N
               │
               ▼
            Cilium

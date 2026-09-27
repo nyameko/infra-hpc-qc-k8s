@@ -297,7 +297,7 @@ CP1 → VIP: timeout
 The first investigation correctly checked whether the VM actually had:
 
 ```text
-<K8S_API_VIP>/24
+<K8S_API_VIP_CIDR>
 ```
 
 and whether anything else occupied port 6443.
