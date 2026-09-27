@@ -21,14 +21,51 @@ long-lived process. This does **not** move HPC scheduling into Kubernetes.
 Use separate worker purposes:
 
 ```text
-core workers
-  platform APIs, databases, agents, monitoring, ingress
+core/service workers
+  ingress, GitOps, observability, platform APIs, PostgreSQL, ACP control services
 
-user workers
+Jupyter user workers
   KubeSpawner notebook pods only
+
+agent-runtime workers
+  Hermes/Codex/Claude/OpenClaw/Paperclip workers and bounded agent jobs
 ```
 
-User workers should be labeled/tainted and capacity-managed independently.
+The Agent Control Plane API, policy/audit service and its durable database remain
+core services. Agent/harness execution is isolated because it is burstier, has
+different egress/tool permissions and may eventually launch sandboxed jobs.
+
+### Reference pool shape
+
+The current reference OpenStack flavors are:
+
+- control plane: 8 vCPU / 16 GiB per node;
+- general worker: 8 vCPU / 64 GiB per node.
+
+The existing three general workers should become the **core/service pool**.
+Their present requests are small relative to capacity, so there is no capacity
+reason to replace or enlarge them before JupyterHub.
+
+Recommended initial pools:
+
+| Pool | Initial shape | Purpose |
+| --- | --- | --- |
+| control plane | 3 × 8 vCPU / 16 GiB | kube-apiserver, scheduler, controller-manager, etcd |
+| core/service | 3 × 8 vCPU / 64 GiB | Traefik, Argo CD, Prometheus/Grafana, Wazuh services, Quantum Platform, PostgreSQL, ACP API/control services |
+| Jupyter user | 3 × 8 vCPU / 64 GiB for pilot; 4 nodes before ~100 concurrent workbenches | KubeSpawner user pods |
+| agent runtime | 2 × 8 vCPU / 64 GiB initially; move to 3 for stronger HA/concurrency | agent/harness workers and bounded tool jobs |
+
+Do not put large-model GPU inference on the agent-runtime CPU pool. GPU inference
+is a separately scheduled capability (dedicated inference service or Slurm/GPU
+backend).
+
+For ~200 concurrently running 1-GiB-request workbenches with one-node failure
+headroom, plan roughly five 8-vCPU/64-GiB user workers before measurement-based
+refinement.
+
+User and agent workers should be labeled/tainted and capacity-managed independently.
+Core services should use topology spread/anti-affinity where they have replicas so
+one worker failure does not remove every replica of a critical service.
 
 ## Sizing principle
 
@@ -46,7 +83,7 @@ capacity ~= allocatable / requested-resource-per-workbench
 ```
 
 with 20–30% operational/failure headroom. The initial planning point is
-250m CPU + 1 GiB requested per workbench, 2 CPU + 4 GiB limit, subject to
+100m CPU + 1 GiB requested per workbench, 2 CPU + 4 GiB limit, subject to
 measurement.
 
 ## Scaling stages
