@@ -72,13 +72,13 @@ extraScrapeConfigs: |
   - job_name: haproxy
     static_configs:
       - targets:
-          - 10.51.0.100:8404
+          - <K8S_API_VIP>:8404
 ```
 
 A valid Prometheus configuration does not prove that the target is reachable. Validate the complete path.
 
 ```bash
-curl -s http://10.51.0.100:8404/metrics | head
+curl -s http://<K8S_API_VIP>:8404/metrics | head
 ```
 
 Then ask Prometheus whether it has the target:
@@ -260,7 +260,7 @@ Cilium's metrics documentation describes agent metrics on 9962 and Envoy metrics
 HAProxy exposes metrics at:
 
 ```text
-http://10.51.0.100:8404/metrics
+http://<K8S_API_VIP>:8404/metrics
 ```
 
 Prometheus scrapes this endpoint through the explicit `haproxy` job.
@@ -418,7 +418,7 @@ The observability stack is considered healthy only when all three layers agree:
 The component actually exposes metrics.
 
 ```bash
-curl -s http://10.51.0.100:8404/metrics | grep '^haproxy_' | head
+curl -s http://<K8S_API_VIP>:8404/metrics | grep '^haproxy_' | head
 ```
 
 ### Layer 2 — Prometheus

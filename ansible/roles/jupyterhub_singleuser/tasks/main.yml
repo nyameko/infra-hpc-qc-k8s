@@ -1,0 +1,51 @@
+---
+- name: Ensure JupyterHub entitlement group exists
+  ansible.builtin.group:
+    name: "{{ jupyterhub_allowed_group }}"
+    state: present
+
+- name: Create disposable smoke-test identity when explicitly enabled
+  when: jupyterhub_smoke_user_enabled | bool
+  block:
+    - name: Create smoke-test primary group
+      ansible.builtin.group:
+        name: "{{ jupyterhub_smoke_user }}"
+        gid: "{{ jupyterhub_smoke_gid }}"
+        state: present
+
+    - name: Create smoke-test user without local home creation
+      ansible.builtin.user:
+        name: "{{ jupyterhub_smoke_user }}"
+        uid: "{{ jupyterhub_smoke_uid }}"
+        group: "{{ jupyterhub_smoke_user }}"
+        groups:
+          - "{{ jupyterhub_allowed_group }}"
+        append: true
+        home: "/home/research/{{ jupyterhub_smoke_user }}"
+        create_home: false
+        shell: /bin/bash
+        state: present
+
+- name: Check whether M2 single-user image is already staged
+  ansible.builtin.stat:
+    path: "{{ jupyterhub_smoke_image_path }}"
+  register: jupyterhub_smoke_sif
+  when: jupyterhub_smoke_image_stage | bool
+
+- name: Pull M2 single-user OCI image into local Apptainer cache
+  ansible.builtin.command:
+    cmd: >-
+      apptainer pull
+      {{ jupyterhub_smoke_image_path }}
+      {{ jupyterhub_smoke_image_source }}
+  when:
+    - jupyterhub_smoke_image_stage | bool
+    - not jupyterhub_smoke_sif.stat.exists
+
+- name: Keep staged image immutable to research users
+  ansible.builtin.file:
+    path: "{{ jupyterhub_smoke_image_path }}"
+    owner: root
+    group: root
+    mode: "0555"
+  when: jupyterhub_smoke_image_stage | bool
