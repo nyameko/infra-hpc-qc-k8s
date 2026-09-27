@@ -186,7 +186,7 @@ Terraform therefore owns the existence and networking of the VM:
 Terraform
    ↓
 api-lb-01
-10.51.0.100
+<K8S_API_VIP>
    ↓
 Ansible
    ↓

@@ -20,11 +20,11 @@ blackmyth / private client
         │ WireGuard
         ▼
 edge
-10.60.0.1
+<VPN_GATEWAY_IP>
         │
         │ Pi-hole split DNS
         ▼
-10.51.0.100
+<K8S_API_VIP>
 api-lb-01 / HAProxy
         │
         ├── :80  → worker NodePort :31818
@@ -78,9 +78,9 @@ Therefore:
 
 ```text
 correct:
-10.51.0.21:31924
-10.51.0.22:31924
-10.51.0.23:31924
+<K8S_WORKER_1_IP>:31924
+<K8S_WORKER_2_IP>:31924
+<K8S_WORKER_N_IP>:31924
 
 incorrect:
 10.0.0.x:31924
@@ -95,7 +95,7 @@ The Cilium Pod CIDR is not the NodePort listen address.
 Before involving DNS, WireGuard, or HAProxy, test each worker directly.
 
 ```bash
-for node in 10.51.0.21 10.51.0.22 10.51.0.23; do
+for node in <K8S_WORKER_1_IP> <K8S_WORKER_2_IP> <K8S_WORKER_N_IP>; do
   echo "=== $node ==="
   curl -skv \
     --resolve traefik-test.quantum.nyameko.com:31924:$node \
@@ -142,19 +142,19 @@ traefik-test.quantum.nyameko.com
 Pi-hole returns:
 
 ```text
-10.51.0.100
+<K8S_API_VIP>
 ```
 
 Test Pi-hole directly:
 
 ```bash
-dig @10.60.0.1 traefik-test.quantum.nyameko.com
+dig @<VPN_GATEWAY_IP> traefik-test.quantum.nyameko.com
 ```
 
 The answer should contain:
 
 ```text
-traefik-test.quantum.nyameko.com.  IN  A  10.51.0.100
+traefik-test.quantum.nyameko.com.  IN  A  <K8S_API_VIP>
 ```
 
 Do not put this mapping into workstation `/etc/hosts`. DNS belongs at the private DNS layer so the same namespace can later service many infrastructure applications.
@@ -168,7 +168,7 @@ WireGuard provides reachability; it does not automatically change the workstatio
 On a system using `systemd-resolved`, a suitable test configuration is:
 
 ```bash
-sudo resolvectl dns wg_infra_hpc_qc 10.60.0.1
+sudo resolvectl dns wg_infra_hpc_qc <VPN_GATEWAY_IP>
 sudo resolvectl domain wg_infra_hpc_qc '~quantum.nyameko.com'
 ```
 
@@ -373,7 +373,7 @@ Use `curl --resolve` so that the TCP destination is the worker NodePort while TL
 
 ```bash
 curl -vk \
-  --resolve traefik-test.quantum.nyameko.com:31924:10.51.0.21 \
+  --resolve traefik-test.quantum.nyameko.com:31924:<K8S_WORKER_1_IP> \
   https://traefik-test.quantum.nyameko.com:31924/
 ```
 
@@ -470,7 +470,7 @@ dig traefik-test.quantum.nyameko.com
 Expect:
 
 ```text
-10.51.0.100
+<K8S_API_VIP>
 ```
 
 Then:
@@ -482,7 +482,7 @@ curl -v https://traefik-test.quantum.nyameko.com/
 The successful result should show:
 
 ```text
-10.51.0.100:443
+<K8S_API_VIP>:443
 TLS certificate for traefik-test.quantum.nyameko.com
 Let's Encrypt issuer
 HTTP/2 200
@@ -556,7 +556,7 @@ Runtime testing showed the route was healthy.
 The milestone is complete when all of the following are true:
 
 ```text
-[ ] Pi-hole resolves traefik-test.quantum.nyameko.com to 10.51.0.100
+[ ] Pi-hole resolves traefik-test.quantum.nyameko.com to <K8S_API_VIP>
 [ ] WireGuard client can reach edge
 [ ] Worker NodePort 31924 works on every worker
 [ ] cert-manager pods are healthy

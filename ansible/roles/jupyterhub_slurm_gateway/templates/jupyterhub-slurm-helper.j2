@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+op="${1:-}"
+arg="${2:-}"
+
+valid_job() {
+  [[ "$1" =~ ^[0-9]+([_][0-9]+)?$ ]]
+}
+
+case "$op" in
+  submit)
+    user="$arg"
+    [[ "$user" =~ ^[a-z_][a-z0-9_-]*$ ]] || exit 64
+    id "$user" >/dev/null 2>&1
+    id -nG "$user" | tr ' ' '\n' | grep -Fxq "{{ jupyterhub_allowed_group }}" || {
+      echo "user is not entitled to JupyterHub" >&2
+      exit 77
+    }
+
+    tmp="$(mktemp /var/tmp/jhub-slurm.XXXXXX)"
+    trap 'rm -f "$tmp"' EXIT
+    cat >"$tmp"
+
+    grep -Eq '^#SBATCH --job-name=jhub-' "$tmp" || exit 64
+    grep -Eq '^#SBATCH --partition=(cpu-small|cpu-large)$' "$tmp" || exit 64
+    grep -Eq '^#SBATCH --time=(02:00:00|08:00:00)$' "$tmp" || exit 64
+
+    chown "$user":"$(id -gn "$user")" "$tmp"
+    exec runuser -u "$user" -- /usr/bin/sbatch --parsable "$tmp"
+    ;;
+
+  query)
+    valid_job "$arg" || exit 64
+    exec /usr/bin/squeue -h -j "$arg" -o '%T %B'
+    ;;
+
+  cancel)
+    valid_job "$arg" || exit 64
+    job_name="$(/usr/bin/squeue -h -j "$arg" -o '%j' | head -n1)"
+    [[ "$job_name" == jhub-* ]] || {
+      echo "refusing to cancel non-JupyterHub job" >&2
+      exit 77
+    }
+    exec /usr/bin/scancel "$arg"
+    ;;
+
+  *)
+    exit 64
+    ;;
+esac

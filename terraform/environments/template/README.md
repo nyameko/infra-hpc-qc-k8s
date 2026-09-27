@@ -6,11 +6,11 @@ Copy or branch the reusable code and provide environment-specific values through
 
 Expected topology:
 
-- edge: 10.50.0.10
-- K8s API VIP: 10.51.0.100
-- cp-01: 10.51.0.11
-- cp-02: 10.51.0.12
-- cp-03: 10.51.0.13
-- worker-01: 10.51.0.21
-- worker-02: 10.51.0.22
-- worker-03: 10.51.0.23
+- edge: <EDGE_IP>
+- K8s API VIP: <K8S_API_VIP>
+- cp-01: <K8S_CP_1_IP>
+- cp-02: <K8S_CP_2_IP>
+- cp-03: <K8S_CP_N_IP>
+- worker-01: <K8S_WORKER_1_IP>
+- worker-02: <K8S_WORKER_2_IP>
+- worker-03: <K8S_WORKER_N_IP>

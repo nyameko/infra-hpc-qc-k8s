@@ -1,0 +1,82 @@
+---
+- name: Require JupyterHub gateway public key
+  ansible.builtin.assert:
+    that:
+      - jupyterhub_gateway_public_key | length > 20
+    fail_msg: >-
+      Set jupyterhub_gateway_public_key in protected/private inventory.
+      Never commit the matching private key.
+
+- name: Create restricted gateway group
+  ansible.builtin.group:
+    name: "{{ jupyterhub_gateway_group }}"
+    system: true
+    state: present
+
+- name: Create restricted gateway account
+  ansible.builtin.user:
+    name: "{{ jupyterhub_gateway_user }}"
+    group: "{{ jupyterhub_gateway_group }}"
+    system: true
+    create_home: true
+    shell: /bin/bash
+    state: present
+
+- name: Ensure JupyterHub entitlement group exists
+  ansible.builtin.group:
+    name: "{{ jupyterhub_allowed_group }}"
+    state: present
+
+- name: Create smoke-test primary group on login tier
+  ansible.builtin.group:
+    name: "{{ jupyterhub_smoke_user }}"
+    gid: "{{ jupyterhub_smoke_gid }}"
+    state: present
+  when: jupyterhub_smoke_user_enabled | bool
+
+- name: Create smoke-test user on login tier
+  ansible.builtin.user:
+    name: "{{ jupyterhub_smoke_user }}"
+    uid: "{{ jupyterhub_smoke_uid }}"
+    group: "{{ jupyterhub_smoke_user }}"
+    groups:
+      - "{{ jupyterhub_allowed_group }}"
+    append: true
+    home: "/home/research/{{ jupyterhub_smoke_user }}"
+    create_home: false
+    shell: /bin/bash
+    state: present
+  when: jupyterhub_smoke_user_enabled | bool
+
+- name: Install root-owned Slurm helper
+  ansible.builtin.template:
+    src: jupyterhub-slurm-helper.j2
+    dest: /usr/local/sbin/jupyterhub-slurm-helper
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Install forced-command SSH entrypoint
+  ansible.builtin.template:
+    src: jupyterhub-slurm-ssh-entry.j2
+    dest: /usr/local/sbin/jupyterhub-slurm-ssh-entry
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Permit only the JupyterHub Slurm helper via sudo
+  ansible.builtin.copy:
+    dest: /etc/sudoers.d/jupyterhub-slurm-gateway
+    owner: root
+    group: root
+    mode: "0440"
+    validate: /usr/sbin/visudo -cf %s
+    content: |
+      {{ jupyterhub_gateway_user }} ALL=(root) NOPASSWD: /usr/local/sbin/jupyterhub-slurm-helper *
+
+- name: Install forced-command SSH public key
+  ansible.posix.authorized_key:
+    user: "{{ jupyterhub_gateway_user }}"
+    key: "{{ jupyterhub_gateway_public_key }}"
+    key_options: 'restrict,command="/usr/local/sbin/jupyterhub-slurm-ssh-entry"'
+    state: present

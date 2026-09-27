@@ -62,25 +62,25 @@ The current OpenStack environment contains:
 
 | VM | IP | Purpose |
 |---|---:|---|
-| `edge` | `10.50.0.10` | WireGuard, Pi-hole, nftables, Wazuh manager, Suricata, bastion |
-| `hermes-orchestrator-01` | `10.50.0.11` | isolated infrastructure Hermes, read/report first |
-| `slurm-controller-01` | `10.50.0.12` | Slurm controller/accounting services |
-| `login1` | `10.50.0.20` | Slurm login |
-| `login2` | `10.50.0.21` | Slurm login |
-| `slurm-cpu-01` | `10.50.0.30` | Slurm compute |
-| `slurm-cpu-02` | `10.50.0.31` | Slurm compute |
-| `api-lb-01` | `10.51.0.100` | HAProxy Kubernetes API load balancer |
-| `k8s-cp-01` | `10.51.0.11` | Kubernetes control plane |
-| `k8s-cp-02` | `10.51.0.12` | Kubernetes control plane |
-| `k8s-cp-03` | `10.51.0.13` | Kubernetes control plane |
-| `k8s-worker-01` | `10.51.0.21` | Kubernetes worker |
-| `k8s-worker-02` | `10.51.0.22` | Kubernetes worker |
-| `k8s-worker-03` | `10.51.0.23` | Kubernetes worker |
+| `edge` | `<EDGE_IP>` | WireGuard, Pi-hole, nftables, Wazuh manager, Suricata, bastion |
+| `hermes-orchestrator-01` | `<AGENT_OOB_IP>` | isolated infrastructure Hermes, read/report first |
+| `slurm-controller-01` | `<SLURM_CONTROLLER_IP>` | Slurm controller/accounting services |
+| `login1` | `<SLURM_LOGIN_1_IP>` | Slurm login |
+| `login2` | `<SLURM_LOGIN_N_IP>` | Slurm login |
+| `slurm-cpu-01` | `<SLURM_COMPUTE_1_IP>` | Slurm compute |
+| `slurm-cpu-02` | `<SLURM_COMPUTE_2_IP>` | Slurm compute |
+| `api-lb-01` | `<K8S_API_VIP>` | HAProxy Kubernetes API load balancer |
+| `k8s-cp-01` | `<K8S_CP_1_IP>` | Kubernetes control plane |
+| `k8s-cp-02` | `<K8S_CP_2_IP>` | Kubernetes control plane |
+| `k8s-cp-03` | `<K8S_CP_N_IP>` | Kubernetes control plane |
+| `k8s-worker-01` | `<K8S_WORKER_1_IP>` | Kubernetes worker |
+| `k8s-worker-02` | `<K8S_WORKER_2_IP>` | Kubernetes worker |
+| `k8s-worker-03` | `<K8S_WORKER_N_IP>` | Kubernetes worker |
 
 The Kubernetes control endpoint is:
 
 ```text
-10.51.0.100:6443
+<K8S_API_VIP>:6443
 ```
 
 The API endpoint is intentionally independent of any individual control plane.
@@ -92,9 +92,9 @@ The API endpoint is intentionally independent of any individual control plane.
 The canonical network variables are:
 
 ```yaml
-mgmt_cidr: 10.50.0.0/24
-k8s_cidr:  10.51.0.0/24
-vpn_cidr:  10.60.0.0/24
+mgmt_cidr: <MGMT_CIDR>
+k8s_cidr:  <K8S_CIDR>
+vpn_cidr:  <VPN_CIDR>
 ```
 
 The project previously suffered from naming drift (`management_cidr`, `wireguard_cidr`, etc.). That was corrected so Terraform, Ansible, and documentation use the same vocabulary.
@@ -102,9 +102,9 @@ The project previously suffered from naming drift (`management_cidr`, `wireguard
 The current network roles are:
 
 ```text
-10.50.0.0/24   Management
-10.51.0.0/24   Kubernetes + API LB
-10.60.0.0/24   WireGuard administration
+<MGMT_CIDR>   Management
+<K8S_CIDR>   Kubernetes + API LB
+<VPN_CIDR>   WireGuard administration
 ```
 
 The three networks are not one flat subnet because a failure or compromise in one plane should not automatically collapse every other plane.
@@ -119,7 +119,7 @@ The Kubernetes cluster uses three control planes and three workers.
                          VPN / clients
                               │
                               ▼
-                     10.51.0.100:6443
+                     <K8S_API_VIP>:6443
                             HAProxy
                        /       |       \
                       ▼        ▼        ▼
@@ -241,7 +241,7 @@ VM / Pod
    ↓
 CoreDNS
    ↓
-10.50.0.10:53
+<EDGE_IP>:53
    ↓
 Pi-hole
    ↓

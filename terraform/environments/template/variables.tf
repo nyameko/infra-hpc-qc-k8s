@@ -29,3 +29,34 @@ variable "api_lb_type" {
     error_message = "api_lb_type must be either 'haproxy' or 'octavia'."
   }
 }
+
+
+# Network topology is environment-private. The public template intentionally
+# declares variables without production defaults.
+variable "mgmt_cidr" { type = string }
+variable "k8s_cidr" { type = string }
+variable "vpn_cidr" { type = string }
+variable "mgmt_gateway_ip" { type = string }
+variable "k8s_gateway_ip" { type = string }
+variable "mgmt_pool_start" { type = string }
+variable "mgmt_pool_end" { type = string }
+variable "k8s_pool_start" { type = string }
+variable "k8s_pool_end" { type = string }
+variable "dns_nameservers" { type = list(string) }
+
+variable "edge_fixed_ip" { type = string }
+variable "agent_oob_fixed_ip" { type = string }
+variable "slurm_controller_fixed_ip" { type = string }
+variable "slurm_login_1_fixed_ip" { type = string }
+variable "slurm_login_2_fixed_ip" { type = string }
+variable "slurm_compute_1_fixed_ip" { type = string }
+variable "slurm_compute_2_fixed_ip" { type = string }
+variable "slurm_compute_3_fixed_ip" { type = string }
+variable "slurm_compute_4_fixed_ip" { type = string }
+variable "storage_fixed_ip" { type = string }
+variable "k8s_cp_1_fixed_ip" { type = string }
+variable "k8s_cp_2_fixed_ip" { type = string }
+variable "k8s_cp_3_fixed_ip" { type = string }
+variable "k8s_worker_1_fixed_ip" { type = string }
+variable "k8s_worker_2_fixed_ip" { type = string }
+variable "k8s_worker_3_fixed_ip" { type = string }
