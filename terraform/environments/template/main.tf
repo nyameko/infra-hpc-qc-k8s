@@ -20,6 +20,7 @@ module "security" {
   vpn_cidr           = var.vpn_cidr
   mgmt_cidr          = var.mgmt_cidr
   k8s_cidr           = var.k8s_cidr
+  api_lb_address     = var.api_lb_address
 }
 
 module "api_lb_haproxy" {
