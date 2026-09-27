@@ -23,11 +23,41 @@ spec:
             - {name: proxy, containerPort: 8000}
             - {name: hub, containerPort: 8081}
           env:
-            - name: JUPYTERHUB_SMOKE_PASSWORD
+            - name: JUPYTERHUB_BOOTSTRAP_USER
               valueFrom:
                 secretKeyRef:
                   name: jupyterhub-bootstrap
-                  key: smoke-password
+                  key: username
+            - name: JUPYTERHUB_BOOTSTRAP_UID
+              valueFrom:
+                secretKeyRef:
+                  name: jupyterhub-bootstrap
+                  key: uid
+            - name: JUPYTERHUB_BOOTSTRAP_GID
+              valueFrom:
+                secretKeyRef:
+                  name: jupyterhub-bootstrap
+                  key: gid
+            - name: JUPYTERHUB_BOOTSTRAP_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: jupyterhub-bootstrap
+                  key: password
+            - name: JUPYTER_NODE_SELECTOR
+              valueFrom:
+                configMapKeyRef:
+                  name: jupyterhub-config
+                  key: JUPYTER_NODE_SELECTOR
+            - name: RESEARCH_HOME_NFS_SERVER
+              valueFrom:
+                configMapKeyRef:
+                  name: jupyterhub-config
+                  key: RESEARCH_HOME_NFS_SERVER
+            - name: RESEARCH_HOME_NFS_PATH
+              valueFrom:
+                configMapKeyRef:
+                  name: jupyterhub-config
+                  key: RESEARCH_HOME_NFS_PATH
           volumeMounts:
             - name: config
               mountPath: /etc/jupyterhub/jupyterhub_config.py

@@ -5,6 +5,7 @@ namespace: jupyterhub
 
 resources:
   - namespace.yaml
+  - resource-policy.yaml
   - rbac.yaml
   - configmap.yaml
   - deployment.yaml

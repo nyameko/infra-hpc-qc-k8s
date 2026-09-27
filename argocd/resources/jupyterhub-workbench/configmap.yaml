@@ -3,17 +3,27 @@ kind: ConfigMap
 metadata:
   name: jupyterhub-config
 data:
+  JUPYTER_NODE_SELECTOR: ""
+  RESEARCH_HOME_NFS_SERVER: storage.internal
+  RESEARCH_HOME_NFS_PATH: /srv/home
   jupyterhub_config.py: |
     import os
+
     from jupyterhub.auth import DummyAuthenticator
     from kubespawner import KubeSpawner
 
     c = get_config()
 
+    bootstrap_user = os.environ["JUPYTERHUB_BOOTSTRAP_USER"]
+    bootstrap_uid = int(os.environ["JUPYTERHUB_BOOTSTRAP_UID"])
+    bootstrap_gid = int(os.environ["JUPYTERHUB_BOOTSTRAP_GID"])
+    nfs_server = os.environ["RESEARCH_HOME_NFS_SERVER"]
+    nfs_path = os.environ["RESEARCH_HOME_NFS_PATH"]
+
     # M2a bootstrap only. M3 replaces this with Quantum Platform identity.
     c.JupyterHub.authenticator_class = DummyAuthenticator
-    c.Authenticator.allowed_users = {"jhub-smoke"}
-    c.DummyAuthenticator.password = os.environ["JUPYTERHUB_SMOKE_PASSWORD"]
+    c.Authenticator.allowed_users = {bootstrap_user}
+    c.DummyAuthenticator.password = os.environ["JUPYTERHUB_BOOTSTRAP_PASSWORD"]
 
     c.JupyterHub.spawner_class = KubeSpawner
     c.JupyterHub.bind_url = "http://0.0.0.0:8000"
@@ -26,29 +36,36 @@ data:
     c.KubeSpawner.image = "ghcr.io/nyameko/infra-hpc-qc-k8s-jupyter-workbench:dev"
     c.KubeSpawner.image_pull_policy = "IfNotPresent"
     c.KubeSpawner.cmd = ["/usr/local/bin/start-workbench"]
+    c.KubeSpawner.start_timeout = 300
 
-    # Cheap long-lived workbench; substantial compute is submitted elsewhere.
-    c.KubeSpawner.cpu_guarantee = 0.25
+    # Cheap workbench on today's shared workers. Heavy execution bursts elsewhere.
+    c.KubeSpawner.cpu_guarantee = 0.1
     c.KubeSpawner.cpu_limit = 2
     c.KubeSpawner.mem_guarantee = "1G"
     c.KubeSpawner.mem_limit = "4G"
 
-    # M2a smoke identity. Future M3 derives uid/gid from platform provisioning.
-    c.KubeSpawner.uid = 20999
-    c.KubeSpawner.fs_gid = 20999
+    # One privately configured bootstrap researcher for M2a. The same numeric
+    # identity must own /srv/home/<username> on the authoritative NFS server.
+    c.KubeSpawner.uid = bootstrap_uid
+    c.KubeSpawner.gid = bootstrap_gid
+    c.KubeSpawner.fs_gid = bootstrap_gid
     c.KubeSpawner.working_dir = "/home/research/{unescaped_username}"
 
-    # Dedicated workbench pool. No taint initially; selector gives placement
-    # without risking Cilium/CSI/monitoring DaemonSet compatibility.
-    c.KubeSpawner.node_selector = {"node-pool": "jupyter"}
+    # Empty today: use the existing shared worker pool. When dedicated Jupyter
+    # workers exist, set e.g. node-pool=jupyter without changing the spawner.
+    node_selector = os.environ.get("JUPYTER_NODE_SELECTOR", "").strip()
+    if node_selector:
+        key, value = node_selector.split("=", 1)
+        c.KubeSpawner.node_selector = {key.strip(): value.strip()}
 
-    # Same authoritative POSIX home as SSH and Slurm.
+    # Mount the whole research-home export. Per-user 0700 POSIX ownership is
+    # authoritative. Avoid NFS subPath + root_squash edge cases.
     c.KubeSpawner.volumes = [
         {
             "name": "research-home",
             "nfs": {
-                "server": "storage.internal",
-                "path": "/srv/home",
+                "server": nfs_server,
+                "path": nfs_path,
                 "readOnly": False,
             },
         }
@@ -56,8 +73,7 @@ data:
     c.KubeSpawner.volume_mounts = [
         {
             "name": "research-home",
-            "mountPath": "/home/research/{unescaped_username}",
-            "subPath": "{unescaped_username}",
+            "mountPath": "/home/research",
             "readOnly": False,
         }
     ]
