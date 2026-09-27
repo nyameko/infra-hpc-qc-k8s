@@ -40,6 +40,7 @@ jobs:
         run: terraform validate
 
       - name: Terraform plan
+        if: ${{ vars.TERRAFORM_CI_PLAN_ENABLED == 'true' }}
         run: terraform plan -refresh=false -input=false -lock=false -out=tfplan
 
       - name: Policy and security checks
@@ -51,6 +52,7 @@ jobs:
           soft_fail: true
 
       - name: Upload Terraform plan
+        if: ${{ vars.TERRAFORM_CI_PLAN_ENABLED == 'true' }}
         uses: actions/upload-artifact@v4
         with:
           name: terraform-plan
