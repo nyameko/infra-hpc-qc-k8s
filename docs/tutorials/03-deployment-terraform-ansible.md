@@ -233,15 +233,15 @@ The API load balancer is:
 
 ```text
 api-lb-01
-10.51.0.100
+<K8S_API_VIP>
 ```
 
 Backends:
 
 ```text
-10.51.0.11:6443
-10.51.0.12:6443
-10.51.0.13:6443
+<K8S_CP_1_ADDR>:6443
+<K8S_CP_2_ADDR>:6443
+<K8S_CP_3_ADDR>:6443
 ```
 
 The first service deployment exposed a useful distinction:
@@ -413,9 +413,9 @@ The cluster bootstrap values are:
 
 ```text
 Kubernetes version: 1.36.4
-Control-plane endpoint: 10.51.0.100:6443
-CP1 advertise address: 10.51.0.11
-Pod CIDR: 10.244.0.0/16
+Control-plane endpoint: <K8S_API_VIP>:6443
+CP1 advertise address: <K8S_CP_1_ADDR>
+Pod CIDR: <POD_CIDR>
 Service CIDR: 10.96.0.0/12
 CRI socket: unix:///run/containerd/containerd.sock
 ```
@@ -423,7 +423,7 @@ CRI socket: unix:///run/containerd/containerd.sock
 The important point is that control-plane clients use:
 
 ```text
-10.51.0.100
+<K8S_API_VIP>
 ```
 
 rather than hardcoding CP1.
@@ -471,7 +471,7 @@ The control-plane certificate secret uploaded by `--upload-certs` is temporary a
 Worker join:
 
 ```text
-kubeadm join 10.51.0.100:6443 \
+kubeadm join <K8S_API_VIP>:6443 \
   --token ... \
   --discovery-token-ca-cert-hash sha256:...
 ```
@@ -479,7 +479,7 @@ kubeadm join 10.51.0.100:6443 \
 Control-plane join:
 
 ```text
-kubeadm join 10.51.0.100:6443 \
+kubeadm join <K8S_API_VIP>:6443 \
   --token ... \
   --discovery-token-ca-cert-hash sha256:... \
   --control-plane \

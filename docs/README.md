@@ -77,7 +77,7 @@ Argo CD
 Prometheus + Grafana
 ```
 
-The Kubernetes API remains on `10.51.0.100:6443` through HAProxy. The later application-ingress path is separate:
+The Kubernetes API remains on `<K8S_API_VIP>:6443` through HAProxy. The later application-ingress path is separate:
 
 ```text
 private/public DNS

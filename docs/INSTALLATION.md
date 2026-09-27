@@ -51,36 +51,36 @@ Every arrow is an acceptance gate. A successful command is not itself proof of s
 # 2. Reference network topology
 
 ```text
-Management: 10.50.0.0/24
-Kubernetes: 10.51.0.0/24
-WireGuard:  10.60.0.0/24
+Management: <MGMT_CIDR>
+Kubernetes: <K8S_CIDR>
+WireGuard:  <VPN_CIDR>
 ```
 
 Current reference hosts:
 
 ```text
-edge                 10.50.0.10
-hermes host          10.50.0.11
-slurm controller     10.50.0.12
-login1               10.50.0.20
-login2               10.50.0.21
-slurm-cpu-01         10.50.0.30   12 vCPU / 24 GiB
-slurm-cpu-02         10.50.0.31   12 vCPU / 24 GiB
-slurm-cpu-03         10.50.0.32   64 vCPU / 256 GiB
-slurm-cpu-04         10.50.0.33   64 vCPU / 256 GiB
-storage-nfs-01       10.50.0.40
-api-lb-01            10.51.0.100
-k8s-cp-01            10.51.0.11
-k8s-cp-02            10.51.0.12
-k8s-cp-03            10.51.0.13
-k8s-worker-01        10.51.0.21
-k8s-worker-02        10.51.0.22
-k8s-worker-03        10.51.0.23
+edge                 <EDGE_ADDR>
+hermes host          <AGENT_ORCHESTRATOR_ADDR>
+slurm controller     <SLURM_CONTROLLER_ADDR>
+login1               <SLURM_LOGIN_1_ADDR>
+login2               <SLURM_LOGIN_2_ADDR>
+slurm-cpu-01         <SLURM_CPU_SMALL_1_ADDR>   12 vCPU / 24 GiB
+slurm-cpu-02         <SLURM_CPU_SMALL_2_ADDR>   12 vCPU / 24 GiB
+slurm-cpu-03         <SLURM_CPU_LARGE_1_ADDR>   64 vCPU / 256 GiB
+slurm-cpu-04         <SLURM_CPU_LARGE_2_ADDR>   64 vCPU / 256 GiB
+storage-nfs-01       <STORAGE_ADDR>
+api-lb-01            <K8S_API_VIP>
+k8s-cp-01            <K8S_CP_1_ADDR>
+k8s-cp-02            <K8S_CP_2_ADDR>
+k8s-cp-03            <K8S_CP_3_ADDR>
+k8s-worker-01        <K8S_WORKER_1_ADDR>
+k8s-worker-02        <K8S_WORKER_2_ADDR>
+k8s-worker-03        <K8S_WORKER_3_ADDR>
 ```
 
-The edge provides WireGuard, Pi-hole, nftables, Wazuh Manager and network-security telemetry. The Kubernetes API is fronted by HAProxy at `10.51.0.100:6443`.
+The edge provides WireGuard, Pi-hole, nftables, Wazuh Manager and network-security telemetry. The Kubernetes API is fronted by HAProxy at `<K8S_API_VIP>:6443`.
 
-Pi-hole at `10.50.0.10` is also the resolver advertised by Neutron DHCP to the management and Kubernetes subnets. This is intentionally an infrastructure service rather than a convenience-only ad blocker.
+Pi-hole at `<EDGE_ADDR>` is also the resolver advertised by Neutron DHCP to the management and Kubernetes subnets. This is intentionally an infrastructure service rather than a convenience-only ad blocker.
 
 # 3. Security boundaries
 
@@ -107,11 +107,11 @@ Keep the recovery/console path available while changing host firewall policy.
 WireGuard is the normal private administrative path:
 
 ```text
-client 10.60.0.2
+client <VPN_CLIENT_ADDR>
        ↓
-edge 10.60.0.1
+edge <VPN_GATEWAY_ADDR>
        ↓
-10.50.0.0/24 + 10.51.0.0/24 + 10.60.0.0/24
+<MGMT_CIDR> + <K8S_CIDR> + <VPN_CIDR>
 ```
 
 Validate:
@@ -128,7 +128,7 @@ Pi-hole runs on the edge and is the current internal resolver for the local Open
 
 ```text
 management VM ─┐
-Kubernetes node ├─→ Pi-hole 10.50.0.10 → upstream DNS
+Kubernetes node ├─→ Pi-hole <EDGE_ADDR> → upstream DNS
 WireGuard client┘
 ```
 
@@ -143,7 +143,7 @@ Do not point pods directly at Pi-hole and bypass CoreDNS service discovery.
 Neutron subnet configuration advertises:
 
 ```text
-10.50.0.10
+<EDGE_ADDR>
 ```
 
 as the DNS server for both local OpenStack subnets. Existing VMs may need a DHCP lease refresh before the new resolver appears.
@@ -161,7 +161,7 @@ A typical NetworkManager-generated resolver file may still contain OpenStack sea
 
 ```text
 search openstacklocal novalocal
-nameserver 10.50.0.10
+nameserver <EDGE_ADDR>
 ```
 
 That suffix behavior is separate from the resolver choice. The long-term internal naming taxonomy is tracked in issue #49.
@@ -169,7 +169,7 @@ That suffix behavior is separate from the resolver choice. The long-term interna
 WireGuard clients should use the edge's tunnel address as DNS:
 
 ```text
-DNS = 10.60.0.1
+DNS = <VPN_GATEWAY_ADDR>
 ```
 
 where supported by the client manager. External A100/H200/third-party compute sites are not implicitly placed under this DNS authority.
@@ -179,7 +179,7 @@ where supported by the client manager. External A100/H200/third-party compute si
 The Kubernetes API has a stable endpoint:
 
 ```text
-10.51.0.100:6443
+<K8S_API_VIP>:6443
 ```
 
 Validate the HAProxy host:
@@ -339,7 +339,7 @@ extraScrapeConfigs: |
   - job_name: haproxy
     static_configs:
       - targets:
-          - 10.51.0.100:8404
+          - <K8S_API_VIP>:8404
 ```
 
 Validate the running configuration rather than trusting Git alone:

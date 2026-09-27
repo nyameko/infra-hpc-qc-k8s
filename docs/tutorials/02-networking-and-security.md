@@ -31,9 +31,9 @@ The layers overlap in protection, but they should not duplicate ownership.
 ## 2. Canonical networks
 
 ```yaml
-mgmt_cidr: 10.50.0.0/24
-k8s_cidr: 10.51.0.0/24
-vpn_cidr: 10.60.0.0/24
+mgmt_cidr: <MGMT_CIDR>
+k8s_cidr: <K8S_CIDR>
+vpn_cidr: <VPN_CIDR>
 ```
 
 These names were standardised after earlier iterations used variants such as `management_cidr` and `wireguard_cidr`.
@@ -114,10 +114,10 @@ The repository's current networking tutorial makes the same ownership distinctio
 WireGuard provides the administrative entry path:
 
 ```text
-10.60.0.2/32   workstation
+<VPN_CLIENT_CIDR>   workstation
        │
        ▼
-10.60.0.1/24   edge
+<VPN_GATEWAY_CIDR>   edge
        │
        ▼
 private networks
@@ -127,9 +127,9 @@ The workstation uses split routing:
 
 ```text
 AllowedIPs =
-  10.50.0.0/24,
-  10.51.0.0/24,
-  10.60.0.0/24
+  <MGMT_CIDR>,
+  <K8S_CIDR>,
+  <VPN_CIDR>
 ```
 
 Normal Internet traffic remains local to the workstation.
@@ -168,7 +168,7 @@ Kubernetes pod
       ↓
 CoreDNS
       ↓
-10.50.0.10:53
+<EDGE_ADDR>:53
       ↓
 Pi-hole
       ↓
@@ -256,7 +256,7 @@ This gives the project an explicit recovery hierarchy instead of mixing bootstra
 The API load balancer is:
 
 ```text
-10.51.0.100:6443
+<K8S_API_VIP>:6443
 ```
 
 Desired OpenStack security rules:
@@ -297,7 +297,7 @@ CP1 → VIP: timeout
 The first investigation correctly checked whether the VM actually had:
 
 ```text
-10.51.0.100/24
+<K8S_API_VIP_CIDR>
 ```
 
 and whether anything else occupied port 6443.
@@ -313,8 +313,8 @@ The rule was corrected to:
 After the Terraform change:
 
 ```bash
-nc -zv 10.51.0.100 6443
-curl -k https://10.51.0.100:6443/healthz
+nc -zv <K8S_API_VIP> 6443
+curl -k https://<K8S_API_VIP>:6443/healthz
 ```
 
 returned success.
@@ -394,7 +394,7 @@ ICMP                   Cilium/node health diagnostics
 The source for node-to-node traffic remains:
 
 ```text
-10.51.0.0/24
+<K8S_CIDR>
 ```
 
 not the Internet.

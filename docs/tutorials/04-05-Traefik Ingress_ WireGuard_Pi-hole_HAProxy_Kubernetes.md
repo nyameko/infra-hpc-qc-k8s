@@ -16,7 +16,7 @@ EDGE
 Pi-hole
   │
   │ traefik-test.quantum.nyameko.com
-  │ → 10.51.0.100
+  │ → <K8S_API_VIP>
   ▼
 api-lb-01
   │
@@ -69,21 +69,21 @@ The infrastructure contains three different kinds of IP address.
 The Kubernetes node network is:
 
 ```text
-10.51.0.0/24
+<K8S_CIDR>
 ```
 
 For the current cluster:
 
 ```text
-k8s-cp-01       10.51.0.11
-k8s-cp-02       10.51.0.12
-k8s-cp-03       10.51.0.13
+k8s-cp-01       <K8S_CP_1_ADDR>
+k8s-cp-02       <K8S_CP_2_ADDR>
+k8s-cp-03       <K8S_CP_3_ADDR>
 
-k8s-worker-01   10.51.0.21
-k8s-worker-02   10.51.0.22
-k8s-worker-03   10.51.0.23
+k8s-worker-01   <K8S_WORKER_1_ADDR>
+k8s-worker-02   <K8S_WORKER_2_ADDR>
+k8s-worker-03   <K8S_WORKER_3_ADDR>
 
-api-lb-01       10.51.0.100
+api-lb-01       <K8S_API_VIP>
 ```
 
 This is the network on which HAProxy reaches Kubernetes worker nodes.
@@ -158,7 +158,7 @@ HAProxy
 It owns:
 
 ```text
-10.51.0.100
+<K8S_API_VIP>
 ```
 
 This is the actual infrastructure load balancer.
@@ -208,15 +208,15 @@ Therefore:
 Internet / WireGuard client
         │
         ▼
-10.51.0.100:443
+<K8S_API_VIP>:443
         │
         ▼
 HAProxy
         │
         ▼
-10.51.0.21:31924
-10.51.0.22:31924
-10.51.0.23:31924
+<K8S_WORKER_1_ADDR>:31924
+<K8S_WORKER_2_ADDR>:31924
+<K8S_WORKER_3_ADDR>:31924
 ```
 
 is the intended path.
@@ -259,17 +259,17 @@ may show nothing.
 The correct test is to connect to the **node IP**, not the Pod IP:
 
 ```bash
-curl http://10.51.0.21:31818/
-curl http://10.51.0.22:31818/
-curl http://10.51.0.23:31818/
+curl http://<K8S_WORKER_1_ADDR>:31818/
+curl http://<K8S_WORKER_2_ADDR>:31818/
+curl http://<K8S_WORKER_3_ADDR>:31818/
 ```
 
 The same applies to HTTPS:
 
 ```bash
-curl -vk https://10.51.0.21:31924/
-curl -vk https://10.51.0.22:31924/
-curl -vk https://10.51.0.23:31924/
+curl -vk https://<K8S_WORKER_1_ADDR>:31924/
+curl -vk https://<K8S_WORKER_2_ADDR>:31924/
+curl -vk https://<K8S_WORKER_3_ADDR>:31924/
 ```
 
 ---
@@ -288,9 +288,9 @@ Those addresses are Traefik Pod addresses.
 NodePort belongs to the node:
 
 ```text
-10.51.0.21:31818
-10.51.0.22:31818
-10.51.0.23:31818
+<K8S_WORKER_1_ADDR>:31818
+<K8S_WORKER_2_ADDR>:31818
+<K8S_WORKER_3_ADDR>:31818
 ```
 
 Once the correct addresses were used, the connection succeeded.
@@ -298,7 +298,7 @@ Once the correct addresses were used, the connection succeeded.
 For example:
 
 ```text
-Connected to 10.51.0.21 port 31818
+Connected to <K8S_WORKER_1_ADDR> port 31818
 HTTP/1.1 404 Not Found
 ```
 
@@ -329,7 +329,7 @@ The existing worker rule already covers the Traefik NodePorts.
 The infrastructure uses:
 
 ```hcl
-k8s_cidr = "10.51.0.0/24"
+k8s_cidr = "<K8S_CIDR>"
 ```
 
 and the worker security group already permits:
@@ -350,7 +350,7 @@ Therefore:
 and:
 
 ```text
-10.51.0.100 ∈ 10.51.0.0/24
+<K8S_API_VIP> ∈ <K8S_CIDR>
 ```
 
 Therefore no additional OpenStack security-group rule is required just for these two NodePorts.
@@ -382,7 +382,7 @@ The client reaches it through WireGuard:
 WireGuard client
        │
        ▼
-10.60.0.1
+<VPN_GATEWAY_ADDR>
        │
        ▼
 Pi-hole :53
@@ -393,7 +393,7 @@ The private DNS record is:
 ```text
 traefik-test.quantum.nyameko.com
         ↓
-10.51.0.100
+<K8S_API_VIP>
 ```
 
 The record is managed declaratively through Ansible rather than manually through the Pi-hole GUI.
@@ -408,7 +408,7 @@ pihole_dns_hosts:
 where the current Kubernetes API/HAProxy VIP is:
 
 ```text
-10.51.0.100
+<K8S_API_VIP>
 ```
 
 The Quadlet passes that to Pi-hole through:
@@ -487,7 +487,7 @@ This should be treated as a reusable Podman-on-Rocky pattern for future edge ser
 From a WireGuard-connected client:
 
 ```bash
-dig @10.60.0.1 traefik-test.quantum.nyameko.com
+dig @<VPN_GATEWAY_ADDR> traefik-test.quantum.nyameko.com
 ```
 
 The expected result is:
@@ -495,7 +495,7 @@ The expected result is:
 ```text
 ANSWER SECTION:
 
-traefik-test.quantum.nyameko.com.  IN A 10.51.0.100
+traefik-test.quantum.nyameko.com.  IN A <K8S_API_VIP>
 ```
 
 This proves:
@@ -793,15 +793,15 @@ Pod:8443
 The existing `api-lb-01` VM owns:
 
 ```text
-10.51.0.100
+<K8S_API_VIP>
 ```
 
 The Kubernetes workers are:
 
 ```text
-10.51.0.21
-10.51.0.22
-10.51.0.23
+<K8S_WORKER_1_ADDR>
+<K8S_WORKER_2_ADDR>
+<K8S_WORKER_3_ADDR>
 ```
 
 HAProxy therefore targets the worker NodePorts.
@@ -810,26 +810,26 @@ Conceptually:
 
 ```text
 frontend ingress_http
-    bind 10.51.0.100:80
+    bind <K8S_API_VIP>:80
     default_backend traefik_http
 
 backend traefik_http
-    server worker01 10.51.0.21:31818 check
-    server worker02 10.51.0.22:31818 check
-    server worker03 10.51.0.23:31818 check
+    server worker01 <K8S_WORKER_1_ADDR>:31818 check
+    server worker02 <K8S_WORKER_2_ADDR>:31818 check
+    server worker03 <K8S_WORKER_3_ADDR>:31818 check
 ```
 
 and:
 
 ```text
 frontend ingress_https
-    bind 10.51.0.100:443
+    bind <K8S_API_VIP>:443
     default_backend traefik_https
 
 backend traefik_https
-    server worker01 10.51.0.21:31924 check
-    server worker02 10.51.0.22:31924 check
-    server worker03 10.51.0.23:31924 check
+    server worker01 <K8S_WORKER_1_ADDR>:31924 check
+    server worker02 <K8S_WORKER_2_ADDR>:31924 check
+    server worker03 <K8S_WORKER_3_ADDR>:31924 check
 ```
 
 The exact HAProxy syntax should follow the existing Ansible role/configuration in this repository rather than being copied as an independent configuration model.
@@ -853,9 +853,9 @@ api-lb → worker-03:31924
 From `api-lb-01`:
 
 ```bash
-curl -v http://10.51.0.21:31818/
-curl -v http://10.51.0.22:31818/
-curl -v http://10.51.0.23:31818/
+curl -v http://<K8S_WORKER_1_ADDR>:31818/
+curl -v http://<K8S_WORKER_2_ADDR>:31818/
+curl -v http://<K8S_WORKER_3_ADDR>:31818/
 ```
 
 A successful connection returning:
@@ -883,9 +883,9 @@ is functioning.
 For HTTPS:
 
 ```bash
-curl -vk https://10.51.0.21:31924/
-curl -vk https://10.51.0.22:31924/
-curl -vk https://10.51.0.23:31924/
+curl -vk https://<K8S_WORKER_1_ADDR>:31924/
+curl -vk https://<K8S_WORKER_2_ADDR>:31924/
+curl -vk https://<K8S_WORKER_3_ADDR>:31924/
 ```
 
 A successful TLS handshake using:
@@ -913,13 +913,13 @@ It means the request reached Traefik but Traefik did not find a router matching 
 For example:
 
 ```bash
-curl http://10.51.0.21:31818/
+curl http://<K8S_WORKER_1_ADDR>:31818/
 ```
 
 produces a Host header similar to:
 
 ```text
-Host: 10.51.0.21:31818
+Host: <K8S_WORKER_1_ADDR>:31818
 ```
 
 but the intended route is:
@@ -933,7 +933,7 @@ Therefore test the hostname explicitly:
 ```bash
 curl -v \
   -H 'Host: traefik-test.quantum.nyameko.com' \
-  http://10.51.0.21:31818/
+  http://<K8S_WORKER_1_ADDR>:31818/
 ```
 
 ---
@@ -1183,7 +1183,7 @@ From `api-lb-01`:
 ```bash
 curl -v \
   -H 'Host: traefik-test.quantum.nyameko.com' \
-  http://10.51.0.21:31818/
+  http://<K8S_WORKER_1_ADDR>:31818/
 ```
 
 A successful result should now contain the nginx response rather than:
@@ -1203,7 +1203,7 @@ Once HAProxy has been configured:
 ```bash
 curl -v \
   -H 'Host: traefik-test.quantum.nyameko.com' \
-  http://10.51.0.100/
+  http://<K8S_API_VIP>/
 ```
 
 The path is now:
@@ -1211,7 +1211,7 @@ The path is now:
 ```text
 api-lb client
    ↓
-10.51.0.100:80
+<K8S_API_VIP>:80
    ↓
 HAProxy
    ↓
@@ -1268,20 +1268,20 @@ Once routing and TLS are proven, replace the manual test certificate with your p
 From a WireGuard-connected client:
 
 ```bash
-dig @10.60.0.1 traefik-test.quantum.nyameko.com
+dig @<VPN_GATEWAY_ADDR> traefik-test.quantum.nyameko.com
 ```
 
 Expected:
 
 ```text
-10.51.0.100
+<K8S_API_VIP>
 ```
 
 Then:
 
 ```bash
 curl -vk \
-  --resolve traefik-test.quantum.nyameko.com:443:10.51.0.100 \
+  --resolve traefik-test.quantum.nyameko.com:443:<K8S_API_VIP> \
   https://traefik-test.quantum.nyameko.com/
 ```
 
@@ -1299,13 +1299,13 @@ Blackmyth
    │
    │ WireGuard
    ▼
-EDGE 10.60.0.1
+EDGE <VPN_GATEWAY_ADDR>
    │
    │ Pi-hole DNS
    ▼
 traefik-test.quantum.nyameko.com
    │
-   │ 10.51.0.100
+   │ <K8S_API_VIP>
    ▼
 api-lb-01
    │
@@ -1338,13 +1338,13 @@ This sequence is the important operational lesson from the exercise.
 ## DNS failure
 
 ```bash
-dig @10.60.0.1 traefik-test.quantum.nyameko.com
+dig @<VPN_GATEWAY_ADDR> traefik-test.quantum.nyameko.com
 ```
 
 Expected:
 
 ```text
-10.51.0.100
+<K8S_API_VIP>
 ```
 
 If this fails:
@@ -1360,7 +1360,7 @@ WireGuard / Pi-hole / DNS configuration
 From `api-lb`:
 
 ```bash
-curl -v http://10.51.0.21:31818/
+curl -v http://<K8S_WORKER_1_ADDR>:31818/
 ```
 
 If this times out:
@@ -1472,7 +1472,7 @@ HAProxy → worker:NodePort
 The user sees only:
 
 ```text
-10.51.0.100:443
+<K8S_API_VIP>:443
 ```
 
 ### Pod IPs are not external load-balancer targets
@@ -1489,9 +1489,9 @@ Those are ephemeral Pod addresses.
 Use:
 
 ```text
-10.51.0.21:31924
-10.51.0.22:31924
-10.51.0.23:31924
+<K8S_WORKER_1_ADDR>:31924
+<K8S_WORKER_2_ADDR>:31924
+<K8S_WORKER_3_ADDR>:31924
 ```
 
 ### ClusterIP is not the external backend
@@ -1532,9 +1532,9 @@ The finished exercise should be able to demonstrate every layer independently.
 
 ```text
 [ ] WireGuard handshake
-[ ] client reaches 10.60.0.1
+[ ] client reaches <VPN_GATEWAY_ADDR>
 [ ] dig reaches Pi-hole
-[ ] private hostname resolves to 10.51.0.100
+[ ] private hostname resolves to <K8S_API_VIP>
 
 [ ] Traefik Application = Synced
 [ ] Traefik Pods = Running
@@ -1572,7 +1572,7 @@ The production ingress pattern becomes:
 ```text
 grafana.quantum.nyameko.com
         ↓
-10.51.0.100
+<K8S_API_VIP>
         ↓
 HAProxy
         ↓
@@ -1586,7 +1586,7 @@ and:
 ```text
 prometheus.quantum.nyameko.com
         ↓
-10.51.0.100
+<K8S_API_VIP>
         ↓
 HAProxy
         ↓
@@ -1600,7 +1600,7 @@ and:
 ```text
 jupyter.quantum.nyameko.com
         ↓
-10.51.0.100
+<K8S_API_VIP>
         ↓
 HAProxy
         ↓

@@ -12,13 +12,13 @@ The current Kubernetes platform consists of:
                          WireGuard
                             │
                             ▼
-                    10.51.0.100:6443
+                    <K8S_API_VIP>:6443
                          HAProxy
                             │
                ┌────────────┼────────────┐
                │            │            │
                ▼            ▼            ▼
-          CP1 10.51.0.11 CP2 .12      CP3 .13
+          CP1 <K8S_CP_1_ADDR> CP2 .12      CP3 .13
                │            │            │
                └────────────┼────────────┘
                             │
@@ -35,14 +35,14 @@ Networks:
 
 | Network | CIDR | Purpose |
 |---|---|---|
-| Management | `10.50.0.0/24` | OpenStack management/service traffic |
-| Kubernetes | `10.51.0.0/24` | Kubernetes API and node-to-node traffic |
-| VPN | `10.60.0.0/24` | WireGuard administrative access |
+| Management | `<MGMT_CIDR>` | OpenStack management/service traffic |
+| Kubernetes | `<K8S_CIDR>` | Kubernetes API and node-to-node traffic |
+| VPN | `<VPN_CIDR>` | WireGuard administrative access |
 
 The Kubernetes API endpoint is deliberately stable:
 
 ```text
-10.51.0.100:6443
+<K8S_API_VIP>:6443
 ```
 
 Clients should use this address for the life of the cluster regardless of whether HAProxy is eventually replaced by Octavia.
@@ -265,7 +265,7 @@ The repository should avoid maintaining unused duplicate version variables. The 
 The Kubernetes API is exposed through:
 
 ```text
-10.51.0.100:6443
+<K8S_API_VIP>:6443
 ```
 
 HAProxy runs on `api-lb-01`.
@@ -273,9 +273,9 @@ HAProxy runs on `api-lb-01`.
 The HAProxy backend is:
 
 ```text
-CP1 → 10.51.0.11:6443
-CP2 → 10.51.0.12:6443
-CP3 → 10.51.0.13:6443
+CP1 → <K8S_CP_1_ADDR>:6443
+CP2 → <K8S_CP_2_ADDR>:6443
+CP3 → <K8S_CP_3_ADDR>:6443
 ```
 
 The HAProxy listener can exist before Kubernetes is initialized. At that point its backend health checks are expected to fail.
@@ -317,7 +317,7 @@ Configuration file is valid
 The real runtime error was:
 
 ```text
-cannot bind socket (Permission denied) for [10.51.0.100:6443]
+cannot bind socket (Permission denied) for [<K8S_API_VIP>:6443]
 ```
 
 Inspection showed:
@@ -339,7 +339,7 @@ After the fix:
 
 ```text
 haproxy.service: active (running)
-10.51.0.100:6443: LISTEN
+<K8S_API_VIP>:6443: LISTEN
 ```
 
 The lesson is important on Rocky/RHEL-family systems:
@@ -367,7 +367,7 @@ This means:
 VPN client
    │
    ▼
-10.51.0.100:6443
+<K8S_API_VIP>:6443
    │
    ▼
 HAProxy
@@ -386,14 +386,14 @@ This concentrates the API entry point around one stable endpoint and makes the H
 The first control plane is:
 
 ```text
-k8s-cp-01 = 10.51.0.11
+k8s-cp-01 = <K8S_CP_1_ADDR>
 ```
 
 The cluster uses:
 
 ```text
-Control-plane endpoint: 10.51.0.100:6443
-Pod CIDR:               10.244.0.0/16
+Control-plane endpoint: <K8S_API_VIP>:6443
+Pod CIDR:               <POD_CIDR>
 Service CIDR:           10.96.0.0/12
 ```
 
@@ -403,7 +403,7 @@ The conceptual kubeadm configuration is:
 apiVersion: kubeadm.k8s.io/v1beta4
 kind: InitConfiguration
 localAPIEndpoint:
-  advertiseAddress: 10.51.0.11
+  advertiseAddress: <K8S_CP_1_ADDR>
   bindPort: 6443
 nodeRegistration:
   criSocket: unix:///run/containerd/containerd.sock
@@ -412,9 +412,9 @@ nodeRegistration:
 apiVersion: kubeadm.k8s.io/v1beta4
 kind: ClusterConfiguration
 kubernetesVersion: v1.36.4
-controlPlaneEndpoint: "10.51.0.100:6443"
+controlPlaneEndpoint: "<K8S_API_VIP>:6443"
 networking:
-  podSubnet: "10.244.0.0/16"
+  podSubnet: "<POD_CIDR>"
   serviceSubnet: "10.96.0.0/12"
 ```
 
@@ -423,13 +423,13 @@ The CP1 initialization succeeded.
 The API server was healthy directly on:
 
 ```text
-10.51.0.11:6443
+<K8S_CP_1_ADDR>:6443
 ```
 
 and subsequently through HAProxy:
 
 ```bash
-curl -k https://10.51.0.100:6443/healthz
+curl -k https://<K8S_API_VIP>:6443/healthz
 ```
 
 returned:
@@ -455,7 +455,7 @@ These are deliberately not stored in Git, Vault, Terraform state, or persistent 
 The worker join form is:
 
 ```text
-kubeadm join 10.51.0.100:6443 \
+kubeadm join <K8S_API_VIP>:6443 \
   --token ... \
   --discovery-token-ca-cert-hash sha256:...
 ```
@@ -577,7 +577,7 @@ Nodes NotReady
 `kubectl cluster-info` reports the API endpoint:
 
 ```text
-https://10.51.0.100:6443
+https://<K8S_API_VIP>:6443
 ```
 
 The API `/readyz` endpoint reports all checks healthy.

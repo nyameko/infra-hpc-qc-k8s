@@ -298,7 +298,7 @@ while the external path is:
 
 ```text
 HAProxy VM
-10.51.0.100
+<K8S_API_VIP>
     ↓
 worker NodePorts
 ```

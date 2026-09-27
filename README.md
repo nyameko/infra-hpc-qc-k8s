@@ -10,6 +10,10 @@ The goal is not merely to produce a working cluster. The goal is to show, in a p
 
 ---
 
+## Public topology policy
+
+This repository is intentionally public, but the live network map is not part of the public API. Documentation uses semantic placeholders; deployable environment values live in protected Terraform variables and Ansible inventory. Historical Git commits may still contain earlier reference values, so secrecy is provided by access controls and key management rather than by assuming those old values are confidential.
+
 ## The platform in one picture
 
 ```text
@@ -148,61 +152,44 @@ The project has several simultaneous goals:
 
 ---
 
-## Current reference environment
+## Public reference topology
 
-The current implementation uses an OpenStack cloud and Rocky Linux virtual machines. The Kubernetes cluster consists of three control planes and three workers, fronted by a dedicated HAProxy API endpoint.
+The public repository documents **roles and trust boundaries**, not the authoritative live address map. Exact CIDRs, fixed addresses, OpenStack IDs and environment node counts belong in protected environment variables/inventory.
 
 ### Networks
 
 ```text
-Management:   10.50.0.0/24
-Kubernetes:   10.51.0.0/24
-WireGuard:    10.60.0.0/24
+Management:   <MGMT_CIDR>
+Kubernetes:   <K8S_CIDR>
+WireGuard:    <VPN_CIDR>
+Pod network:  <POD_CIDR>
 ```
 
-The network names used in code are intentionally canonical:
+### Logical topology
 
-```yaml
-mgmt_cidr: 10.50.0.0/24
-k8s_cidr:  10.51.0.0/24
-vpn_cidr:  10.60.0.0/24
-```
-
-### Virtual-machine topology
-
-| Node | Address | Role |
+| Node pattern | Address placeholder | Role |
 |---|---|---|
-| `edge` | `10.50.0.10` | WireGuard, Pi-hole, nftables, Suricata IDS, SSH bastion, Wazuh manager/edge security |
-| `hermes-orchestrator-01` | `10.50.0.11` | provisional orchestration host; role may evolve with Agent Control Plane / Paperclip work |
-| `slurm-controller-01` | `10.50.0.12` | Slurm controller, slurmdbd and MariaDB accounting |
-| `login1` | `10.50.0.20` | user-facing SSH login + Slurm client |
-| `login2` | `10.50.0.21` | user-facing SSH login + Slurm client |
-| `slurm-cpu-01` | `10.50.0.30` | 12-vCPU / 24-GiB `cpu-small` compute node |
-| `slurm-cpu-02` | `10.50.0.31` | 12-vCPU / 24-GiB `cpu-small` compute node |
-| `slurm-cpu-03` | `10.50.0.32` | 64-vCPU / 256-GiB `cpu-large` compute node |
-| `slurm-cpu-04` | `10.50.0.33` | 64-vCPU / 256-GiB `cpu-large` compute node |
-| `storage-nfs-01` | `10.50.0.40` | Cinder-backed NFSv4 gateway for research home, datasets and staging |
-| `api-lb-01` | `10.51.0.100` | HAProxy Kubernetes API endpoint |
-| `k8s-cp-01` | `10.51.0.11` | Kubernetes control plane |
-| `k8s-cp-02` | `10.51.0.12` | Kubernetes control plane |
-| `k8s-cp-03` | `10.51.0.13` | Kubernetes control plane |
-| `k8s-worker-01` | `10.51.0.21` | Kubernetes worker |
-| `k8s-worker-02` | `10.51.0.22` | Kubernetes worker |
-| `k8s-worker-03` | `10.51.0.23` | Kubernetes worker |
+| `edge` | `<EDGE_ADDR>` | WireGuard, DNS, firewall/security edge services |
+| `agent-orchestrator-N` | `<AGENT_ORCHESTRATOR_ADDR_N>` | optional out-of-band agent/orchestration host |
+| `slurm-controller-N` | `<SLURM_CONTROLLER_ADDR_N>` | Slurm control/accounting |
+| `login-N` | `<SLURM_LOGIN_ADDR_N>` | user-facing SSH/login tier |
+| `slurm-cpu-N` | `<SLURM_COMPUTE_ADDR_N>` | CPU compute classes |
+| `storage-N` | `<STORAGE_ADDR_N>` | shared research storage |
+| `api-lb-N` | `<K8S_API_VIP>` | stable Kubernetes API endpoint |
+| `k8s-cp-N` | `<K8S_CP_ADDR_N>` | Kubernetes control plane |
+| `k8s-worker-N` | `<K8S_WORKER_ADDR_N>` | Kubernetes worker pools |
 
-Kubernetes clients use the stable API endpoint:
+Kubernetes clients use the private stable endpoint:
 
 ```text
-10.51.0.100:6443
-        │
-      HAProxy
-     /  |  \
-   CP1  CP2  CP3
+<K8S_API_VIP>:6443
+        |
+   API load balancer
+        |
+   CP-01 ... CP-N
 ```
 
-The API load-balancer implementation is intentionally replaceable. The important contract is the stable Kubernetes control-plane endpoint, not HAProxy itself.
-
-Pi-hole at `10.50.0.10` is now advertised by Neutron DHCP to the management and Kubernetes subnets. Local OpenStack hosts therefore use the edge DNS service rather than depending only on provider defaults. Kubernetes pods still use CoreDNS; the intended path is `pod → CoreDNS → Pi-hole → upstream DNS`.
+Private DNS resolves role names to the current environment addresses. The live mapping is intentionally not duplicated in public documentation.
 
 ## Defense in depth
 
@@ -246,8 +233,8 @@ containerd
       ▼
 kubeadm
       │
-      ├── control plane × 3
-      └── workers × 3
+      ├── control plane × N
+      └── worker pools × N
               │
               ▼
            Cilium
@@ -289,7 +276,7 @@ Kubernetes currently exposes Cinder-backed StorageClasses for application/PVC wo
 The validated M1 research storage layout is:
 
 ```text
-storage-nfs-01 10.50.0.40
+storage-nfs-01 <STORAGE_ADDR>
 
 /srv/home      → /home/research on login/compute nodes
 /srv/datasets  → /datasets
@@ -749,7 +736,7 @@ The repository is a work in progress, so distinguish **manifest present** from *
 - ✅ OpenStack network/VM foundation
 - ✅ Rocky Linux base hosts
 - ✅ three-control-plane / three-worker Kubernetes cluster
-- ✅ stable HAProxy Kubernetes API endpoint at `10.51.0.100:6443`
+- ✅ stable HAProxy Kubernetes API endpoint at `<K8S_API_VIP>:6443`
 - ✅ containerd / CRI
 - ✅ Cilium baseline
 - ✅ Cinder CSI persistent storage
@@ -759,7 +746,7 @@ The repository is a work in progress, so distinguish **manifest present** from *
 - ✅ Prometheus and Grafana
 - ✅ Git-managed platform dashboards
 - ✅ edge WireGuard/private-access path
-- ✅ Pi-hole internal DNS at `10.50.0.10`
+- ✅ Pi-hole internal DNS at `<EDGE_ADDR>`
 - ✅ Neutron DHCP advertises Pi-hole to management and Kubernetes subnets
 
 ### M1 persistent research storage

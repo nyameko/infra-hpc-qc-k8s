@@ -13,7 +13,7 @@ The Kubernetes foundation was already working:
 - Kubernetes 1.36.4
 - 3 control planes
 - 3 workers
-- HAProxy API endpoint `10.51.0.100:6443`
+- HAProxy API endpoint `<K8S_API_VIP>:6443`
 - containerd 2.3.4
 - Cilium 1.20.1
 - Cilium connectivity test: 82/82 tests successful, 780 actions, 55 tests skipped, 1 scenario skipped

@@ -35,18 +35,18 @@ v1.36.4
 Nodes:
 
 ```text
-CP1 10.51.0.11
-CP2 10.51.0.12
-CP3 10.51.0.13
-W1  10.51.0.21
-W2  10.51.0.22
-W3  10.51.0.23
+CP1 <K8S_CP_1_ADDR>
+CP2 <K8S_CP_2_ADDR>
+CP3 <K8S_CP_3_ADDR>
+W1  <K8S_WORKER_1_ADDR>
+W2  <K8S_WORKER_2_ADDR>
+W3  <K8S_WORKER_3_ADDR>
 ```
 
 API endpoint:
 
 ```text
-10.51.0.100:6443
+<K8S_API_VIP>:6443
 ```
 
 Runtime:
@@ -196,7 +196,7 @@ Cilium's ClusterPool IPAM currently allocated pod addresses from its own pool, o
 This must not be confused with the kubeadm `--pod-network-cidr` value:
 
 ```text
-10.244.0.0/16
+<POD_CIDR>
 ```
 
 Those address spaces represent different layers of the deployment.
@@ -298,7 +298,7 @@ ClusterIP
 and then failed at:
 
 ```text
-NodePort 10.51.0.12:31196
+NodePort <K8S_CP_2_ADDR>:31196
 ```
 
 In an earlier run it failed against CP1; in the later debug run it selected CP2. The exact node is not important.
@@ -432,7 +432,7 @@ resource "openstack_networking_secgroup_rule_v2" "k8s_nodeport_udp_worker" {
 The source is intentionally restricted to:
 
 ```text
-10.51.0.0/24
+<K8S_CIDR>
 ```
 
 We do **not** expose NodePorts to `0.0.0.0/0`.
@@ -533,18 +533,18 @@ The individual control planes do not expose their API directly to VPN clients.
 The edge firewall protects:
 
 ```text
-edge 10.50.0.10
+edge <EDGE_ADDR>
 ```
 
 The OpenStack Kubernetes SG protects:
 
 ```text
-10.51.0.11
-10.51.0.12
-10.51.0.13
-10.51.0.21
-10.51.0.22
-10.51.0.23
+<K8S_CP_1_ADDR>
+<K8S_CP_2_ADDR>
+<K8S_CP_3_ADDR>
+<K8S_WORKER_1_ADDR>
+<K8S_WORKER_2_ADDR>
+<K8S_WORKER_3_ADDR>
 ```
 
 Therefore NodePort, VXLAN and Kubernetes health rules are cloud-network rules for the Kubernetes VMs.
