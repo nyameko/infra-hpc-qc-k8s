@@ -33,9 +33,9 @@ module "api_lb_haproxy" {
   vip_address        = var.api_lb_address
   security_group_ids = [module.security.api_lb_security_group_id]
 
-  image_id  = var.api_lb_image_id
+  image_id    = var.api_lb_image_id
   flavor_name = var.api_lb_flavor_id
-  key_pair  = var.ssh_key_name
+  key_pair    = var.ssh_key_name
 
   backend_addresses = [for key in ["k8s_cp_01", "k8s_cp_02", "k8s_cp_03"] : var.node_fixed_ips[key]]
   backend_port      = var.kubernetes_api_port
