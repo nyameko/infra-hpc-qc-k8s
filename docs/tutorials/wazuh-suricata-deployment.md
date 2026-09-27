@@ -23,7 +23,7 @@ edge Manager → /var/ossec/logs/alerts/alerts.json → Filebeat
 Operational plane: verified exporters → Prometheus → Git-managed Grafana dashboards
 ```
 
-In the reference network, management is `10.50.0.0/24`, Kubernetes is `10.51.0.0/24`, WireGuard is `10.60.0.0/24` and the API VIP is `10.51.0.100:6443`. Treat these as example allocations, not portable constants. Do not open 9200, Dashboard, or 55000 publicly. Wazuh 1516/TCP is for **Manager clustering**, not agents; leave it closed for this single-Manager deployment. Restrict 1514/1515 to enrolled host networks, 55000 to explicitly approved administrative or Dashboard paths. Verify both OpenStack SGs and edge nftables, *from the actual source network*. Test the WireGuard recovery path before tightening public SSH.
+In the reference network, management is `<MGMT_CIDR>`, Kubernetes is `<K8S_CIDR>`, WireGuard is `<VPN_CIDR>` and the API VIP is `<K8S_API_VIP>:6443`. Treat these as example allocations, not portable constants. Do not open 9200, Dashboard, or 55000 publicly. Wazuh 1516/TCP is for **Manager clustering**, not agents; leave it closed for this single-Manager deployment. Restrict 1514/1515 to enrolled host networks, 55000 to explicitly approved administrative or Dashboard paths. Verify both OpenStack SGs and edge nftables, *from the actual source network*. Test the WireGuard recovery path before tightening public SSH.
 
 ## 0. Preflight and inventory
 
