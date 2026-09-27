@@ -29,10 +29,10 @@ module "api_lb_haproxy" {
   source = "../../modules/api_lb/haproxy"
 
   name               = var.api_lb_name
-  network_id         = openstack_networking_network_v2.k8s.id
-  subnet_id          = openstack_networking_subnet_v2.k8s.id
+  network_id         = module.network.k8s_network_id
+  subnet_id          = module.network.k8s_subnet_id
   vip_address        = var.api_lb_address
-  security_group_ids = [module.security.api_lb_security_group_id]
+  security_group_ids = [module.security.group_ids["api-lb"]]
 
   image_id    = var.api_lb_image_id
   flavor_name = var.api_lb_flavor_id
@@ -50,7 +50,7 @@ module "api_lb_octavia" {
   source = "../../modules/api_lb/octavia"
 
   name              = var.api_lb_name
-  vip_subnet_id     = openstack_networking_subnet_v2.k8s.id
+  vip_subnet_id     = module.network.k8s_subnet_id
   vip_address       = var.api_lb_address
   backend_addresses = [for key in ["k8s_cp_01", "k8s_cp_02", "k8s_cp_03"] : var.node_fixed_ips[key]]
 
