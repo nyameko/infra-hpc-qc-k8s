@@ -1,31 +1,25 @@
 ---
-# Copy topology into the private inventory. Existing private inventory is authoritative.
+# Schema-only example. Keep the live host/address map in protected inventory.
 all:
   children:
     slurm_controller:
       hosts:
-        slurm-controller-01:
-          ansible_host: 10.50.0.12
+        slurm-controller-N:
+          ansible_host: "<SLURM_CONTROLLER_ADDR_N>"
     slurm_login:
       hosts:
-        login1:
-          ansible_host: 10.50.0.20
-        login2:
-          ansible_host: 10.50.0.21
+        login-N:
+          ansible_host: "<SLURM_LOGIN_ADDR_N>"
     slurm_compute:
       hosts:
-        slurm-cpu-01:
-          ansible_host: 10.50.0.30
-        slurm-cpu-02:
-          ansible_host: 10.50.0.31
-        slurm-cpu-03:
-          ansible_host: 10.50.0.32
-        slurm-cpu-04:
-          ansible_host: 10.50.0.33
+        slurm-cpu-small-N:
+          ansible_host: "<SLURM_CPU_SMALL_ADDR_N>"
+        slurm-cpu-large-N:
+          ansible_host: "<SLURM_CPU_LARGE_ADDR_N>"
     storage_nfs:
       hosts:
-        storage-nfs-01:
-          ansible_host: 10.50.0.40
+        storage-N:
+          ansible_host: "<STORAGE_ADDR_N>"
     slurm_cluster:
       children:
         slurm_controller: {}
@@ -35,8 +29,6 @@ all:
       children:
         slurm_cluster: {}
         storage_nfs: {}
-    # Merge these children into the existing private wazuh_agents group so
-    # the new CPU and storage hosts use the same manager/version policy.
     wazuh_agents:
       children:
         slurm_cluster: {}
