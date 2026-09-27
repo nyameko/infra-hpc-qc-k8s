@@ -1,0 +1,42 @@
+---
+- name: Check M2 JupyterHub Slurm account
+  ansible.builtin.command:
+    cmd: >-
+      sacctmgr -nP show account {{ jupyterhub_smoke_slurm_account }}
+      cluster={{ slurm_cluster_name }} format=Account
+  register: jhub_account
+  changed_when: false
+  when: jupyterhub_smoke_user_enabled | bool
+
+- name: Create M2 JupyterHub Slurm account
+  ansible.builtin.command:
+    cmd: >-
+      sacctmgr -i add account {{ jupyterhub_smoke_slurm_account }}
+      cluster={{ slurm_cluster_name }}
+      description="JupyterHub M2 smoke testing"
+      organization="quantum-platform"
+  when:
+    - jupyterhub_smoke_user_enabled | bool
+    - jhub_account.stdout | trim | length == 0
+
+- name: Check M2 JupyterHub Slurm user association
+  ansible.builtin.command:
+    cmd: >-
+      sacctmgr -nP show association
+      where cluster={{ slurm_cluster_name }}
+      account={{ jupyterhub_smoke_slurm_account }}
+      user={{ jupyterhub_smoke_user }}
+      format=User
+  register: jhub_assoc
+  changed_when: false
+  when: jupyterhub_smoke_user_enabled | bool
+
+- name: Create M2 JupyterHub Slurm user association
+  ansible.builtin.command:
+    cmd: >-
+      sacctmgr -i add user {{ jupyterhub_smoke_user }}
+      account={{ jupyterhub_smoke_slurm_account }}
+      cluster={{ slurm_cluster_name }}
+  when:
+    - jupyterhub_smoke_user_enabled | bool
+    - jhub_assoc.stdout | trim | length == 0

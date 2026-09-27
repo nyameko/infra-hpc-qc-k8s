@@ -9,7 +9,6 @@ spec:
   tls:
     - hosts:
         - jupyter.quantum.nyameko.com
-        - jupyterhub-hub.quantum.nyameko.com
       secretName: jupyterhub-tls
   rules:
     - host: jupyter.quantum.nyameko.com
@@ -18,11 +17,7 @@ spec:
           - path: /
             pathType: Prefix
             backend:
-              service: {name: jupyterhub, port: {name: proxy}}
-    - host: jupyterhub-hub.quantum.nyameko.com
-      http:
-        paths:
-          - path: /
-            pathType: Prefix
-            backend:
-              service: {name: jupyterhub, port: {name: hub}}
+              service:
+                name: jupyterhub
+                port:
+                  name: proxy

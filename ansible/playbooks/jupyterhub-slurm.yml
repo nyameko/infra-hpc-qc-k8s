@@ -2,11 +2,24 @@
 - name: Configure restricted JupyterHub Slurm gateway
   hosts: slurm_login
   become: true
+  vars_files:
+    - ../group_vars/jupyterhub.yml
   roles:
     - jupyterhub_slurm_gateway
 
 - name: Install JupyterHub single-user runtime on Slurm compute nodes
   hosts: slurm_compute
   become: true
+  vars_files:
+    - ../group_vars/jupyterhub.yml
   roles:
     - jupyterhub_singleuser
+
+- name: Configure disposable M2 Slurm accounting association
+  hosts: slurm_controller
+  become: true
+  vars_files:
+    - ../group_vars/jupyterhub.yml
+    - ../group_vars/slurm_cluster.yml
+  roles:
+    - jupyterhub_slurm_accounting

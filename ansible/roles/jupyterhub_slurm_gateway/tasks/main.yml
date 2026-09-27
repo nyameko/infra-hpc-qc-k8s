@@ -27,6 +27,27 @@
     name: "{{ jupyterhub_allowed_group }}"
     state: present
 
+- name: Create smoke-test primary group on login tier
+  ansible.builtin.group:
+    name: "{{ jupyterhub_smoke_user }}"
+    gid: "{{ jupyterhub_smoke_gid }}"
+    state: present
+  when: jupyterhub_smoke_user_enabled | bool
+
+- name: Create smoke-test user on login tier
+  ansible.builtin.user:
+    name: "{{ jupyterhub_smoke_user }}"
+    uid: "{{ jupyterhub_smoke_uid }}"
+    group: "{{ jupyterhub_smoke_user }}"
+    groups:
+      - "{{ jupyterhub_allowed_group }}"
+    append: true
+    home: "/home/research/{{ jupyterhub_smoke_user }}"
+    create_home: false
+    shell: /bin/bash
+    state: present
+  when: jupyterhub_smoke_user_enabled | bool
+
 - name: Install root-owned Slurm helper
   ansible.builtin.template:
     src: jupyterhub-slurm-helper.j2

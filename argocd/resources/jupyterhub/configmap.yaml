@@ -3,9 +3,11 @@ kind: ConfigMap
 metadata:
   name: jupyterhub-config
 data:
-  SLURM_GATEWAY_HOST: login1
+  # Resolve this stable alias privately to the active Slurm gateway.
+  SLURM_GATEWAY_HOST: slurm-gateway.internal
   SLURM_GATEWAY_USER: jupyterhub-gateway
-  HUB_CONNECT_URL: https://jupyterhub-hub.quantum.nyameko.com
+  # Single-user servers reach the Hub through the same private/VPN endpoint.
+  HUB_CONNECT_URL: https://jupyter.quantum.nyameko.com/hub
   jupyterhub_config.py: |
     import os
     import shlex
@@ -29,6 +31,11 @@ data:
     c.Spawner.http_timeout = 120
     c.SlurmSpawner.start_timeout = 300
 
+    # The Hub container does not impersonate POSIX users. Its only local action
+    # is invoking the restricted SSH gateway client.
+    c.BatchSpawnerBase.exec_prefix = ""
+    c.BatchSpawnerBase.batchspawner_singleuser_cmd = "/opt/jupyterhub/bin/batchspawner-singleuser"
+
     gateway = os.environ["SLURM_GATEWAY_HOST"]
     gateway_user = os.environ["SLURM_GATEWAY_USER"]
     ssh = (
@@ -43,7 +50,6 @@ data:
     c.SlurmSpawner.batch_query_cmd = ssh + " query {job_id}"
     c.SlurmSpawner.batch_cancel_cmd = ssh + " cancel {job_id}"
 
-    # No LocalProcessSpawner and no Kubernetes compute fallback.
     c.SlurmSpawner.batch_script = r"""#!/bin/bash
     #SBATCH --job-name=jhub-{{username}}
     #SBATCH --output={{homedir}}/.jupyterhub-slurm-%j.log
@@ -67,6 +73,7 @@ data:
     """
 
     async def profile_hook(spawner):
+        spawner.req_homedir = f"/home/research/{spawner.user.name}"
         profile = spawner.user_options.get("profile", "small")
         if profile == "large":
             spawner.req_partition = "cpu-large"
