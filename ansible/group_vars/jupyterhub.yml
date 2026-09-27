@@ -1,0 +1,16 @@
+---
+jupyterhub_gateway_user: jupyterhub-gateway
+jupyterhub_gateway_group: jupyterhub-gateway
+jupyterhub_allowed_group: jupyterhub-users
+jupyterhub_gateway_public_key: ""
+
+jupyterhub_singleuser_venv: /opt/jupyterhub
+jupyterhub_singleuser_packages:
+  - "jupyterhub==5.4.2"
+  - "jupyterlab>=4,<5"
+
+# Disposable M2-only identity. Real identities arrive from Quantum Platform in M3.
+jupyterhub_smoke_user_enabled: false
+jupyterhub_smoke_user: jhub-smoke
+jupyterhub_smoke_uid: 20999
+jupyterhub_smoke_gid: 20999

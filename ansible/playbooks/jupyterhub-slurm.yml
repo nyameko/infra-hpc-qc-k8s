@@ -1,0 +1,12 @@
+---
+- name: Configure restricted JupyterHub Slurm gateway
+  hosts: slurm_login
+  become: true
+  roles:
+    - jupyterhub_slurm_gateway
+
+- name: Install JupyterHub single-user runtime on Slurm compute nodes
+  hosts: slurm_compute
+  become: true
+  roles:
+    - jupyterhub_singleuser

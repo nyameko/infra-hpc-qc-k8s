@@ -1,0 +1,82 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: jupyterhub-config
+data:
+  SLURM_GATEWAY_HOST: login1
+  SLURM_GATEWAY_USER: jupyterhub-gateway
+  HUB_CONNECT_URL: https://jupyterhub-hub.quantum.nyameko.com
+  jupyterhub_config.py: |
+    import os
+    import shlex
+    import batchspawner
+    from jupyterhub.auth import DummyAuthenticator
+
+    c = get_config()
+
+    # M2 bootstrap only. M3 replaces this with Quantum Platform identity.
+    c.JupyterHub.authenticator_class = DummyAuthenticator
+    c.Authenticator.allowed_users = {"jhub-smoke"}
+    c.DummyAuthenticator.password = os.environ["JUPYTERHUB_SMOKE_PASSWORD"]
+
+    c.JupyterHub.spawner_class = "batchspawner.SlurmSpawner"
+    c.JupyterHub.hub_bind_url = "http://0.0.0.0:8081"
+    c.JupyterHub.hub_connect_url = os.environ["HUB_CONNECT_URL"]
+    c.JupyterHub.bind_url = "http://0.0.0.0:8000"
+    c.JupyterHub.db_url = "sqlite:////srv/jupyterhub/jupyterhub.sqlite"
+    c.JupyterHub.cleanup_servers = True
+    c.Spawner.default_url = "/lab"
+    c.Spawner.http_timeout = 120
+    c.SlurmSpawner.start_timeout = 300
+
+    gateway = os.environ["SLURM_GATEWAY_HOST"]
+    gateway_user = os.environ["SLURM_GATEWAY_USER"]
+    ssh = (
+        "ssh -o BatchMode=yes -o IdentitiesOnly=yes "
+        "-o StrictHostKeyChecking=yes "
+        "-o UserKnownHostsFile=/etc/jupyterhub/ssh/known_hosts "
+        "-i /etc/jupyterhub/ssh/id_ed25519 "
+        f"{shlex.quote(gateway_user)}@{shlex.quote(gateway)}"
+    )
+
+    c.SlurmSpawner.batch_submit_cmd = ssh + " submit {username}"
+    c.SlurmSpawner.batch_query_cmd = ssh + " query {job_id}"
+    c.SlurmSpawner.batch_cancel_cmd = ssh + " cancel {job_id}"
+
+    # No LocalProcessSpawner and no Kubernetes compute fallback.
+    c.SlurmSpawner.batch_script = r"""#!/bin/bash
+    #SBATCH --job-name=jhub-{{username}}
+    #SBATCH --output={{homedir}}/.jupyterhub-slurm-%j.log
+    #SBATCH --chdir={{homedir}}
+    #SBATCH --partition={{partition}}
+    #SBATCH --time={{runtime}}
+    #SBATCH --mem={{memory}}
+    #SBATCH --cpus-per-task={{nprocs}}
+    #SBATCH --export={{keepvars}}
+
+    set -euo pipefail
+    exec srun {{cmd}}
+    """
+
+    c.SlurmSpawner.options_form = """
+    <label for="profile">Compute profile</label>
+    <select name="profile" required>
+      <option value="small">Development — 2 CPU / 8 GiB / 2 h</option>
+      <option value="large">Interactive Large — 16 CPU / 64 GiB / 8 h</option>
+    </select>
+    """
+
+    async def profile_hook(spawner):
+        profile = spawner.user_options.get("profile", "small")
+        if profile == "large":
+            spawner.req_partition = "cpu-large"
+            spawner.req_nprocs = "16"
+            spawner.req_memory = "64G"
+            spawner.req_runtime = "08:00:00"
+        else:
+            spawner.req_partition = "cpu-small"
+            spawner.req_nprocs = "2"
+            spawner.req_memory = "8G"
+            spawner.req_runtime = "02:00:00"
+
+    c.Spawner.pre_spawn_hook = profile_hook

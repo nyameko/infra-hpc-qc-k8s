@@ -1,0 +1,60 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: jupyterhub
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: jupyterhub
+  template:
+    metadata:
+      labels:
+        app: jupyterhub
+    spec:
+      containers:
+        - name: hub
+          image: jupyterhub-control
+          args: ["jupyterhub", "-f", "/etc/jupyterhub/jupyterhub_config.py"]
+          ports:
+            - {name: proxy, containerPort: 8000}
+            - {name: hub, containerPort: 8081}
+          env:
+            - name: SLURM_GATEWAY_HOST
+              valueFrom: {configMapKeyRef: {name: jupyterhub-config, key: SLURM_GATEWAY_HOST}}
+            - name: SLURM_GATEWAY_USER
+              valueFrom: {configMapKeyRef: {name: jupyterhub-config, key: SLURM_GATEWAY_USER}}
+            - name: HUB_CONNECT_URL
+              valueFrom: {configMapKeyRef: {name: jupyterhub-config, key: HUB_CONNECT_URL}}
+            - name: JUPYTERHUB_SMOKE_PASSWORD
+              valueFrom: {secretKeyRef: {name: jupyterhub-bootstrap, key: smoke-password}}
+          volumeMounts:
+            - {name: config, mountPath: /etc/jupyterhub/jupyterhub_config.py, subPath: jupyterhub_config.py, readOnly: true}
+            - {name: ssh, mountPath: /etc/jupyterhub/ssh, readOnly: true}
+            - {name: data, mountPath: /srv/jupyterhub}
+          readinessProbe:
+            httpGet: {path: /hub/health, port: hub}
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          securityContext:
+            allowPrivilegeEscalation: false
+      volumes:
+        - name: config
+          configMap: {name: jupyterhub-config}
+        - name: ssh
+          secret: {secretName: jupyterhub-slurm-ssh, defaultMode: 0400}
+        - name: data
+          persistentVolumeClaim: {claimName: jupyterhub-data}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: jupyterhub-data
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: cinder-ssd
+  resources:
+    requests:
+      storage: 5Gi
