@@ -1,7 +1,9 @@
 ---
 storage_nfs_host: storage-N
 storage_nfs_address: "<STORAGE_ADDR>"
-storage_nfs_export_cidr: "<MGMT_CIDR>"
+storage_nfs_export_cidrs:
+  - "<MGMT_CIDR>"
+  - "<K8S_CIDR>"
 storage_nfs_devices:
   home: "<HOME_DEVICE_BY_ID>"
   datasets: "<DATASETS_DEVICE_BY_ID>"

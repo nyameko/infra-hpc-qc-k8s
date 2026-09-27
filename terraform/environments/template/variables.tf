@@ -47,3 +47,14 @@ variable "api_lb_image_id" { type = string }
 variable "api_lb_flavor_id" { type = string }
 variable "api_lb_user_data" { type = string default = null }
 variable "kubernetes_api_port" { type = number default = 6443 }
+
+
+variable "jupyter_workers" {
+  description = "Dedicated KubeSpawner workbench workers. Keep live names/IPs in private tfvars."
+  type = map(object({
+    name        = string
+    fixed_ip    = string
+    flavor_name = optional(string)
+  }))
+  default = {}
+}
