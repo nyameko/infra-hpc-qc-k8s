@@ -121,5 +121,6 @@ The M1 CPU fabric is intentionally split into two operational tutorials:
 
 1. [Persistent research storage with Cinder SSD, XFS quotas and NFSv4](m1-storage-nfs-xfs.md) — format only verified Cinder devices, enforce home/programme/staging quotas, export NFSv4, mount clients, validate Wazuh and storage telemetry.
 2. [CPU Slurm fabric deployment and acceptance](m1-slurm-cpu-fabric.md) — MUNGE, slurmctld/slurmd, slurmdbd/MariaDB accounting, cgroups, node telemetry and scheduler acceptance.
+3. [Slurm service identity recovery](slurm-service-identity-recovery.md) — recover an already-installed fabric from inconsistent Slurm/MUNGE/Node Exporter UID/GID allocation without turning one-time surgery into the normal deployment path.
 
 Run storage acceptance before Slurm so `/home`, `/datasets` and `/staging` are real shared filesystems before user jobs can start. Scratch remains compute-local and ephemeral.
