@@ -4,7 +4,6 @@ module "network" {
   external_network_name = var.external_network_name
   mgmt_cidr             = var.mgmt_cidr
   k8s_cidr              = var.k8s_cidr
-  api_lb_cidr           = var.k8s_cidr
   mgmt_gateway_ip       = var.mgmt_gateway_ip
   k8s_gateway_ip        = var.k8s_gateway_ip
   mgmt_pool_start       = var.mgmt_pool_start
@@ -19,7 +18,6 @@ module "security" {
   name_prefix        = "infra-hpc-qc-k8s"
   bootstrap_ssh_cidr = var.bootstrap_ssh_cidr
   vpn_cidr           = var.vpn_cidr
-  api_lb_cidr        = var.k8s_cidr
   mgmt_cidr          = var.mgmt_cidr
   k8s_cidr           = var.k8s_cidr
 }
@@ -36,7 +34,7 @@ module "api_lb_haproxy" {
   security_group_ids = [module.security.api_lb_security_group_id]
 
   image_id  = var.api_lb_image_id
-  flavor_id = var.api_lb_flavor_id
+  flavor_name = var.api_lb_flavor_id
   key_pair  = var.ssh_key_name
 
   backend_addresses = [for key in ["k8s_cp_01", "k8s_cp_02", "k8s_cp_03"] : var.node_fixed_ips[key]]
