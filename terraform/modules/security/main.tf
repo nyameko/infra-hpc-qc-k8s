@@ -519,6 +519,32 @@ resource "openstack_networking_secgroup_rule_v2" "slurm_login_ssh" {
   security_group_id = openstack_networking_secgroup_v2.this["slurm-login"].id
 }
 
+resource "openstack_networking_secgroup_rule_v2" "slurm_login_srun_io" {
+  direction = "ingress"
+  ethertype = "IPv4"
+  protocol  = "tcp"
+
+  port_range_min = 60001
+  port_range_max = 61000
+
+  remote_group_id = openstack_networking_secgroup_v2.this["slurm-compute"].id
+
+  security_group_id = openstack_networking_secgroup_v2.this["slurm-login"].id
+}
+
+resource "openstack_networking_secgroup_rule_v2" "slurm_controller_srun_io" {
+  direction = "ingress"
+  ethertype = "IPv4"
+  protocol  = "tcp"
+
+  port_range_min = 60001
+  port_range_max = 61000
+
+  remote_group_id = openstack_networking_secgroup_v2.this["slurm-compute"].id
+
+  security_group_id = openstack_networking_secgroup_v2.this["slurm-controller"].id
+}
+
 resource "openstack_networking_secgroup_rule_v2" "storage_nfs_clients" {
   for_each = toset([
     "slurm-login",
