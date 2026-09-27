@@ -111,9 +111,7 @@ compute node -> private Hub callback URL
 Do not solve routing by broadly opening the management plane. The exact
 compute CIDR and security-group rules belong in private environment data.
 
-The `jupyterhub-hub.quantum.nyameko.com` callback and the browser-facing
-`jupyter.quantum.nyameko.com` endpoint should be private/VPN-only at the
-edge. DNS and HAProxy/Traefik must route those paths explicitly.
+The compute nodes use `https://jupyter.quantum.nyameko.com/hub` as the Hub callback path, through the same browser-facing private/VPN endpoint. Keep that hostname private at the edge; DNS and HAProxy/Traefik must route it explicitly.
 
 ## M2 acceptance gate
 
