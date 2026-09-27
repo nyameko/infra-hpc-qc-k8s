@@ -173,12 +173,15 @@ vpn_cidr:  10.60.0.0/24
 | Node | Address | Role |
 |---|---|---|
 | `edge` | `10.50.0.10` | WireGuard, Pi-hole, nftables, Suricata IDS, SSH bastion, Wazuh manager/edge security |
-| `hermes-orchestrator-01` | `10.50.0.11` | isolated personal/federation Hermes orchestrator |
-| `slurm-controller-01` | `10.50.0.12` | Slurm controller, accounting daemon, initial database |
-| `login1` | `10.50.0.20` | user SSH login, Slurm client |
-| `login2` | `10.50.0.21` | user SSH login, Slurm client |
-| `slurm-cpu-01` | `10.50.0.30` | 64-core Slurm compute node |
-| `slurm-cpu-02` | `10.50.0.31` | 64-core Slurm compute node |
+| `hermes-orchestrator-01` | `10.50.0.11` | provisional orchestration host; role may evolve with Agent Control Plane / Paperclip work |
+| `slurm-controller-01` | `10.50.0.12` | Slurm controller, slurmdbd and MariaDB accounting |
+| `login1` | `10.50.0.20` | user-facing SSH login + Slurm client |
+| `login2` | `10.50.0.21` | user-facing SSH login + Slurm client |
+| `slurm-cpu-01` | `10.50.0.30` | 12-vCPU / 24-GiB `cpu-small` compute node |
+| `slurm-cpu-02` | `10.50.0.31` | 12-vCPU / 24-GiB `cpu-small` compute node |
+| `slurm-cpu-03` | `10.50.0.32` | 64-vCPU / 256-GiB `cpu-large` compute node |
+| `slurm-cpu-04` | `10.50.0.33` | 64-vCPU / 256-GiB `cpu-large` compute node |
+| `storage-nfs-01` | `10.50.0.40` | Cinder-backed NFSv4 gateway for research home, datasets and staging |
 | `api-lb-01` | `10.51.0.100` | HAProxy Kubernetes API endpoint |
 | `k8s-cp-01` | `10.51.0.11` | Kubernetes control plane |
 | `k8s-cp-02` | `10.51.0.12` | Kubernetes control plane |
@@ -199,7 +202,7 @@ Kubernetes clients use the stable API endpoint:
 
 The API load-balancer implementation is intentionally replaceable. The important contract is the stable Kubernetes control-plane endpoint, not HAProxy itself.
 
----
+Pi-hole at `10.50.0.10` is now advertised by Neutron DHCP to the management and Kubernetes subnets. Local OpenStack hosts therefore use the edge DNS service rather than depending only on provider defaults. Kubernetes pods still use CoreDNS; the intended path is `pod → CoreDNS → Pi-hole → upstream DNS`.
 
 ## Defense in depth
 
@@ -276,29 +279,36 @@ That milestone is important because it establishes a working network substrate b
 
 ## Storage architecture
 
-Kubernetes persistent storage is provided by OpenStack Cinder through the Cinder CSI driver.
+The platform now has two persistent-storage planes:
 
-The current cloud exposes three public volume types:
+1. **Kubernetes persistent storage** through OpenStack Cinder CSI.
+2. **HPC/research shared storage** through `storage-nfs-01`, backed by dedicated Cinder SSD volumes and exported over NFSv4.
 
-```text
-SSD
-HDD
-__DEFAULT__
-```
+Kubernetes currently exposes Cinder-backed StorageClasses for application/PVC workloads. The exact Cinder implementation remains cloud-specific.
 
-The Kubernetes layer will expose these as three StorageClasses:
+The validated M1 research storage layout is:
 
 ```text
-cinder-ssd
-cinder-hdd
-cinder-default
+storage-nfs-01 10.50.0.40
+
+/srv/home      → /home/research on login/compute nodes
+/srv/datasets  → /datasets
+/srv/staging   → /staging
 ```
 
-`cinder-ssd` is the Kubernetes default class in the reference deployment. `cinder-hdd` is explicitly selected for capacity-oriented workloads. `cinder-default` exists primarily to demonstrate the distinction between a Kubernetes StorageClass and the underlying cloud's default-volume-type behavior.
+Cinder SSD volumes:
 
-The exact Cinder configuration is cloud-specific and should not be hard-coded into reusable platform logic. A different cloud or bare-metal environment may require a different CSI driver, a different StorageClass implementation, or a completely different storage system.
+```text
+home      512 GiB
+datasets  2 TiB
+staging   512 GiB
+```
 
----
+All three filesystems use XFS. Quota accounting/enforcement is enabled according to purpose: user quotas for home, project quotas for datasets, and user/project quotas for staging. The NFS exports are restricted to the management network and use `root_squash`.
+
+Scratch remains ephemeral and compute-local. The single NFS gateway is an appropriate M1 shared-filesystem implementation, not a claim of parallel-filesystem or HA performance. BeeGFS/CephFS/Lustre remain later scale-out options.
+
+The Slurm roles treat shared `/home/research` as a prerequisite and reject a local home filesystem on login/compute nodes. This keeps interactive and batch execution consistent before JupyterHub is introduced.
 
 ## GitOps and application lifecycle
 
@@ -372,39 +382,80 @@ As Hermes and Heretic mature, they should expose application-level metrics rathe
 
 ## HPC architecture
 
-Slurm remains an independent HPC scheduler and execution plane.
+Slurm is now an operational independent HPC scheduler and execution plane.
 
 ```text
-Users / JupyterHub / Hermes
-           │
-           ▼
-        Slurm
-           │
-     ┌─────┴─────┐
-     ▼           ▼
-   CPU pool    future GPU/HPC pools
+Users / future JupyterHub
+          │
+          ▼
+   login1 / login2
+          │
+          ▼
+       Slurm
+          │
+    ┌─────┴───────────────┐
+    ▼                     ▼
+ cpu-small              cpu-large
+12 vCPU / 23 GiB      64 vCPU / ~250 GiB
+×2 nodes              ×2 nodes
 ```
 
-The initial deployment deliberately keeps the Slurm controller separate from the edge host and from login nodes.
-
-The first reference layout is:
+The validated controller/accounting topology is:
 
 ```text
 slurm-controller-01
     ├── slurmctld
     ├── slurmdbd
-    └── MariaDB (initial deployment)
+    └── MariaDB (slurm_acct_db)
 
 login1 / login2
-    └── user access + Slurm client tools
+    └── user-facing Slurm clients
 
-slurm-cpu-01 / slurm-cpu-02
-    └── 64-core compute nodes
+slurm-cpu-01 / 02
+    └── cpu-small
+
+slurm-cpu-03 / 04
+    └── cpu-large
 ```
 
-The separation between Kubernetes and Slurm is intentional. Kubernetes handles platform orchestration and services; Slurm handles batch HPC scheduling and resource allocation.
+Slurm 25.11.8 is built from checksum-pinned official SchedMD source into Rocky Linux 9 RPMs and then staged as one vetted artifact set across the fabric. M1 permits those locally built unsigned RPMs explicitly; issue #41 owns the later signed CI/SBOM/internal-Yum supply chain.
 
----
+MUNGE authenticates Slurm RPCs. The service identities are deliberately deterministic across the cluster:
+
+```text
+slurm  5000:5000
+munge  5001:5001
+```
+
+The live bring-up demonstrated why numeric identity is part of the distributed authentication contract: inconsistent auto-allocated UIDs produced `Unexpected uid`, malformed RPC and task-launch failures even though account names matched.
+
+Interactive `srun` also requires compute nodes to connect back to the host running `srun` for stdio/control traffic. M1 constrains those callbacks with:
+
+```text
+SrunPortRange=60001-61000
+```
+
+and permits that range from the Slurm compute security group to the login-node security group. The login tier is the intended user submission boundary; the controller is an infrastructure host, not a normal user-facing execution host.
+
+Validated execution on 27 September 2026 includes:
+
+```text
+cpu-small:
+srun ... /usr/bin/hostname
+→ slurm-cpu-01.novalocal
+
+cpu-large:
+32 CPUs + 128 GiB allocation
+→ slurm-cpu-03.novalocal
+→ nproc = 32
+→ free -h ≈ 251 GiB total guest memory
+```
+
+CPU and memory isolation use cgroup v2 through `proctrack/cgroup`, `task/cgroup` and `task/affinity`. Slurm accounting is registered as cluster `quantum-cpu`.
+
+The separation between Kubernetes and Slurm remains intentional: Kubernetes runs platform services; Slurm schedules researcher compute. The next major integration is JupyterHub in Kubernetes using Slurm for **all** notebook compute rather than running user kernels directly in Kubernetes.
+
+For the full recovery history and operational lessons, see [docs/tutorials/slurm-service-identity-recovery.md](docs/tutorials/slurm-service-identity-recovery.md).
 
 ## Agent orchestration: Agent Control Plane, Hermes and Heretic
 
@@ -691,14 +742,14 @@ A corrective change to installation procedure belongs in `INSTALLATION.md`; a du
 
 ## Current verified platform state
 
-The repository is a work in progress, so distinguish **manifest present** from **capability accepted end to end**. The most recent operator-verified state (September 2026) includes:
+The repository is a work in progress, so distinguish **manifest present** from **capability accepted end to end**. The operator-verified state as of 27 September 2026 includes:
 
-### Infrastructure and Kubernetes substrate
+### Infrastructure, networking and Kubernetes
 
 - ✅ OpenStack network/VM foundation
 - ✅ Rocky Linux base hosts
-- ✅ multi-control-plane Kubernetes cluster
-- ✅ stable HAProxy Kubernetes API endpoint
+- ✅ three-control-plane / three-worker Kubernetes cluster
+- ✅ stable HAProxy Kubernetes API endpoint at `10.51.0.100:6443`
 - ✅ containerd / CRI
 - ✅ Cilium baseline
 - ✅ Cinder CSI persistent storage
@@ -708,48 +759,52 @@ The repository is a work in progress, so distinguish **manifest present** from *
 - ✅ Prometheus and Grafana
 - ✅ Git-managed platform dashboards
 - ✅ edge WireGuard/private-access path
+- ✅ Pi-hole internal DNS at `10.50.0.10`
+- ✅ Neutron DHCP advertises Pi-hole to management and Kubernetes subnets
+
+### M1 persistent research storage
+
+- ✅ dedicated `storage-nfs-01`
+- ✅ 512-GiB research-home Cinder SSD
+- ✅ 2-TiB datasets Cinder SSD
+- ✅ 512-GiB staging Cinder SSD
+- ✅ XFS filesystems and quota accounting/enforcement
+- ✅ NFSv4 exports
+- ✅ `/home/research`, `/datasets`, `/staging` mounted on login/compute nodes
+- ✅ storage Node Exporter telemetry
+
+### M1 CPU Slurm fabric
+
+- ✅ official SchedMD 25.11.8 source built as Rocky 9 RPMs
+- ✅ controller + slurmdbd + MariaDB accounting
+- ✅ MUNGE shared authentication
+- ✅ deterministic `slurm=5000:5000` and `munge=5001:5001`
+- ✅ two 12-vCPU `cpu-small` nodes
+- ✅ two 64-vCPU `cpu-large` nodes
+- ✅ corrected allocatable RealMemory values
+- ✅ cgroup-v2 CPU/memory enforcement configuration
+- ✅ constrained `SrunPortRange=60001-61000`
+- ✅ four compute nodes register cleanly and return to `IDLE`
+- ✅ `cpu-small` interactive task launch from login tier
+- ✅ `cpu-large` 32-CPU / 128-GiB interactive allocation from login tier
+- ✅ Node Exporter healthy after service-identity migration
 
 ### Quantum Platform deployment
 
-The public/live development portal has been deliberately moved from the mutable `:main` application channel to the `:dev` channel while the product remains under active development.
+The public/live development portal tracks the `:dev` application channel while the product remains under active development. The current portal includes PostgreSQL-backed identity/programme state and the initial administrator/user surfaces. Resource provisioning into POSIX/Slurm identity remains a later controlled integration.
 
-Verified deployment behavior included:
+### Still active / not yet accepted as complete
 
-```text
-Argo CD:
-OutOfSync → Progressing → Synced / Healthy
-
-Kubernetes:
-quantum-platform-blog       :dev  Running
-quantum-platform-users      :dev  Running
-quantum-platform-user-api   :dev  Running
-PostgreSQL                        Running
-postgres-exporter                 Running
-
-Django portal migrations:
-[X] 0001_initial
-[X] 0002_piapplication_auditevent
-[X] 0003_agentprincipal
-```
-
-The `reconcile_programmes` management command was run for the existing approved PI application and created the corresponding programme membership. These are useful deployment milestones; they do not imply that every planned resource-provisioning integration is complete.
-
-### Not yet accepted as complete
-
-The following are active implementation areas and must not be described as finished merely because manifests, roles or documentation exist:
-
-- ⏳ Wazuh Manager → alerts → Filebeat → Indexer → Dashboard end-to-end acceptance
-- ⏳ Suricata EVE alert correlation through the security evidence path
-- ⏳ production-quality Slurm user/resource integration from the portal/Jupyter path
-- ⏳ JupyterHub end-to-end researcher experience
-- ⏳ Agent Control Plane Phase 1 live deployment and persistent Hermes acceptance
-- ⏳ persistent researcher coworker across portal/Jupyter/terminal
+- ⏳ Slurm operational hardening: formal sbatch/accounting/cancellation/walltime/two-node/MPI acceptance and warning cleanup
+- ⏳ scheduler/accounting-specific Prometheus/Grafana metrics
+- ⏳ final Wazuh/Suricata end-to-end re-verification after infrastructure changes
+- ⏳ JupyterHub end-to-end researcher experience with every notebook scheduled through Slurm
+- ⏳ Quantum Platform → POSIX/storage/Slurm provisioning reconciler
+- ⏳ Agent Control Plane Phase 1 live deployment and persistent orchestration acceptance
 - ⏳ staging environment and release-candidate conformance suite
 - ⏳ QPU provider production integrations beyond controlled SDK/hello-world workflows
 
-Argo "Healthy" proves the declared Kubernetes resources are healthy; it does not by itself prove a cross-system workflow such as `portal → ACP → Slurm → QPU`.
-
----
+A green daemon, Kubernetes Pod or Argo application proves only that layer. End-to-end workflows are accepted only after the actual user/research path executes successfully.
 
 ## Security evidence architecture
 
@@ -880,18 +935,18 @@ A staging migration must never target the production identity database. Likewise
 
 ## Near-term roadmap
 
-The architecture is sufficiently defined that the priority is now closing operational loops rather than inventing new layers.
+The CPU execution substrate is now real, so the priority shifts from bringing up Slurm to hardening it and connecting the researcher experience.
 
-1. **Security evidence:** complete and prove Wazuh end to end, then Suricata correlation.
-2. **Deployment correctness:** ensure every new `:dev` build causes a GitOps-visible rollout with the matching Django migration and a recorded rollback point.
-3. **Slurm acceptance:** prove controller/accounting/login/compute path and one portal/Jupyter-facing bounded submission path.
-4. **Agent Control Plane Phase 1:** deploy API + PostgreSQL, connect one persistent Hermes profile, expose one safe read-only diagnostic, surface task/run history in the Quantum Platform administrator interface.
-5. **JupyterHub researcher path:** identity → approved programme → notebook → Slurm/GPU job with explicit authorization and audit.
-6. **Staging:** create `quantum-platform-staging`, separate data/secrets/integrations, and a release-candidate conformance suite.
-7. **Researcher experience:** events, branded programmes, persistent coworker, then the optional "Starship Enterprise" SSH/terminal cockpit.
-8. **Advanced orchestration:** specialist research/security/sysadmin agents, model routing, external clients and progressively stronger—but still reviewed—automation.
+1. **M1 Slurm hardening:** remove controller-side interactive callback exposure, formalize sbatch/sacct/cancellation/walltime/cgroup/two-node/MPI acceptance, and clean known slurmdbd/MariaDB/plugin warnings.
+2. **Service identity:** finish the deterministic infrastructure UID/GID registry for Node Exporter and the RPM builder; future human/research identities remain owned by Quantum Platform.
+3. **DNS/time:** finish Pi-hole/CoreDNS/WireGuard resolver validation and formalize the internal DNS and Chrony topology.
+4. **Observability/security:** revalidate Slurm/Node Exporter dashboards, Wazuh agents and Suricata/Wazuh evidence using fresh time windows.
+5. **JupyterHub → Slurm:** keep the Hub in Kubernetes while launching every user notebook through a Slurm allocation on the compute fabric.
+6. **Quantum Platform provisioning:** approved platform identity → deterministic POSIX identity → shared home → SSH/WireGuard keys → Slurm account/association/QoS.
+7. **Accelerators and external compute:** add A100/H200 and external Slurm/Lengau adapters only after the CPU/Jupyter path is authoritative.
+8. **Agent Control Plane:** layer controlled agent orchestration onto already-authoritative Kubernetes/Slurm/storage/security systems rather than bypassing them.
 
----
+The next-sprint closeout/hardening work is tracked in issue #56.
 
 ## Reproducibility
 
