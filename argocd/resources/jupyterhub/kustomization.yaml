@@ -6,6 +6,7 @@ namespace: jupyterhub
 resources:
   - namespace.yaml
   - configmap.yaml
+  - profile-catalog.yaml
   - deployment.yaml
   - service.yaml
   - ingress.yaml

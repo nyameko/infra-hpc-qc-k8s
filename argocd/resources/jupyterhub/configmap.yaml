@@ -3,25 +3,44 @@ kind: ConfigMap
 metadata:
   name: jupyterhub-config
 data:
-  # Resolve this stable alias privately to the active Slurm gateway.
   SLURM_GATEWAY_HOST: slurm-gateway.internal
   SLURM_GATEWAY_USER: jupyterhub-gateway
-  # Single-user servers reach the Hub through the same private/VPN endpoint.
   HUB_CONNECT_URL: https://jupyter.quantum.nyameko.com/hub
   jupyterhub_config.py: |
+    import html
+    import json
     import os
     import shlex
+
     import batchspawner
     from jupyterhub.auth import DummyAuthenticator
+    from traitlets import Unicode
 
     c = get_config()
 
-    # M2 bootstrap only. M3 replaces this with Quantum Platform identity.
+    with open("/etc/jupyterhub/catalog.json", encoding="utf-8") as handle:
+        catalog = json.load(handle)
+
+    resources = catalog["resource_classes"]
+    environments = catalog["environments"]
+    offerings = {
+        item["id"]: item
+        for item in catalog["offerings"]
+        if item.get("enabled") and item.get("mode") == "interactive"
+    }
+    if not offerings:
+        raise RuntimeError("JupyterHub catalog has no enabled interactive offerings")
+
+    class CatalogSlurmSpawner(batchspawner.SlurmSpawner):
+        req_container_image = Unicode()
+        req_container_flags = Unicode()
+        req_container_mounts = Unicode()
+
     c.JupyterHub.authenticator_class = DummyAuthenticator
     c.Authenticator.allowed_users = {"jhub-smoke"}
     c.DummyAuthenticator.password = os.environ["JUPYTERHUB_SMOKE_PASSWORD"]
 
-    c.JupyterHub.spawner_class = "batchspawner.SlurmSpawner"
+    c.JupyterHub.spawner_class = CatalogSlurmSpawner
     c.JupyterHub.hub_bind_url = "http://0.0.0.0:8081"
     c.JupyterHub.hub_connect_url = os.environ["HUB_CONNECT_URL"]
     c.JupyterHub.bind_url = "http://0.0.0.0:8000"
@@ -31,10 +50,10 @@ data:
     c.Spawner.http_timeout = 120
     c.SlurmSpawner.start_timeout = 300
 
-    # The Hub container does not impersonate POSIX users. Its only local action
-    # is invoking the restricted SSH gateway client.
+    # The Hub container never impersonates the POSIX user locally.
     c.BatchSpawnerBase.exec_prefix = ""
-    c.BatchSpawnerBase.batchspawner_singleuser_cmd = "/opt/jupyterhub/bin/batchspawner-singleuser"
+    # This command executes inside the selected Apptainer environment.
+    c.BatchSpawnerBase.batchspawner_singleuser_cmd = "batchspawner-singleuser"
 
     gateway = os.environ["SLURM_GATEWAY_HOST"]
     gateway_user = os.environ["SLURM_GATEWAY_USER"]
@@ -58,32 +77,60 @@ data:
     #SBATCH --time={{runtime}}
     #SBATCH --mem={{memory}}
     #SBATCH --cpus-per-task={{nprocs}}
+    #SBATCH --account={{account}}
     #SBATCH --export={{keepvars}}
+    {% if gres %}#SBATCH --gres={{gres}}
+    {% endif %}{% if qos %}#SBATCH --qos={{qos}}
+    {% endif %}
 
     set -euo pipefail
-    exec srun {{cmd}}
+    source /etc/profile.d/modules.sh
+    module purge
+    module load apptainer
+
+    exec srun apptainer exec       {{container_flags}}       --home "{{homedir}}:{{homedir}}"       {{container_mounts}}       "{{container_image}}"       {{cmd}}
     """
 
-    c.SlurmSpawner.options_form = """
-    <label for="profile">Compute profile</label>
-    <select name="profile" required>
-      <option value="small">Development — 2 CPU / 8 GiB / 2 h</option>
-      <option value="large">Interactive Large — 16 CPU / 64 GiB / 8 h</option>
-    </select>
-    """
+    options = []
+    for profile_id, offering in offerings.items():
+        options.append(
+            '<option value="{}">{}</option>'.format(
+                html.escape(profile_id, quote=True),
+                html.escape(offering["display_name"]),
+            )
+        )
+    c.SlurmSpawner.options_form = (
+        '<label for="profile">Compute environment</label>'
+        '<select name="profile" required>'
+        + "".join(options)
+        + "</select>"
+    )
+    c.Spawner.options_from_form = "simple"
 
-    async def profile_hook(spawner):
+    def apply_user_options(spawner, user_options):
+        profile_id = user_options.get("profile") or next(iter(offerings))
+        if not isinstance(profile_id, str) or profile_id not in offerings:
+            raise ValueError("unknown or unauthorized JupyterHub profile")
+
+        offering = offerings[profile_id]
+        resource = resources[offering["resource_class"]]
+        environment = environments[offering["environment"]]
+        if environment["runtime"] != "apptainer":
+            raise ValueError("M2 supports only the Apptainer execution runtime")
+
         spawner.req_homedir = f"/home/research/{spawner.user.name}"
-        profile = spawner.user_options.get("profile", "small")
-        if profile == "large":
-            spawner.req_partition = "cpu-large"
-            spawner.req_nprocs = "16"
-            spawner.req_memory = "64G"
-            spawner.req_runtime = "08:00:00"
-        else:
-            spawner.req_partition = "cpu-small"
-            spawner.req_nprocs = "2"
-            spawner.req_memory = "8G"
-            spawner.req_runtime = "02:00:00"
+        spawner.req_partition = resource["partition"]
+        spawner.req_nprocs = str(resource["cpus"])
+        spawner.req_memory = resource["memory"]
+        spawner.req_runtime = resource["walltime"]
+        spawner.req_account = resource["account"]
+        spawner.req_gres = resource.get("gres", "")
+        spawner.req_qos = resource.get("qos", "")
+        spawner.req_container_image = environment["image"]
+        spawner.req_container_flags = environment.get("container_flags", "")
+        spawner.req_container_mounts = " ".join(
+            f'--bind {shlex.quote(mount)}'
+            for mount in environment.get("mounts", [])
+        )
 
-    c.Spawner.pre_spawn_hook = profile_hook
+    c.Spawner.apply_user_options = apply_user_options

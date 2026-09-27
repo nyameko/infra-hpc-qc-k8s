@@ -32,6 +32,7 @@ spec:
               valueFrom: {secretKeyRef: {name: jupyterhub-bootstrap, key: smoke-password}}
           volumeMounts:
             - {name: config, mountPath: /etc/jupyterhub/jupyterhub_config.py, subPath: jupyterhub_config.py, readOnly: true}
+            - {name: catalog, mountPath: /etc/jupyterhub/catalog.json, subPath: catalog.json, readOnly: true}
             - {name: ssh, mountPath: /etc/jupyterhub/ssh, readOnly: true}
             - {name: data, mountPath: /srv/jupyterhub}
           readinessProbe:
@@ -43,6 +44,8 @@ spec:
       volumes:
         - name: config
           configMap: {name: jupyterhub-config}
+        - name: catalog
+          configMap: {name: jupyterhub-profile-catalog}
         - name: ssh
           secret: {secretName: jupyterhub-slurm-ssh, defaultMode: 0400}
         - name: data

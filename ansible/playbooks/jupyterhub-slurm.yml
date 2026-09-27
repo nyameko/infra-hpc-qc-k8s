@@ -1,4 +1,12 @@
 ---
+- name: Configure common HPC user environment
+  hosts: slurm_login:slurm_compute
+  become: true
+  vars_files:
+    - ../group_vars/jupyterhub.yml
+  roles:
+    - hpc_user_environment
+
 - name: Configure restricted JupyterHub Slurm gateway
   hosts: slurm_login
   become: true
@@ -7,7 +15,7 @@
   roles:
     - jupyterhub_slurm_gateway
 
-- name: Install JupyterHub single-user runtime on Slurm compute nodes
+- name: Stage JupyterHub execution image on Slurm compute nodes
   hosts: slurm_compute
   become: true
   vars_files:

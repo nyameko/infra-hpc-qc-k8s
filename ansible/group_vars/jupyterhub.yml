@@ -4,11 +4,17 @@ jupyterhub_gateway_group: jupyterhub-gateway
 jupyterhub_allowed_group: jupyterhub-users
 jupyterhub_gateway_public_key: ""
 
-jupyterhub_singleuser_venv: /opt/jupyterhub
-jupyterhub_singleuser_packages:
-  - "jupyterhub==5.4.2"
-  - "jupyterlab>=4,<5"
-  - "batchspawner==1.3.0"
+# Shared HPC user-environment foundation.
+hpc_user_environment_epel_package: epel-release
+hpc_user_environment_packages:
+  - Lmod
+  - apptainer
+hpc_container_cache_dir: /var/cache/quantum-platform/containers
+
+# M2 smoke image. Production offerings will be immutable digest-derived images.
+jupyterhub_smoke_image_source: docker://ghcr.io/nyameko/infra-hpc-qc-k8s-jupyter-singleuser:dev
+jupyterhub_smoke_image_path: "{{ hpc_container_cache_dir }}/jupyter-singleuser-m2.sif"
+jupyterhub_smoke_image_stage: true
 
 # Disposable M2-only identity. Real identities arrive from Quantum Platform in M3.
 jupyterhub_smoke_user_enabled: false

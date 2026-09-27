@@ -1,21 +1,4 @@
 ---
-- name: Install Python virtualenv prerequisites
-  ansible.builtin.package:
-    name:
-      - python3
-      - python3-pip
-    state: present
-
-- name: Create JupyterHub single-user virtual environment
-  ansible.builtin.command:
-    cmd: "python3 -m venv {{ jupyterhub_singleuser_venv }}"
-    creates: "{{ jupyterhub_singleuser_venv }}/bin/python"
-
-- name: Install pinned single-user runtime
-  ansible.builtin.pip:
-    name: "{{ jupyterhub_singleuser_packages }}"
-    virtualenv: "{{ jupyterhub_singleuser_venv }}"
-
 - name: Ensure JupyterHub entitlement group exists
   ansible.builtin.group:
     name: "{{ jupyterhub_allowed_group }}"
@@ -42,3 +25,27 @@
         create_home: false
         shell: /bin/bash
         state: present
+
+- name: Check whether M2 single-user image is already staged
+  ansible.builtin.stat:
+    path: "{{ jupyterhub_smoke_image_path }}"
+  register: jupyterhub_smoke_sif
+  when: jupyterhub_smoke_image_stage | bool
+
+- name: Pull M2 single-user OCI image into local Apptainer cache
+  ansible.builtin.command:
+    cmd: >-
+      apptainer pull
+      {{ jupyterhub_smoke_image_path }}
+      {{ jupyterhub_smoke_image_source }}
+  when:
+    - jupyterhub_smoke_image_stage | bool
+    - not jupyterhub_smoke_sif.stat.exists
+
+- name: Keep staged image immutable to research users
+  ansible.builtin.file:
+    path: "{{ jupyterhub_smoke_image_path }}"
+    owner: root
+    group: root
+    mode: "0555"
+  when: jupyterhub_smoke_image_stage | bool
