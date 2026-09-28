@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: jupyterhub-batchspawner-status
+data:
+  status: disabled
+  reason: >-
+    BatchSpawner is retained as an optional interactive-HPC design, but it is
+    not part of the default live Jupyter deployment. KubeSpawner workbench is
+    the primary M2a path.
