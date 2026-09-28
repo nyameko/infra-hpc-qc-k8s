@@ -414,8 +414,8 @@ The cluster bootstrap values are:
 ```text
 Kubernetes version: 1.36.4
 Control-plane endpoint: <K8S_API_VIP>:6443
-CP1 advertise address: <K8S_CP_1_IP>
-Pod CIDR: 10.244.0.0/16
+CP1 advertise address: <K8S_CP_1_ADDR>
+Pod CIDR: <POD_CIDR>
 Service CIDR: 10.96.0.0/12
 CRI socket: unix:///run/containerd/containerd.sock
 ```

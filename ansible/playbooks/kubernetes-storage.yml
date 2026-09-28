@@ -1,0 +1,9 @@
+---
+- name: Prepare existing Kubernetes workers for shared research home
+  hosts: workers
+  become: true
+  gather_facts: true
+  vars:
+    research_home_nfs_server: storage.internal
+  roles:
+    - kube_nfs_client

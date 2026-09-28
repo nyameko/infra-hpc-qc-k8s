@@ -393,7 +393,7 @@ The cluster uses:
 
 ```text
 Control-plane endpoint: <K8S_API_VIP>:6443
-Pod CIDR:               10.244.0.0/16
+Pod CIDR:               <POD_CIDR>
 Service CIDR:           10.96.0.0/12
 ```
 
@@ -414,7 +414,7 @@ kind: ClusterConfiguration
 kubernetesVersion: v1.36.4
 controlPlaneEndpoint: "<K8S_API_VIP>:6443"
 networking:
-  podSubnet: "10.244.0.0/16"
+  podSubnet: "<POD_CIDR>"
   serviceSubnet: "10.96.0.0/12"
 ```
 

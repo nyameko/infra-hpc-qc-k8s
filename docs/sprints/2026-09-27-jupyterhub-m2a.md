@@ -35,12 +35,13 @@ notebooks; it is not the default user experience.
 - [ ] confirm existing Quantum Platform, monitoring and Wazuh workloads healthy
 - [ ] take/export relevant Git/cluster state before node-pool changes
 
-## Sprint gate 1 — worker-pool structure
+## Sprint gate 1 — shared-worker MVP constraint
 
-The existing general workers become the core/service pool. Do not move them
-until labels/taints and workload tolerations have been validated.
+The OpenStack project is currently at quota pressure, so today's M2a does **not**
+add Kubernetes workers, tear down Slurm compute, or retag/taint the existing
+workers into hard pools.
 
-Initial desired roles:
+The long-term desired roles remain:
 
 ```text
 k8s-core-01 ... k8s-core-N
@@ -48,21 +49,26 @@ k8s-user-01 ... k8s-user-N
 k8s-agent-01 ... k8s-agent-N
 ```
 
-For M2a, provision/identify three initial user workers using the standard
-8-vCPU/64-GiB worker flavor.
+but physical separation is tracked by the capacity-expansion issue and is not a
+prerequisite for the MVP.
 
-User-node policy:
+Today's safety controls:
 
-```text
-label: hub.jupyter.org/node-purpose=user
-taint: hub.jupyter.org/dedicated=user:NoSchedule
-```
+- keep the three existing workers unchanged;
+- run only smoke/pilot Jupyter users;
+- apply strict namespace ResourceQuota and LimitRange for Jupyter;
+- set explicit pod requests/limits;
+- use pod anti-affinity/topology spread where appropriate for Hub components;
+- do not taint or drain workers while Wazuh is already imperfect;
+- do not remove a validated 64-vCPU Slurm node just to create premature
+  Kubernetes separation.
 
 Acceptance:
 
-- [ ] core workloads remain on core workers
-- [ ] Jupyter test pod schedules only onto user workers
-- [ ] loss/drain of one user worker does not affect core services
+- [ ] all existing core workloads remain healthy
+- [ ] Jupyter smoke pod schedules successfully on the shared worker pool
+- [ ] Jupyter namespace cannot consume uncontrolled CPU/RAM
+- [ ] no Slurm node is destroyed or resized for today's MVP
 
 ## Sprint gate 2 — shared research home from Kubernetes
 
@@ -81,7 +87,8 @@ Do not create a second canonical per-user Cinder home.
 
 ## Sprint gate 3 — JupyterHub + KubeSpawner
 
-Build/publish a pinned Hub image with KubeSpawner.
+Build/publish a pinned Hub image with KubeSpawner. The initial workbench runs on
+the existing shared Kubernetes workers under strict namespace and per-pod limits.
 
 Initial smoke workbench:
 

@@ -549,6 +549,7 @@ resource "openstack_networking_secgroup_rule_v2" "storage_nfs_clients" {
   for_each = toset([
     "slurm-login",
     "slurm-compute",
+    "k8s-worker",
   ])
 
   direction = "ingress"
