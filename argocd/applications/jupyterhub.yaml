@@ -5,20 +5,18 @@ metadata:
   namespace: argocd
   finalizers:
     - resources-finalizer.argocd.argoproj.io
-  annotations:
-    platform.quantum.nyameko.com/status: parked-batchspawner
 spec:
   project: default
   source:
     repoURL: https://github.com/nyameko/infra-hpc-qc-k8s.git
     targetRevision: dev
-    path: argocd/resources/jupyterhub-disabled
+    path: argocd/resources/jupyterhub
   destination:
     server: https://kubernetes.default.svc
     namespace: jupyterhub
-  # Intentionally no automated prune/self-heal. This parks the legacy
-  # BatchSpawner Application without deleting shared live resources during the
-  # transition to uniquely named KubeSpawner workbench objects.
   syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
     syncOptions:
       - CreateNamespace=true
