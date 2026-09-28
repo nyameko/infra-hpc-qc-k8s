@@ -51,12 +51,19 @@ On the storage server:
 sudo install -d -m 0700 -o 20999 -g 20999 /srv/home/jhub-smoke
 ```
 
-From a login node, create a reverse-direction marker:
+From a login node, create a reverse-direction marker as the numeric Phase-B
+identity. Do not create a passwd entry just for this storage test:
 
 ```bash
-sudo -u '#20999' sh -c \
-  'printf "phase-b ssh write\n" > /home/research/jhub-smoke/phase-b-from-ssh.txt'
+sudo setpriv \
+  --reuid=20999 \
+  --regid=20999 \
+  --clear-groups \
+  sh -c 'id; printf "phase-b login write\n" > /home/research/jhub-smoke/phase-b-from-ssh.txt'
 ```
+
+Some sudo builds do not accept an unmapped numeric UID with `sudo -u '#20999'`.
+`setpriv` intentionally avoids requiring a temporary `/etc/passwd` entry.
 
 ### B4. Run the standalone Kubernetes NFS smoke pod
 
