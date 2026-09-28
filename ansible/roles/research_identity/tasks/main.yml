@@ -1,0 +1,88 @@
+---
+- name: Require explicit private research-user definitions
+  ansible.builtin.assert:
+    that:
+      - research_users is defined
+      - research_users | length > 0
+    fail_msg: >-
+      Supply research_users from protected/private vars. Do not commit real
+      research usernames, UID/GID assignments or SSH keys to the public repo.
+
+- name: Inspect existing research passwd entries
+  ansible.builtin.command:
+    cmd: "getent passwd {{ item.name }}"
+  loop: "{{ research_users }}"
+  loop_control:
+    label: "{{ item.name }}"
+  register: research_existing_passwd
+  changed_when: false
+  failed_when: false
+
+- name: Reject conflicting existing research identities
+  ansible.builtin.assert:
+    that:
+      - item.rc != 0 or (item.stdout.split(':')[2] | int) == (item.item.uid | int)
+      - item.rc != 0 or (item.stdout.split(':')[3] | int) == (item.item.gid | int)
+      - item.rc != 0 or item.stdout.split(':')[5] == '/home/research/' ~ item.item.name
+    fail_msg: >-
+      Existing passwd entry for {{ item.item.name }} conflicts with the desired
+      UID/GID/home. Resolve the identity conflict explicitly before continuing.
+  loop: "{{ research_existing_passwd.results }}"
+  loop_control:
+    label: "{{ item.item.name }}"
+
+- name: Inspect existing research group entries
+  ansible.builtin.command:
+    cmd: "getent group {{ item.name }}"
+  loop: "{{ research_users }}"
+  loop_control:
+    label: "{{ item.name }}"
+  register: research_existing_groups
+  changed_when: false
+  failed_when: false
+
+- name: Reject conflicting existing research groups
+  ansible.builtin.assert:
+    that:
+      - item.rc != 0 or (item.stdout.split(':')[2] | int) == (item.item.gid | int)
+    fail_msg: >-
+      Existing group {{ item.item.name }} has a different GID. Resolve the
+      identity conflict explicitly before continuing.
+  loop: "{{ research_existing_groups.results }}"
+  loop_control:
+    label: "{{ item.item.name }}"
+
+- name: Create research primary groups
+  ansible.builtin.group:
+    name: "{{ item.name }}"
+    gid: "{{ item.gid }}"
+    state: present
+  loop: "{{ research_users }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Create consistent POSIX research identities
+  ansible.builtin.user:
+    name: "{{ item.name }}"
+    uid: "{{ item.uid }}"
+    group: "{{ item.name }}"
+    home: "/home/research/{{ item.name }}"
+    shell: "{{ item.shell | default('/bin/bash') }}"
+    create_home: false
+    password_lock: true
+    state: present
+  loop: "{{ research_users }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Create authoritative research homes on the storage server
+  ansible.builtin.file:
+    path: "/srv/home/{{ item.name }}"
+    state: directory
+    owner: "{{ item.uid }}"
+    group: "{{ item.gid }}"
+    mode: "{{ item.home_mode | default('0700') }}"
+  loop: "{{ research_users }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when: "'storage_nfs' in group_names"
