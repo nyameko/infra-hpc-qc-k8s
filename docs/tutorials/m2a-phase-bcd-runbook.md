@@ -1,37 +1,29 @@
 # M2a Phase B/C/D — shared home, KubeSpawner and persistence
 
-This runbook is anchored to dev commit
-`381c91e3dd989b3ebd4e1b38cae7588564517870`.
+This runbook reflects the actual operating model:
 
-Today's MVP deliberately uses the existing shared Kubernetes workers. It does
-not add/taint workers and does not remove Slurm capacity.
+- Git + Argo CD own Kubernetes manifests.
+- `kubectl` is run from `k8s-cp-01` for live inspection/actions only.
+- There is no Git checkout and no need for one on the control-plane node.
+- Phase B validates NFS from the Kubernetes **hosts** with Ansible.
+- Phase C/D validate read/write persistence using the real bootstrap research identity and a real KubeSpawner workbench.
 
-## Phase B — prove Kubernetes ↔ research NFS before JupyterHub
+## Phase B — host-level NFS preflight
 
-### B1. Private export inputs
+The NFS export must permit both the management/HPC client network and the
+Kubernetes worker network. Keep the actual CIDRs in protected vars.
 
-Keep the real networks in protected vars, for example:
-
-```yaml
-storage_nfs_export_cidrs:
-  - "<MGMT_CIDR>"
-  - "<K8S_CIDR>"
-```
-
-Do not commit those values.
-
-Update only the export file; this playbook does not inspect/format/mount Cinder
-filesystems:
+Update only the exports:
 
 ```bash
 cd ansible
+
 ansible-playbook \
   -i inventories/private/hosts.yml \
-  playbooks/storage-nfs-exports.yml \
-  -e @inventories/private/storage-private.yml
+  playbooks/storage-nfs-exports.yml
 ```
 
-### B2. Prepare existing Kubernetes workers
+Then validate all existing Kubernetes workers:
 
 ```bash
 ansible-playbook \
@@ -39,93 +31,72 @@ ansible-playbook \
   playbooks/kubernetes-storage.yml
 ```
 
-This installs `nfs-utils`, verifies `storage.internal` resolves from each
-worker and verifies TCP/2049 is reachable. If this fails, stop here: do not
-debug JupyterHub yet.
+That playbook:
 
-### B3. Create a disposable smoke home
+1. installs `nfs-utils`;
+2. resolves `storage.internal`;
+3. verifies TCP/2049;
+4. mounts `storage.internal:/srv/home` read-only at a temporary host path;
+5. verifies the mount with `findmnt`;
+6. unmounts it and removes the temporary directory.
 
-On the storage server:
+It deliberately does **not** create a synthetic research user, write into a
+0700 home, create a Kubernetes Pod, or require repository files on the control
+plane.
 
-```bash
-sudo install -d -m 0700 -o 20999 -g 20999 /srv/home/jhub-smoke
+### Why root could not inspect the old jhub-smoke directory
+
+The research export uses `root_squash`. Root on a client is mapped to the NFS
+anonymous identity and therefore cannot bypass a `0700` directory owned by
+another UID. That is expected and desirable. A process running as the matching
+UID could access it; the old `setpriv` write proved that, but it is not part of
+the production-shaped validation path anymore.
+
+Phase B is green when every Kubernetes worker reports a verified temporary
+read-only NFSv4 mount and leaves no persistent mount behind.
+
+## Phase C — real bootstrap research identity + KubeSpawner
+
+### C1. Provision one consistent POSIX identity
+
+Do not hand-create a user on one login node. Put the bootstrap researcher in a
+protected vars file, for example:
+
+```yaml
+research_users:
+  - name: nlisa
+    uid: <UNUSED_UID>
+    gid: <UNUSED_GID>
+    shell: /bin/bash
+    home_mode: "0700"
 ```
 
-From a login node, create a reverse-direction marker as the numeric Phase-B
-identity. Do not create a passwd entry just for this storage test:
+Check the chosen UID/GID are unused, then run:
 
 ```bash
-sudo setpriv \
-  --reuid=20999 \
-  --regid=20999 \
-  --clear-groups \
-  sh -c 'id; printf "phase-b login write\n" > /home/research/jhub-smoke/phase-b-from-ssh.txt'
+ansible-playbook \
+  -i inventories/private/hosts.yml \
+  playbooks/research-identities.yml \
+  -e @inventories/private/research-users.yml
 ```
 
-Some sudo builds do not accept an unmapped numeric UID with `sudo -u '#20999'`.
-`setpriv` intentionally avoids requiring a temporary `/etc/passwd` entry.
+This creates the same POSIX identity on the Slurm controller, login nodes,
+compute nodes and storage server, and creates the authoritative
+`/srv/home/nlisa` only on storage. The login/compute hosts see that home
+through the existing NFS mount.
 
-### B4. Run the standalone Kubernetes NFS smoke pod
+### C2. Bootstrap Jupyter authentication privately
 
-Run kubectl from `k8s-cp-01`:
+The workbench reads username, UID, GID and temporary password from
+`Secret/jupyterhub-workbench-bootstrap`. Create it directly on the cluster for
+the MVP; do not commit it.
 
-```bash
-kubectl apply -f argocd/resources/jupyterhub-workbench/namespace.yaml
-kubectl apply -f tests/kubernetes/jupyter-nfs-smoke.yaml
-kubectl -n jupyterhub wait --for=condition=Ready pod/jupyter-nfs-smoke --timeout=90s
-kubectl -n jupyterhub logs jupyter-nfs-smoke
-```
-
-Then verify both directions:
+On `k8s-cp-01`:
 
 ```bash
-# Kubernetes sees the SSH marker
-kubectl -n jupyterhub exec jupyter-nfs-smoke -- \
-  cat /home/research/jhub-smoke/phase-b-from-ssh.txt
+kubectl get namespace jupyterhub >/dev/null
 
-# SSH/login sees the Kubernetes marker
-cat /home/research/jhub-smoke/phase-b-from-kubernetes.txt
-```
-
-If those pass, Phase B is green. Delete only the pod; the files must remain:
-
-```bash
-kubectl -n jupyterhub delete pod jupyter-nfs-smoke
-ls -l /home/research/jhub-smoke/phase-b-from-*.txt
-```
-
-## Phase C — deploy JupyterHub + KubeSpawner on shared workers
-
-The workbench images for the anchor commit were successfully built/published by
-the dev image workflow. KubeSpawner no longer requires a `node-pool=jupyter`
-label today; an optional selector remains for the later dedicated pool.
-
-### C1. Choose one private bootstrap researcher
-
-For the first production-shaped test you may use `nlisa`, but reserve one
-numeric UID/GID and use the same values everywhere. Verify they are unused
-before assigning them:
-
-```bash
-getent passwd <UID> || true
-getent group <GID> || true
-```
-
-Create the authoritative home on storage:
-
-```bash
-sudo install -d -m 0700 -o <UID> -g <GID> /srv/home/nlisa
-```
-
-This is still bootstrap identity plumbing. M3 will make Quantum Platform
-authoritative for the mapping; do not create a second Jupyter-only home.
-
-### C2. Create the bootstrap Secret privately
-
-From `k8s-cp-01` after the namespace exists:
-
-```bash
-kubectl -n jupyterhub create secret generic jupyterhub-bootstrap \
+kubectl -n jupyterhub create secret generic jupyterhub-workbench-bootstrap \
   --from-literal=username=nlisa \
   --from-literal=uid='<UID>' \
   --from-literal=gid='<GID>' \
@@ -133,94 +104,109 @@ kubectl -n jupyterhub create secret generic jupyterhub-bootstrap \
   --dry-run=client -o yaml | kubectl apply -f -
 ```
 
-Do not commit this Secret. Once the MVP is green, seal it with the existing
-SealedSecrets workflow or replace it entirely with M3 identity integration.
+M3 replaces this bootstrap with Quantum Platform identity/provisioning.
 
-### C3. Merge this branch to dev, then register the Argo application
+### C3. Argo CD ownership
 
-The root app currently tracks `main`, while the JupyterHub application itself
-tracks `dev`. Therefore during development explicitly register it once:
+Only **one live Jupyter implementation** may own a resource set.
 
-```bash
-kubectl apply -f argocd/applications/jupyterhub-workbench.yaml
-kubectl -n argocd get application jupyterhub-workbench
+The primary live path is:
+
+```text
+Application/jupyterhub-workbench
+  -> argocd/resources/jupyterhub-workbench
+  -> uniquely named jupyterhub-workbench objects
+  -> KubeSpawner
 ```
 
-Watch the deployment:
+The legacy BatchSpawner design is retained in Git as an optional/niche path but
+must not own the same Deployment, Service, PVC, ConfigMap or Ingress.
+
+After the corrective PR is merged into the branch tracked by Argo, inspect from
+`k8s-cp-01`:
 
 ```bash
-kubectl -n jupyterhub get resourcequota,limitrange
-kubectl -n jupyterhub get pvc
-kubectl -n jupyterhub get pods -w
+kubectl -n argocd get applications jupyterhub jupyterhub-workbench
+kubectl -n jupyterhub get deploy,svc,ingress,pvc,cm
 ```
 
-Expected Hub budget: 250m CPU / 512Mi request. Expected user workbench: 100m CPU
-/ 1 GiB request, 2 CPU / 4 GiB limit. The namespace quota prevents the MVP from
-consuming the shared worker pool uncontrollably.
+The workbench objects should be named `jupyterhub-workbench*`.
 
-### C4. Login and spawn
+### C4. Spawn the real workbench
 
-Open the private Jupyter ingress and log in with the bootstrap credentials.
-For `nlisa`, verify from a terminal inside Jupyter:
+Open the private Jupyter endpoint and log in as `nlisa`.
+
+Inside the Jupyter terminal:
 
 ```bash
 id
 echo "$HOME"
 pwd
 stat -c '%u:%g %a %n' /home/research/nlisa
-touch /home/research/nlisa/phase-c-from-jupyter
+mkdir -p ~/notebooks
+printf 'phase-c jupyter write\n' > ~/phase-c-from-jupyter.txt
 ```
 
-Expected `HOME` and working directory are `/home/research/nlisa`.
+Expected:
 
-## Phase D — prove ephemerality and persistence
+- the pod runs with the provisioned numeric UID/GID;
+- `$HOME=/home/research/nlisa`;
+- the file is immediately visible from `login1` as `nlisa`.
 
-Create and save:
-
-```text
-/home/research/nlisa/notebooks/m2a-persistence.ipynb
-/home/research/nlisa/phase-d-persistence.txt
-```
-
-Then stop the server from JupyterHub (or delete only the single-user pod):
+From `login1`:
 
 ```bash
-kubectl -n jupyterhub get pods
+sudo -iu nlisa
+cat ~/phase-c-from-jupyter.txt
+```
+
+That is the first meaningful read/write proof because it uses the real identity
+that will also submit Slurm/quantum-workflows jobs.
+
+## Phase D — prove pod ephemerality and home persistence
+
+Inside Jupyter create/save:
+
+```text
+~/notebooks/m2a-persistence.ipynb
+~/phase-d-persistence.txt
+```
+
+On `k8s-cp-01`, identify the single-user pod:
+
+```bash
+kubectl -n jupyterhub get pods -o wide
+```
+
+Stop the server from JupyterHub, or delete only that user pod:
+
+```bash
 kubectl -n jupyterhub delete pod <single-user-pod>
 ```
 
-Spawn again and verify both files are unchanged.
+Spawn again and verify both files remain.
 
-Also verify through SSH/login:
-
-```bash
-ls -la /home/research/nlisa/
-```
-
-Finally restart only the Hub:
+Then restart only the Hub:
 
 ```bash
-kubectl -n jupyterhub rollout restart deployment/jupyterhub
-kubectl -n jupyterhub rollout status deployment/jupyterhub
+kubectl -n jupyterhub rollout restart deployment/jupyterhub-workbench
+kubectl -n jupyterhub rollout status deployment/jupyterhub-workbench
 ```
 
-Log in again and verify the same home/files. Hub state persists on its Cinder
-PVC; researcher data persists on the shared research filesystem.
+Log in/spawn again and verify the same home/files.
 
-## Phase D acceptance gate
+## Acceptance gate
 
-- NFS works from the existing Kubernetes workers.
-- Kubernetes and SSH see the same files.
-- KubeSpawner schedules on today's shared workers.
-- the single-user pod runs with the configured numeric UID/GID.
-- `$HOME == /home/research/<username>`.
-- stopping/deleting the single-user pod does not delete user data.
-- respawn presents the same notebook/files.
-- Hub restart does not remove user data.
-- no user pod receives a Kubernetes service-account token.
-- no MUNGE key, Slurm admin credential or QPU provider secret exists in the
-  workbench.
+- every Kubernetes worker can mount the NFS export read-only at host level;
+- no temporary NFS test Pod or fake user is required;
+- `nlisa` has one consistent UID/GID across login, Slurm and storage;
+- KubeSpawner creates a real workbench pod on the shared worker pool;
+- the workbench mounts the same `/home/research/nlisa` used by SSH/Slurm;
+- files written from Jupyter are immediately visible through SSH;
+- deleting/recreating the user Pod does not delete notebooks or user data;
+- restarting the Hub does not delete user data;
+- the user Pod has no Kubernetes service-account token;
+- the user Pod contains no MUNGE key, Slurm admin credential or QPU provider secret.
 
-After this gate, the next slice is the bounded notebook → execution API →
-`quantum-workflows`/Slurm path. That is where `nlisa` can submit the first
-real workflow without keeping HPC resources allocated while thinking/coding.
+After this gate the next slice is the bounded workbench -> execution API ->
+`quantum-workflows` -> Slurm path.
