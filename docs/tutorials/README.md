@@ -134,3 +134,5 @@ The Jupyter milestone is deliberately split:
 2. [M2b — BatchSpawner interactive-HPC sessions](m2-jupyterhub-slurm.md) — an explicit secondary mode for workloads that genuinely need the notebook server itself inside a Slurm allocation.
 
 The split is architectural: **workspace resources are not execution resources**.
+
+- [M2a — KubeSpawner with a shared NFS research home](m2a-kubespawner-shared-home.md)
