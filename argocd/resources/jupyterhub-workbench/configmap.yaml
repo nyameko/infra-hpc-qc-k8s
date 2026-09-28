@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: jupyterhub-config
+  name: jupyterhub-workbench-config
 data:
   JUPYTER_NODE_SELECTOR: ""
   RESEARCH_HOME_NFS_SERVER: storage.internal
@@ -28,7 +28,7 @@ data:
     c.JupyterHub.spawner_class = KubeSpawner
     c.JupyterHub.bind_url = "http://0.0.0.0:8000"
     c.JupyterHub.hub_bind_url = "http://0.0.0.0:8081"
-    c.JupyterHub.hub_connect_url = "http://jupyterhub.jupyterhub.svc.cluster.local:8081"
+    c.JupyterHub.hub_connect_url = "http://jupyterhub-workbench.jupyterhub.svc.cluster.local:8081"
     c.JupyterHub.db_url = "sqlite:////srv/jupyterhub/jupyterhub.sqlite"
     c.JupyterHub.cookie_secret_file = "/srv/jupyterhub/jupyterhub_cookie_secret"
 
@@ -44,22 +44,19 @@ data:
     c.KubeSpawner.mem_guarantee = "1G"
     c.KubeSpawner.mem_limit = "4G"
 
-    # One privately configured bootstrap researcher for M2a. The same numeric
-    # identity must own /srv/home/<username> on the authoritative NFS server.
+    # One privately configured bootstrap researcher for M2a.
     c.KubeSpawner.uid = bootstrap_uid
     c.KubeSpawner.gid = bootstrap_gid
     c.KubeSpawner.fs_gid = bootstrap_gid
     c.KubeSpawner.working_dir = "/home/research/{unescaped_username}"
 
-    # Empty today: use the existing shared worker pool. When dedicated Jupyter
-    # workers exist, set e.g. node-pool=jupyter without changing the spawner.
     node_selector = os.environ.get("JUPYTER_NODE_SELECTOR", "").strip()
     if node_selector:
         key, value = node_selector.split("=", 1)
         c.KubeSpawner.node_selector = {key.strip(): value.strip()}
 
-    # Mount the whole research-home export. Per-user 0700 POSIX ownership is
-    # authoritative. Avoid NFS subPath + root_squash edge cases.
+    # The whole research-home export is mounted. Per-user POSIX ownership and
+    # permissions are authoritative across SSH, Slurm and Jupyter.
     c.KubeSpawner.volumes = [
         {
             "name": "research-home",

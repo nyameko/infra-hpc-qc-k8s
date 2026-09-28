@@ -1,0 +1,7 @@
+---
+- name: Bootstrap consistent research POSIX identities
+  hosts: slurm_controller:slurm_login:slurm_compute:storage_nfs
+  become: true
+  gather_facts: false
+  roles:
+    - research_identity

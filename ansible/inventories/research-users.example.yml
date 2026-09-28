@@ -1,0 +1,9 @@
+---
+# Shape only. Copy to a protected/private vars file and choose UID/GID values
+# that are unused across the login, Slurm compute/controller and storage hosts.
+research_users:
+  - name: "<RESEARCH_USERNAME>"
+    uid: 21000
+    gid: 21000
+    shell: /bin/bash
+    home_mode: "0700"

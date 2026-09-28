@@ -1,20 +1,20 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: jupyterhub
+  name: jupyterhub-workbench
 spec:
   replicas: 1
   strategy:
     type: Recreate
   selector:
     matchLabels:
-      app: jupyterhub
+      app: jupyterhub-workbench
   template:
     metadata:
       labels:
-        app: jupyterhub
+        app: jupyterhub-workbench
     spec:
-      serviceAccountName: jupyterhub-hub
+      serviceAccountName: jupyterhub-workbench-hub
       containers:
         - name: hub
           image: jupyterhub-control
@@ -26,37 +26,37 @@ spec:
             - name: JUPYTERHUB_BOOTSTRAP_USER
               valueFrom:
                 secretKeyRef:
-                  name: jupyterhub-bootstrap
+                  name: jupyterhub-workbench-bootstrap
                   key: username
             - name: JUPYTERHUB_BOOTSTRAP_UID
               valueFrom:
                 secretKeyRef:
-                  name: jupyterhub-bootstrap
+                  name: jupyterhub-workbench-bootstrap
                   key: uid
             - name: JUPYTERHUB_BOOTSTRAP_GID
               valueFrom:
                 secretKeyRef:
-                  name: jupyterhub-bootstrap
+                  name: jupyterhub-workbench-bootstrap
                   key: gid
             - name: JUPYTERHUB_BOOTSTRAP_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: jupyterhub-bootstrap
+                  name: jupyterhub-workbench-bootstrap
                   key: password
             - name: JUPYTER_NODE_SELECTOR
               valueFrom:
                 configMapKeyRef:
-                  name: jupyterhub-config
+                  name: jupyterhub-workbench-config
                   key: JUPYTER_NODE_SELECTOR
             - name: RESEARCH_HOME_NFS_SERVER
               valueFrom:
                 configMapKeyRef:
-                  name: jupyterhub-config
+                  name: jupyterhub-workbench-config
                   key: RESEARCH_HOME_NFS_SERVER
             - name: RESEARCH_HOME_NFS_PATH
               valueFrom:
                 configMapKeyRef:
-                  name: jupyterhub-config
+                  name: jupyterhub-workbench-config
                   key: RESEARCH_HOME_NFS_PATH
           volumeMounts:
             - name: config
@@ -83,15 +83,15 @@ spec:
       volumes:
         - name: config
           configMap:
-            name: jupyterhub-config
+            name: jupyterhub-workbench-config
         - name: data
           persistentVolumeClaim:
-            claimName: jupyterhub-data
+            claimName: jupyterhub-workbench-data
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: jupyterhub-data
+  name: jupyterhub-workbench-data
 spec:
   accessModes: [ReadWriteOnce]
   storageClassName: cinder-ssd

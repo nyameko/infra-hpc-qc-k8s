@@ -13,7 +13,6 @@
 - name: Verify private research-storage DNS resolves
   ansible.builtin.command:
     cmd: "getent ahostsv4 {{ research_home_nfs_server }}"
-  register: research_home_dns
   changed_when: false
 
 - name: Verify Kubernetes worker can reach NFSv4 service
@@ -22,3 +21,51 @@
     port: 2049
     timeout: 5
     state: started
+
+- name: Create temporary read-only NFS preflight mountpoint
+  ansible.builtin.file:
+    path: /mnt/research-home-preflight
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Prove the research-home export can be mounted by this worker
+  block:
+    - name: Mount research home read-only for preflight
+      ansible.builtin.command:
+        cmd: >-
+          mount -t nfs4
+          -o ro,vers=4.2,nosuid,nodev
+          {{ research_home_nfs_server }}:/srv/home
+          /mnt/research-home-preflight
+      changed_when: true
+
+    - name: Inspect the temporary NFS mount
+      ansible.builtin.command:
+        cmd: findmnt -rn -T /mnt/research-home-preflight -o SOURCE,FSTYPE,OPTIONS
+      register: research_home_findmnt
+      changed_when: false
+
+    - name: Assert the temporary mount is NFSv4 and read-only
+      ansible.builtin.assert:
+        that:
+          - "'nfs4' in research_home_findmnt.stdout"
+          - "'ro' in research_home_findmnt.stdout"
+        fail_msg: "Research-home NFS preflight mount did not have the expected type/options."
+
+    - name: Report the verified research-home mount
+      ansible.builtin.debug:
+        var: research_home_findmnt.stdout
+  always:
+    - name: Unmount the temporary research-home preflight
+      ansible.builtin.command:
+        cmd: umount /mnt/research-home-preflight
+      register: research_home_umount
+      changed_when: research_home_umount.rc == 0
+      failed_when: false
+
+    - name: Remove temporary NFS preflight mountpoint
+      ansible.builtin.file:
+        path: /mnt/research-home-preflight
+        state: absent
