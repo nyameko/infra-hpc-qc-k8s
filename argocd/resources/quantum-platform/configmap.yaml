@@ -28,6 +28,7 @@ data:
   # One-time/idempotent platform administrator identity. The matching email
   # stays in the sealed Secret; normal research users are not bootstrapped here.
   QUANTUM_PLATFORM_BOOTSTRAP_ADMIN_USERNAME: "nyameko"
+  QUANTUM_PLATFORM_BOOTSTRAP_ADMIN_EMAIL: "connect@nyameko.com"
 
   POSTGRES_DB: "quantum_platform"
   POSTGRES_USER: "quantum_platform"
