@@ -25,6 +25,10 @@ data:
 
   PORTAL_BASE_URL: "https://quantum.nyameko.com"
 
+  # One-time/idempotent platform administrator identity. The matching email
+  # stays in the sealed Secret; normal research users are not bootstrapped here.
+  QUANTUM_PLATFORM_BOOTSTRAP_ADMIN_USERNAME: "nyameko"
+
   POSTGRES_DB: "quantum_platform"
   POSTGRES_USER: "quantum_platform"
   POSTGRES_HOST: "quantum-platform-postgres"
