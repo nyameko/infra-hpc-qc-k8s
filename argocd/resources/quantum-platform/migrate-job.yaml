@@ -24,10 +24,21 @@ spec:
           imagePullPolicy: Always
 
           command:
-            - python
-            - manage.py
-            - migrate
-            - --noinput
+            - /bin/sh
+            - -lc
+            - |
+              set -eu
+              python manage.py migrate --noinput
+
+              if [ -n "${QUANTUM_PLATFORM_BOOTSTRAP_ADMIN_USERNAME:-}" ] && \
+                 [ -n "${QUANTUM_PLATFORM_BOOTSTRAP_ADMIN_EMAIL:-}" ]; then
+                python manage.py ensure_platform_admin \
+                  --username "${QUANTUM_PLATFORM_BOOTSTRAP_ADMIN_USERNAME}" \
+                  --email "${QUANTUM_PLATFORM_BOOTSTRAP_ADMIN_EMAIL}" \
+                  --apply
+              else
+                echo "Platform administrator bootstrap not configured; skipping."
+              fi
 
           envFrom:
             - configMapRef:
