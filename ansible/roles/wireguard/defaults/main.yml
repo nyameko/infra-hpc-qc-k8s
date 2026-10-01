@@ -2,3 +2,10 @@
 wireguard_interface: wg0
 wireguard_address: 10.60.0.1/24
 wireguard_listen_port: 51820
+
+# Quantum Platform dynamic research-peer reconciliation.
+# Keep the token and live client pool/provider values in protected inventory.
+wireguard_platform_reconciler_enabled: false
+wireguard_platform_api_url: "https://quantum.nyameko.com/api/v1/internal/wireguard"
+wireguard_platform_reconciler_token: ""
+wireguard_platform_reconcile_interval: "1min"

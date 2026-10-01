@@ -86,3 +86,98 @@
   loop_control:
     label: "{{ item.name }}"
   when: "'storage_nfs' in group_names"
+
+
+- name: Ensure restricted execution entitlement group exists
+  ansible.builtin.group:
+    name: "{{ jupyterhub_allowed_group }}"
+    state: present
+  when:
+    - "'slurm_login' in group_names or 'slurm_compute' in group_names"
+
+- name: Add explicitly entitled research users to Slurm gateway group
+  ansible.builtin.user:
+    name: "{{ item.name }}"
+    groups:
+      - "{{ jupyterhub_allowed_group }}"
+    append: true
+  loop: "{{ research_users }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when:
+    - item.execution_enabled | default(false) | bool
+    - "'slurm_login' in group_names or 'slurm_compute' in group_names"
+
+- name: Create per-user Quantum Platform state directory on storage
+  ansible.builtin.file:
+    path: "/srv/home/{{ item.name }}/.quantum-platform"
+    state: directory
+    owner: "{{ item.uid }}"
+    group: "{{ item.gid }}"
+    mode: "0700"
+  loop: "{{ research_users }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when: "'storage_nfs' in group_names"
+
+- name: Create per-user durable run directory on storage
+  ansible.builtin.file:
+    path: "/srv/home/{{ item.name }}/.quantum-platform/runs"
+    state: directory
+    owner: "{{ item.uid }}"
+    group: "{{ item.gid }}"
+    mode: "0700"
+  loop: "{{ research_users }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when: "'storage_nfs' in group_names"
+
+- name: Check bootstrap Quantum Platform Slurm account
+  ansible.builtin.command:
+    cmd: >-
+      sacctmgr -nP show account {{ jupyterhub_execution_slurm_account }}
+      cluster={{ slurm_cluster_name }} format=Account
+  register: quantum_platform_slurm_account
+  changed_when: false
+  when: "'slurm_controller' in group_names"
+
+- name: Create bootstrap Quantum Platform Slurm account
+  ansible.builtin.command:
+    cmd: >-
+      sacctmgr -i add account {{ jupyterhub_execution_slurm_account }}
+      cluster={{ slurm_cluster_name }}
+      description="Quantum Platform mediated execution"
+      organization="quantum-platform"
+  when:
+    - "'slurm_controller' in group_names"
+    - quantum_platform_slurm_account.stdout | trim | length == 0
+
+- name: Check research Slurm associations
+  ansible.builtin.command:
+    cmd: >-
+      sacctmgr -nP show association
+      where cluster={{ slurm_cluster_name }}
+      account={{ jupyterhub_execution_slurm_account }}
+      user={{ item.name }}
+      format=User
+  register: research_slurm_associations
+  changed_when: false
+  loop: "{{ research_users }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when:
+    - "'slurm_controller' in group_names"
+    - item.execution_enabled | default(false) | bool
+
+- name: Add explicitly entitled users to bootstrap Slurm account
+  ansible.builtin.command:
+    cmd: >-
+      sacctmgr -i add user {{ item.item.name }}
+      account={{ jupyterhub_execution_slurm_account }}
+      cluster={{ slurm_cluster_name }}
+  loop: "{{ research_slurm_associations.results | default([]) }}"
+  loop_control:
+    label: "{{ item.item.name | default('unknown') }}"
+  when:
+    - item.skipped is not defined
+    - item.stdout | trim | length == 0
