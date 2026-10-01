@@ -77,6 +77,9 @@ data:
 
         uid = int(auth_state["uid"])
         gid = int(auth_state["gid"])
+        theme = str(auth_state.get("theme", "dark")).strip().lower()
+        if theme not in {"light", "dark"}:
+            theme = "dark"
 
         spawner.uid = uid
         spawner.gid = gid
@@ -93,6 +96,7 @@ data:
             "QUANTUM_PLATFORM_USERNAME": spawner.user.name,
             "QUANTUM_PLATFORM_UID": str(uid),
             "QUANTUM_PLATFORM_GID": str(gid),
+            "QUANTUM_PLATFORM_THEME": theme,
         }
 
     c.Spawner.pre_spawn_hook = apply_platform_identity
