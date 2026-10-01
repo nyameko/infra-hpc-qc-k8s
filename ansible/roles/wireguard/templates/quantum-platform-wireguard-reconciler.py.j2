@@ -1,0 +1,131 @@
+#!/usr/bin/env python3
+"""Reconcile Quantum Platform-managed research peers onto a live WireGuard interface."""
+
+from __future__ import annotations
+
+import json
+import os
+import subprocess
+import tempfile
+import urllib.error
+import urllib.request
+from pathlib import Path
+
+
+API_URL = os.environ["QUANTUM_PLATFORM_WIREGUARD_API"].rstrip("/")
+TOKEN = os.environ["QUANTUM_PLATFORM_WIREGUARD_TOKEN"]
+INTERFACE = os.environ.get("WIREGUARD_INTERFACE", "wg0")
+STATE_PATH = Path(
+    os.environ.get(
+        "WIREGUARD_PLATFORM_STATE",
+        "/var/lib/quantum-platform/wireguard-managed-peers.json",
+    )
+)
+
+
+def request_json(method: str, path: str, payload=None):
+    body = None
+    headers = {
+        "Authorization": f"Bearer {TOKEN}",
+        "Accept": "application/json",
+    }
+    if payload is not None:
+        body = json.dumps(payload).encode("utf-8")
+        headers["Content-Type"] = "application/json"
+
+    request = urllib.request.Request(
+        f"{API_URL}/{path.lstrip('/')}",
+        data=body,
+        method=method,
+        headers=headers,
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=15) as response:
+            return json.loads(response.read() or b"{}")
+    except urllib.error.HTTPError as exc:
+        detail = exc.read().decode("utf-8", errors="replace")
+        raise RuntimeError(
+            f"Quantum Platform WireGuard API returned HTTP {exc.code}: {detail}"
+        ) from exc
+    except urllib.error.URLError as exc:
+        raise RuntimeError("Quantum Platform WireGuard API is unavailable.") from exc
+
+
+def run_wg(*args: str) -> None:
+    subprocess.run(
+        ["/usr/bin/wg", *args],
+        check=True,
+        text=True,
+        capture_output=True,
+    )
+
+
+def load_state() -> dict[str, str]:
+    try:
+        value = json.loads(STATE_PATH.read_text())
+    except FileNotFoundError:
+        return {}
+    if not isinstance(value, dict):
+        raise RuntimeError("WireGuard managed-peer state is malformed.")
+    return {str(key): str(item) for key, item in value.items()}
+
+
+def write_state(value: dict[str, str]) -> None:
+    STATE_PATH.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.NamedTemporaryFile(
+        "w",
+        dir=STATE_PATH.parent,
+        prefix=".wireguard-managed-",
+        delete=False,
+    ) as stream:
+        json.dump(value, stream, indent=2, sort_keys=True)
+        stream.write("\n")
+        temporary = Path(stream.name)
+    temporary.chmod(0o600)
+    temporary.replace(STATE_PATH)
+
+
+def main() -> int:
+    desired_payload = request_json("GET", "peers/")
+    peers = desired_payload.get("peers", [])
+    if not isinstance(peers, list):
+        raise RuntimeError("Quantum Platform returned malformed WireGuard peers.")
+
+    desired: dict[str, str] = {}
+    peer_ids: list[int] = []
+    for peer in peers:
+        public_key = str(peer["public_key"]).strip()
+        allowed_ip = str(peer["allowed_ip"]).strip()
+        peer_id = int(peer["id"])
+        if not public_key or not allowed_ip:
+            raise RuntimeError("Quantum Platform returned an incomplete WireGuard peer.")
+        desired[public_key] = allowed_ip
+        peer_ids.append(peer_id)
+
+    previous = load_state()
+
+    # Remove only peers previously installed by this reconciler. Static/admin
+    # peers remain owned by the Ansible wg0.conf and are never enumerated here.
+    for public_key in sorted(set(previous) - set(desired)):
+        run_wg("set", INTERFACE, "peer", public_key, "remove")
+
+    for public_key, allowed_ip in sorted(desired.items()):
+        run_wg(
+            "set",
+            INTERFACE,
+            "peer",
+            public_key,
+            "allowed-ips",
+            allowed_ip,
+        )
+
+    write_state(desired)
+
+    # Acknowledge only after every local wg mutation and durable state write
+    # succeeded. The portal then upgrades client config from registered to ready.
+    request_json("POST", "reconciled/", {"peer_ids": peer_ids})
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

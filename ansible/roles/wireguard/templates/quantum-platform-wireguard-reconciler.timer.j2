@@ -1,0 +1,11 @@
+[Unit]
+Description=Run Quantum Platform WireGuard peer reconciliation periodically
+
+[Timer]
+OnBootSec=30s
+OnUnitActiveSec={{ wireguard_platform_reconcile_interval }}
+AccuracySec=10s
+Persistent=true
+
+[Install]
+WantedBy=timers.target

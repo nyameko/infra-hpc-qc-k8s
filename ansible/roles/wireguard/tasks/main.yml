@@ -57,3 +57,75 @@
     name: "wg-quick@{{ wireguard_interface }}"
     enabled: true
     state: started
+
+
+- name: Configure Quantum Platform WireGuard reconciler
+  when: wireguard_platform_reconciler_enabled | bool
+  block:
+    - name: Require private reconciler token
+      ansible.builtin.assert:
+        that:
+          - wireguard_platform_reconciler_token | length >= 32
+        fail_msg: >-
+          Set wireguard_platform_reconciler_token in protected/private inventory.
+          Never commit it to the public repository.
+      no_log: true
+
+    - name: Create Quantum Platform reconciler configuration directory
+      ansible.builtin.file:
+        path: /etc/quantum-platform
+        state: directory
+        owner: root
+        group: root
+        mode: "0700"
+
+    - name: Create Quantum Platform reconciler state directory
+      ansible.builtin.file:
+        path: /var/lib/quantum-platform
+        state: directory
+        owner: root
+        group: root
+        mode: "0700"
+
+    - name: Install Quantum Platform WireGuard reconciler
+      ansible.builtin.template:
+        src: quantum-platform-wireguard-reconciler.py.j2
+        dest: /usr/local/sbin/quantum-platform-wireguard-reconciler
+        owner: root
+        group: root
+        mode: "0750"
+
+    - name: Render private WireGuard reconciler environment
+      ansible.builtin.template:
+        src: quantum-platform-wireguard-reconciler.env.j2
+        dest: /etc/quantum-platform/wireguard-reconciler.env
+        owner: root
+        group: root
+        mode: "0600"
+      no_log: true
+
+    - name: Install WireGuard reconciler service
+      ansible.builtin.template:
+        src: quantum-platform-wireguard-reconciler.service.j2
+        dest: /etc/systemd/system/quantum-platform-wireguard-reconciler.service
+        owner: root
+        group: root
+        mode: "0644"
+
+    - name: Install WireGuard reconciler timer
+      ansible.builtin.template:
+        src: quantum-platform-wireguard-reconciler.timer.j2
+        dest: /etc/systemd/system/quantum-platform-wireguard-reconciler.timer
+        owner: root
+        group: root
+        mode: "0644"
+
+    - name: Reload systemd for WireGuard reconciler
+      ansible.builtin.systemd:
+        daemon_reload: true
+
+    - name: Enable Quantum Platform WireGuard reconciliation timer
+      ansible.builtin.systemd:
+        name: quantum-platform-wireguard-reconciler.timer
+        enabled: true
+        state: started
