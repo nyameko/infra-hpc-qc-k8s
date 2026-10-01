@@ -47,3 +47,11 @@ data:
   JUPYTERHUB_API_URL: "http://jupyterhub-workbench.jupyterhub.svc.cluster.local:8081/hub/api"
   JUPYTERHUB_PUBLIC_URL: "https://jupyter.quantum.nyameko.com"
   JUPYTERHUB_LAUNCH_TOKEN_TTL: "60"
+
+
+  # M3c restricted execution gateway. The semantic hostname is resolved only
+  # through private DNS; do not publish the live login-node address here.
+  SLURM_GATEWAY_HOST: "slurm-login.internal"
+  SLURM_GATEWAY_PORT: "22"
+  SLURM_GATEWAY_USER: "jupyterhub-gateway"
+  QUANTUM_WORKFLOWS_CPU_IMAGE: "/var/cache/quantum-platform/containers/quantum-workflows-qiskit-cpu.sif"

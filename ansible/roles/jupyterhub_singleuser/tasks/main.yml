@@ -49,3 +49,28 @@
     group: root
     mode: "0555"
   when: jupyterhub_smoke_image_stage | bool
+
+
+- name: Check whether quantum-workflows CPU runner is already staged
+  ansible.builtin.stat:
+    path: "{{ quantum_workflows_cpu_image_path }}"
+  register: quantum_workflows_cpu_sif
+  when: quantum_workflows_cpu_image_stage | bool
+
+- name: Pull quantum-workflows CPU OCI image into Apptainer cache
+  ansible.builtin.command:
+    cmd: >-
+      apptainer pull
+      {{ quantum_workflows_cpu_image_path }}
+      {{ quantum_workflows_cpu_image_source }}
+  when:
+    - quantum_workflows_cpu_image_stage | bool
+    - not quantum_workflows_cpu_sif.stat.exists
+
+- name: Keep staged quantum-workflows image immutable to research users
+  ansible.builtin.file:
+    path: "{{ quantum_workflows_cpu_image_path }}"
+    owner: root
+    group: root
+    mode: "0555"
+  when: quantum_workflows_cpu_image_stage | bool

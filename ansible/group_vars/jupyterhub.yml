@@ -22,3 +22,14 @@ jupyterhub_smoke_user: jhub-smoke
 jupyterhub_smoke_uid: 20999
 jupyterhub_smoke_gid: 20999
 jupyterhub_smoke_slurm_account: jupyterhub-smoke
+
+
+# M3c deterministic CPU execution runner. Override the tag with an immutable
+# sha-<commit> reference in protected/private vars for production.
+quantum_workflows_cpu_image_source: docker://ghcr.io/nyameko/quantum-workflows-qiskit-cpu:dev
+quantum_workflows_cpu_image_path: "{{ hpc_container_cache_dir }}/quantum-workflows-qiskit-cpu.sif"
+quantum_workflows_cpu_image_stage: true
+
+# Bootstrap accounting account for platform-mediated runs. Programme-specific
+# Slurm accounts/allocations replace this coarse association later in M3.
+jupyterhub_execution_slurm_account: quantum-platform
