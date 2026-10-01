@@ -82,11 +82,17 @@ data:
         spawner.gid = gid
         spawner.fs_gid = gid
         spawner.working_dir = f"/home/research/{spawner.user.name}"
+        home = f"/home/research/{spawner.user.name}"
         spawner.environment = {
             **dict(spawner.environment or {}),
+            "HOME": home,
+            "USER": spawner.user.name,
+            "LOGNAME": spawner.user.name,
             "PYTHONNOUSERSITE": "1",
             "QUANTUM_PLATFORM_EXECUTION_MODE": "burst",
             "QUANTUM_PLATFORM_USERNAME": spawner.user.name,
+            "QUANTUM_PLATFORM_UID": str(uid),
+            "QUANTUM_PLATFORM_GID": str(gid),
         }
 
     c.Spawner.pre_spawn_hook = apply_platform_identity
