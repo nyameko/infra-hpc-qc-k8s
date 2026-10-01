@@ -41,3 +41,9 @@ data:
   DJANGO_EMAIL_PORT: "587"
   DJANGO_EMAIL_USE_TLS: "true"
   DJANGO_DEFAULT_FROM_EMAIL: "Quantum Platform <noreply@nyameko.com>"
+
+
+  # Internal control-plane integration. Browser traffic still uses the public URL.
+  JUPYTERHUB_API_URL: "http://jupyterhub-workbench.jupyterhub.svc.cluster.local:8081/hub/api"
+  JUPYTERHUB_PUBLIC_URL: "https://jupyter.quantum.nyameko.com"
+  JUPYTERHUB_LAUNCH_TOKEN_TTL: "60"
