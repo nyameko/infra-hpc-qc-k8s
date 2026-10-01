@@ -41,15 +41,20 @@ crypt_key
 
 ### quantum-platform namespace
 
-Add to the existing sealed `quantum-platform-secrets`:
+Use a dedicated secret rather than resealing unrelated application credentials:
 
 ```text
+Secret/quantum-platform-jupyterhub
+
 JUPYTERHUB_LAUNCH_SIGNING_KEY
 JUPYTERHUB_API_TOKEN
 ```
 
-Seal the values with the existing SealedSecret workflow. Never commit plaintext
-secrets.
+The two values must match `launch_signing_key` and `api_token` in
+`Secret/jupyterhub-workbench-platform`.
+
+Seal both Secrets with the Sealed Secrets controller for their target namespace.
+Never commit plaintext secrets.
 
 The Quantum Platform JupyterHub service role is deliberately least-privilege:
 
