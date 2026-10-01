@@ -113,7 +113,7 @@ data:
         {
             "name": "quantum-platform-workbench-manager",
             "services": ["quantum-platform"],
-            "scopes": ["admin:users", "admin:servers"],
+            "scopes": ["read:users", "read:servers", "delete:servers"],
         },
         {
             "name": "idle-culler",
