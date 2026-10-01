@@ -49,6 +49,10 @@ def decode_launch_assertion(token: str, signing_key: str) -> dict:
     if int(claims.get("iat", now)) > now + 30:
         raise web.HTTPError(403, "Workbench launch assertion is not yet valid.")
 
+    jti = str(claims.get("jti", "")).strip()
+    if not jti:
+        raise web.HTTPError(403, "Workbench launch assertion has no nonce.")
+
     username = str(claims.get("sub", "")).strip()
     if not username:
         raise web.HTTPError(403, "Workbench launch assertion has no user.")
@@ -68,6 +72,7 @@ def decode_launch_assertion(token: str, signing_key: str) -> dict:
             "uid": uid,
             "gid": gid,
             "assertion_exp": int(claims["exp"]),
+            "assertion_jti": jti,
         },
     }
 
@@ -95,6 +100,10 @@ class PlatformLaunchHandler(BaseHandler):
 class PlatformLaunchAuthenticator(Authenticator):
     login_service = "Quantum Platform"
 
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self._used_assertions = {}
+
     def login_url(self, base_url):
         return url_path_join(base_url, "platform-login")
 
@@ -106,4 +115,17 @@ class PlatformLaunchAuthenticator(Authenticator):
         if not token:
             return None
         signing_key = os.environ["JUPYTERHUB_PLATFORM_SIGNING_KEY"]
-        return decode_launch_assertion(token, signing_key)
+        identity = decode_launch_assertion(token, signing_key)
+
+        now = int(time.time())
+        self._used_assertions = {
+            nonce: expiry
+            for nonce, expiry in self._used_assertions.items()
+            if expiry >= now
+        }
+        nonce = identity["auth_state"]["assertion_jti"]
+        if nonce in self._used_assertions:
+            raise web.HTTPError(403, "Workbench launch assertion was already used.")
+
+        self._used_assertions[nonce] = identity["auth_state"]["assertion_exp"]
+        return identity
