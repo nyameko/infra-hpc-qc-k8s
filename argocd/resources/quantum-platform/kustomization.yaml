@@ -7,6 +7,7 @@ resources:
   - namespace.yaml
   - configmap.yaml
   - quantum-platform-secrets-sealed.yaml
+  - quantum-platform-jupyterhub-sealed.yaml
   - postgres.yaml
   - migrate-job.yaml
   - blog.yaml
