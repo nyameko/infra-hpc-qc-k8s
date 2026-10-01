@@ -32,7 +32,17 @@ case "$op" in
 
   query)
     valid_job "$arg" || exit 64
-    exec /usr/bin/squeue -h -j "$arg" -o '%T %B'
+    current="$(/usr/bin/squeue -h -j "$arg" -o '%T|%B' | head -n1)"
+    if [[ -n "$current" ]]; then
+      printf '%s\n' "$current"
+      exit 0
+    fi
+
+    # Completed jobs leave squeue. Fall back to accounting so the platform can
+    # persist terminal state after the notebook/workbench has disappeared.
+    historical="$(/usr/bin/sacct -nP -X -j "$arg" --format=State,NodeList | awk 'NF {print; exit}')"
+    [[ -n "$historical" ]] || exit 69
+    printf '%s\n' "$historical"
     ;;
 
   cancel)
