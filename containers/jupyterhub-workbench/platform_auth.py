@@ -66,11 +66,16 @@ def decode_launch_assertion(token: str, signing_key: str) -> dict:
     if uid <= 0 or gid <= 0:
         raise web.HTTPError(403, "Workbench assertion has invalid POSIX identity.")
 
+    theme = str(claims.get("theme", "dark")).strip().lower()
+    if theme not in {"light", "dark"}:
+        theme = "dark"
+
     return {
         "name": username,
         "auth_state": {
             "uid": uid,
             "gid": gid,
+            "theme": theme,
             "assertion_exp": int(claims["exp"]),
             "assertion_jti": jti,
         },
