@@ -18,7 +18,23 @@ sets KubeSpawner UID/GID immediately before spawning the user's Pod.
 
 ## Required secrets
 
-Generate three high-entropy values privately:
+Sealing is performed **offline on workstation `blackmyth`**. The workstation
+does not run `kubectl` and does not require a kubeconfig.
+
+The established workflow is:
+
+```text
+k8s-cp-01
+    kubectl / controller operations only
+
+blackmyth
+    git
+    kubeseal
+    inventories/private/infra-hpc-qc-k8s.cert
+    plaintext Secret YAML outside Git
+```
+
+Generate three high-entropy values privately on blackmyth:
 
 ```bash
 openssl rand -hex 32  # launch signing key
@@ -26,8 +42,8 @@ openssl rand -hex 32  # Hub service API token
 openssl rand -hex 32  # JUPYTERHUB_CRYPT_KEY
 ```
 
-The launch signing key and API token must be identical across the two namespace
-Secrets.
+Create plaintext Secret YAML files locally outside the public repository, for
+example under `../secrets/jupyterhub/`. Never commit those plaintext files.
 
 ### jupyterhub namespace
 
@@ -41,8 +57,6 @@ crypt_key
 
 ### quantum-platform namespace
 
-Use a dedicated secret rather than resealing unrelated application credentials:
-
 ```text
 Secret/quantum-platform-jupyterhub
 
@@ -50,11 +64,22 @@ JUPYTERHUB_LAUNCH_SIGNING_KEY
 JUPYTERHUB_API_TOKEN
 ```
 
-The two values must match `launch_signing_key` and `api_token` in
-`Secret/jupyterhub-workbench-platform`.
+The launch signing key and API token must be identical across the two Secrets.
 
-Seal both Secrets with the Sealed Secrets controller for their target namespace.
-Never commit plaintext secrets.
+Seal each plaintext file locally on blackmyth using the checked-in public
+certificate:
+
+```bash
+kubeseal \
+  --cert inventories/private/infra-hpc-qc-k8s.cert \
+  --format yaml \
+  < ../secrets/jupyterhub/<plaintext>.yaml \
+  >| argocd/resources/<target>/<name>-sealed.yaml
+```
+
+Only the resulting `SealedSecret` manifests are committed to Git. Argo CD
+applies them and the cluster-side Sealed Secrets controller creates the ordinary
+Kubernetes Secrets.
 
 The Quantum Platform JupyterHub service role is deliberately least-privilege:
 
