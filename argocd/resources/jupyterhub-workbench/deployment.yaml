@@ -18,6 +18,9 @@ spec:
       containers:
         - name: hub
           image: jupyterhub-control
+          # Integration uses the mutable dev tag today; force resolution until
+          # image promotion is converted to immutable GitOps tags/digests.
+          imagePullPolicy: Always
           args: ["jupyterhub", "-f", "/etc/jupyterhub/jupyterhub_config.py"]
           ports:
             - {name: proxy, containerPort: 8000}
