@@ -3,5 +3,8 @@
   hosts: slurm_controller:slurm_login:slurm_compute:storage_nfs
   become: true
   gather_facts: false
+  vars_files:
+    - ../group_vars/jupyterhub.yml
+    - ../group_vars/slurm_cluster.yml
   roles:
     - research_identity

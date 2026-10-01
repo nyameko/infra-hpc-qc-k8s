@@ -18,31 +18,34 @@ spec:
       containers:
         - name: hub
           image: jupyterhub-control
+          # Integration uses the mutable dev tag today; force resolution until
+          # image promotion is converted to immutable GitOps tags/digests.
+          imagePullPolicy: Always
           args: ["jupyterhub", "-f", "/etc/jupyterhub/jupyterhub_config.py"]
           ports:
             - {name: proxy, containerPort: 8000}
             - {name: hub, containerPort: 8081}
           env:
-            - name: JUPYTERHUB_BOOTSTRAP_USER
+            - name: JUPYTERHUB_PLATFORM_SIGNING_KEY
               valueFrom:
                 secretKeyRef:
-                  name: jupyterhub-workbench-bootstrap
-                  key: username
-            - name: JUPYTERHUB_BOOTSTRAP_UID
+                  name: jupyterhub-workbench-platform
+                  key: launch_signing_key
+            - name: JUPYTERHUB_PLATFORM_API_TOKEN
               valueFrom:
                 secretKeyRef:
-                  name: jupyterhub-workbench-bootstrap
-                  key: uid
-            - name: JUPYTERHUB_BOOTSTRAP_GID
+                  name: jupyterhub-workbench-platform
+                  key: api_token
+            - name: JUPYTERHUB_CRYPT_KEY
               valueFrom:
                 secretKeyRef:
-                  name: jupyterhub-workbench-bootstrap
-                  key: gid
-            - name: JUPYTERHUB_BOOTSTRAP_PASSWORD
+                  name: jupyterhub-workbench-platform
+                  key: crypt_key
+            - name: QUANTUM_PLATFORM_WORKBENCH_URL
               valueFrom:
-                secretKeyRef:
-                  name: jupyterhub-workbench-bootstrap
-                  key: password
+                configMapKeyRef:
+                  name: jupyterhub-workbench-config
+                  key: QUANTUM_PLATFORM_WORKBENCH_URL
             - name: JUPYTER_NODE_SELECTOR
               valueFrom:
                 configMapKeyRef:
