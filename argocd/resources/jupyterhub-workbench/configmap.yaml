@@ -6,24 +6,25 @@ data:
   JUPYTER_NODE_SELECTOR: ""
   RESEARCH_HOME_NFS_SERVER: storage.internal
   RESEARCH_HOME_NFS_PATH: /srv/home
+  QUANTUM_PLATFORM_WORKBENCH_URL: https://quantum.nyameko.com/workbench/
   jupyterhub_config.py: |
     import os
 
-    from jupyterhub.auth import DummyAuthenticator
     from kubespawner import KubeSpawner
+    from platform_auth import PlatformLaunchAuthenticator
 
     c = get_config()
 
-    bootstrap_user = os.environ["JUPYTERHUB_BOOTSTRAP_USER"]
-    bootstrap_uid = int(os.environ["JUPYTERHUB_BOOTSTRAP_UID"])
-    bootstrap_gid = int(os.environ["JUPYTERHUB_BOOTSTRAP_GID"])
     nfs_server = os.environ["RESEARCH_HOME_NFS_SERVER"]
     nfs_path = os.environ["RESEARCH_HOME_NFS_PATH"]
+    platform_api_token = os.environ["JUPYTERHUB_PLATFORM_API_TOKEN"]
 
-    # M2a bootstrap only. M3 replaces this with Quantum Platform identity.
-    c.JupyterHub.authenticator_class = DummyAuthenticator
-    c.Authenticator.allowed_users = {bootstrap_user}
-    c.DummyAuthenticator.password = os.environ["JUPYTERHUB_BOOTSTRAP_PASSWORD"]
+    # Quantum Platform is authoritative for browser identity. A short-lived
+    # signed launch assertion carries the already-provisioned POSIX UID/GID.
+    c.JupyterHub.authenticator_class = PlatformLaunchAuthenticator
+    c.Authenticator.allow_all = True
+    c.Authenticator.enable_auth_state = True
+    c.Authenticator.auto_login = True
 
     c.JupyterHub.spawner_class = KubeSpawner
     c.JupyterHub.bind_url = "http://0.0.0.0:8000"
@@ -44,19 +45,11 @@ data:
     c.KubeSpawner.mem_guarantee = "1G"
     c.KubeSpawner.mem_limit = "4G"
 
-    # One privately configured bootstrap researcher for M2a.
-    c.KubeSpawner.uid = bootstrap_uid
-    c.KubeSpawner.gid = bootstrap_gid
-    c.KubeSpawner.fs_gid = bootstrap_gid
-    c.KubeSpawner.working_dir = "/home/research/{unescaped_username}"
-
     node_selector = os.environ.get("JUPYTER_NODE_SELECTOR", "").strip()
     if node_selector:
         key, value = node_selector.split("=", 1)
         c.KubeSpawner.node_selector = {key.strip(): value.strip()}
 
-    # The whole research-home export is mounted. Per-user POSIX ownership and
-    # permissions are authoritative across SSH, Slurm and Jupyter.
     c.KubeSpawner.volumes = [
         {
             "name": "research-home",
@@ -76,15 +69,36 @@ data:
     ]
 
     c.KubeSpawner.automount_service_account_token = False
-    c.KubeSpawner.environment = {
-        "PYTHONNOUSERSITE": "1",
-        "QUANTUM_PLATFORM_EXECUTION_MODE": "burst",
-    }
 
+    async def apply_platform_identity(spawner):
+        auth_state = await spawner.user.get_auth_state()
+        if not auth_state:
+            raise RuntimeError("Quantum Platform auth_state is missing.")
+
+        uid = int(auth_state["uid"])
+        gid = int(auth_state["gid"])
+
+        spawner.uid = uid
+        spawner.gid = gid
+        spawner.fs_gid = gid
+        spawner.working_dir = f"/home/research/{spawner.user.name}"
+        spawner.environment = {
+            **dict(spawner.environment or {}),
+            "PYTHONNOUSERSITE": "1",
+            "QUANTUM_PLATFORM_EXECUTION_MODE": "burst",
+            "QUANTUM_PLATFORM_USERNAME": spawner.user.name,
+        }
+
+    c.Spawner.pre_spawn_hook = apply_platform_identity
+
+    # The portal gets a Hub service token, not Kubernetes credentials.
     c.JupyterHub.services = [
         {
+            "name": "quantum-platform",
+            "api_token": platform_api_token,
+        },
+        {
             "name": "idle-culler",
-            "admin": True,
             "command": [
                 "python",
                 "-m",
@@ -92,5 +106,18 @@ data:
                 "--timeout=14400",
                 "--cull-every=600",
             ],
-        }
+        },
+    ]
+
+    c.JupyterHub.load_roles = [
+        {
+            "name": "quantum-platform-workbench-manager",
+            "services": ["quantum-platform"],
+            "scopes": ["admin:users", "admin:servers"],
+        },
+        {
+            "name": "idle-culler",
+            "services": ["idle-culler"],
+            "scopes": ["list:users", "read:users:activity", "servers"],
+        },
     ]
