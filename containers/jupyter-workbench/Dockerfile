@@ -44,6 +44,11 @@ export USER="$username"
 export LOGNAME="$username"
 export JUPYTERHUB_USER="$username"
 
+theme="${QUANTUM_PLATFORM_THEME:-dark}"
+if [[ "$theme" != "light" && "$theme" != "dark" ]]; then
+  theme="dark"
+fi
+
 if [[ ! -d "$home" ]]; then
   echo "Research home does not exist: $home" >&2
   exit 1
@@ -69,6 +74,25 @@ fi
 export NSS_WRAPPER_PASSWD="$passwd_file"
 export NSS_WRAPPER_GROUP="$group_file"
 export LD_PRELOAD="/usr/local/lib/libnss_wrapper.so"
+
+theme_dir="$home/.jupyter/lab/user-settings/@jupyterlab/apputils-extension"
+theme_file="$theme_dir/themes.jupyterlab-settings"
+mkdir -p "$theme_dir"
+
+if [[ "$theme" == "light" ]]; then
+  selected_theme="JupyterLab Light"
+else
+  selected_theme="JupyterLab Dark"
+fi
+
+cat > "$theme_file" <<EOF_THEME
+{
+  "theme": "$selected_theme",
+  "adaptive-theme": false,
+  "preferred-light-theme": "JupyterLab Light",
+  "preferred-dark-theme": "JupyterLab Dark"
+}
+EOF_THEME
 
 cd "$home"
 exec jupyterhub-singleuser "$@"
