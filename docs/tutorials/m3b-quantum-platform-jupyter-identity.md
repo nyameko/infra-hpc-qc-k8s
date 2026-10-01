@@ -51,6 +51,16 @@ JUPYTERHUB_API_TOKEN
 Seal the values with the existing SealedSecret workflow. Never commit plaintext
 secrets.
 
+The Quantum Platform JupyterHub service role is deliberately least-privilege:
+
+- `read:users` to read the authenticated user's Hub model;
+- `read:servers` to inspect notebook server state;
+- `delete:servers` to stop the user's notebook server.
+
+It does not receive `admin:users`, `admin:servers`, Kubernetes credentials, or
+permission to create/delete Hub identities. JupyterHub creates the Hub user as
+part of the validated browser login flow.
+
 ## Research identity prerequisite
 
 Before a user can launch a workbench, Quantum Platform must have the POSIX UID
