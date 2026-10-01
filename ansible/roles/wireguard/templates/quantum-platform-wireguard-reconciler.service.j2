@@ -1,0 +1,17 @@
+[Unit]
+Description=Reconcile Quantum Platform WireGuard research peers
+After=network-online.target wg-quick@{{ wireguard_interface }}.service
+Wants=network-online.target
+Requires=wg-quick@{{ wireguard_interface }}.service
+
+[Service]
+Type=oneshot
+EnvironmentFile=/etc/quantum-platform/wireguard-reconciler.env
+ExecStart=/usr/local/sbin/quantum-platform-wireguard-reconciler
+User=root
+Group=root
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=/var/lib/quantum-platform
