@@ -519,6 +519,22 @@ resource "openstack_networking_secgroup_rule_v2" "slurm_login_ssh" {
   security_group_id = openstack_networking_secgroup_v2.this["slurm-login"].id
 }
 
+# Quantum Platform M3c: only Kubernetes worker-originated traffic may reach the
+# restricted Slurm submission gateway over SSH. The forced-command key remains
+# the application-layer authorization boundary.
+resource "openstack_networking_secgroup_rule_v2" "slurm_login_gateway_from_k8s_workers" {
+  direction = "ingress"
+  ethertype = "IPv4"
+  protocol  = "tcp"
+
+  port_range_min = 22
+  port_range_max = 22
+
+  remote_group_id = openstack_networking_secgroup_v2.this["k8s-worker"].id
+
+  security_group_id = openstack_networking_secgroup_v2.this["slurm-login"].id
+}
+
 resource "openstack_networking_secgroup_rule_v2" "slurm_login_srun_io" {
   direction = "ingress"
   ethertype = "IPv4"
