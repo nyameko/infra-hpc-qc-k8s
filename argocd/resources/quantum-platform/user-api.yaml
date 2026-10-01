@@ -50,6 +50,9 @@ spec:
             - secretRef:
                 name: quantum-platform-secrets
 
+            - secretRef:
+                name: quantum-platform-jupyterhub
+
           startupProbe:
             tcpSocket:
               port: http
