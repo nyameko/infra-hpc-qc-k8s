@@ -8,6 +8,7 @@ resources:
   - resource-policy.yaml
   - rbac.yaml
   - configmap.yaml
+  - jupyterhub-workbench-platform-sealed.yaml
   - deployment.yaml
   - service.yaml
   - ingress.yaml
