@@ -35,7 +35,7 @@ data:
 
     c.KubeSpawner.namespace = "jupyterhub"
     c.KubeSpawner.image = "ghcr.io/nyameko/infra-hpc-qc-k8s-jupyter-workbench:dev"
-    c.KubeSpawner.image_pull_policy = "IfNotPresent"
+    c.KubeSpawner.image_pull_policy = "Always"
     c.KubeSpawner.cmd = ["/usr/local/bin/start-workbench"]
     c.KubeSpawner.start_timeout = 300
 
