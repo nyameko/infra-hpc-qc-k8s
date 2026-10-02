@@ -67,15 +67,24 @@ JUPYTERHUB_API_TOKEN
 The launch signing key and API token must be identical across the two Secrets.
 
 Seal each plaintext file locally on blackmyth using the checked-in public
-certificate:
+certificate. The established working directory is
+`~/Projects/infra-hpc-qc-k8s/ansible`, so repository-root paths must be
+prefixed with `../`:
 
 ```bash
+# cwd: ~/Projects/infra-hpc-qc-k8s/ansible
 kubeseal \
   --cert inventories/private/infra-hpc-qc-k8s.cert \
   --format yaml \
   < ../secrets/jupyterhub/<plaintext>.yaml \
-  >| argocd/resources/<target>/<name>-sealed.yaml
+  >| ../argocd/resources/<target>/<name>-sealed.yaml
 ```
+
+If working from the repository root instead, omit that leading `../` from
+`argocd/...`. The plaintext JupyterHub Secret YAMLs are kept under
+`~/Projects/infra-hpc-qc-k8s/secrets/jupyterhub/`, outside the Ansible
+subdirectory, while the public sealing certificate is
+`~/Projects/infra-hpc-qc-k8s/ansible/inventories/private/infra-hpc-qc-k8s.cert`.
 
 Only the resulting `SealedSecret` manifests are committed to Git. Argo CD
 applies them and the cluster-side Sealed Secrets controller creates the ordinary
