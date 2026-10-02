@@ -132,25 +132,32 @@
     label: "{{ item.name }}"
   when: "'storage_nfs' in group_names"
 
-- name: Check bootstrap Quantum Platform Slurm account
-  ansible.builtin.command:
-    cmd: >-
-      sacctmgr -nP show account {{ jupyterhub_execution_slurm_account }}
-      cluster={{ slurm_cluster_name }} format=Account
-  register: quantum_platform_slurm_account
-  changed_when: false
-  when: "'slurm_controller' in group_names"
-
-- name: Create bootstrap Quantum Platform Slurm account
+- name: Ensure bootstrap Quantum Platform Slurm account is associated with the cluster
   ansible.builtin.command:
     cmd: >-
       sacctmgr -i add account {{ jupyterhub_execution_slurm_account }}
       cluster={{ slurm_cluster_name }}
       description="Quantum Platform mediated execution"
       organization="quantum-platform"
-  when:
-    - "'slurm_controller' in group_names"
-    - quantum_platform_slurm_account.stdout | trim | length == 0
+  register: quantum_platform_slurm_account_add
+  changed_when: >-
+    'Nothing new added' not in quantum_platform_slurm_account_add.stdout
+    and 'Nothing added' not in quantum_platform_slurm_account_add.stdout
+  when: "'slurm_controller' in group_names"
+
+- name: Verify bootstrap Quantum Platform Slurm account association
+  ansible.builtin.command:
+    cmd: >-
+      sacctmgr -nP show association
+      where cluster={{ slurm_cluster_name }}
+      account={{ jupyterhub_execution_slurm_account }}
+      format=Cluster,Account
+  register: quantum_platform_slurm_account_assoc
+  changed_when: false
+  failed_when: >-
+    (slurm_cluster_name ~ '|' ~ jupyterhub_execution_slurm_account)
+    not in quantum_platform_slurm_account_assoc.stdout
+  when: "'slurm_controller' in group_names"
 
 - name: Check research Slurm associations
   ansible.builtin.command:
