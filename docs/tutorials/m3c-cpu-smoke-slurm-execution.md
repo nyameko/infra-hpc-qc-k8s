@@ -18,15 +18,37 @@ The key cannot obtain an interactive shell. The forced command accepts only
 
 ## Private configuration
 
-1. Generate a dedicated service key pair.
+The established split is the same as other Sealed Secrets workflows:
+
+```text
+blackmyth
+  git + ssh-keygen + ssh-keyscan + kubeseal
+  cwd: ~/Projects/infra-hpc-qc-k8s/ansible
+  cert: inventories/private/infra-hpc-qc-k8s.cert
+  plaintext: ../secrets/slurm/
+  sealed output: ../argocd/resources/quantum-platform/
+
+k8s-cp-01
+  kubectl / Argo / runtime verification only
+```
+
+1. Generate a dedicated Ed25519 service key pair on blackmyth.
 2. Put only its public key in protected Ansible inventory as
    `jupyterhub_gateway_public_key`.
-3. Seal the private key into `quantum-platform-secrets` as
-   `SLURM_GATEWAY_PRIVATE_KEY`.
-4. Record the login host key as `SLURM_GATEWAY_KNOWN_HOSTS`.
-5. Add private DNS for `slurm-login.internal` to the intended login node.
+3. Add private DNS for `slurm-login.internal` to the intended login node.
+4. Run `ansible/playbooks/jupyterhub-slurm.yml` against the Slurm tiers so the
+   forced-command gateway is installed.
+5. Capture the login host Ed25519 key with `ssh-keyscan` using the semantic
+   hostname `slurm-login.internal`.
+6. Create a plaintext Secret outside Git named
+   `../secrets/slurm/quantum-platform-slurm-gateway.yaml` containing
+   `SLURM_GATEWAY_PRIVATE_KEY` and `SLURM_GATEWAY_KNOWN_HOSTS`.
+7. Seal it locally on blackmyth with the checked-in public certificate and write
+   only the resulting SealedSecret into
+   `../argocd/resources/quantum-platform/quantum-platform-slurm-gateway-sealed.yaml`.
 
-Do not commit the private key, host address, or private DNS mapping.
+Do not commit the private key, plaintext Secret, host address, or private DNS
+mapping.
 
 ## Research entitlement
 
