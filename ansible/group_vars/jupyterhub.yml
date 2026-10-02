@@ -2,7 +2,6 @@
 jupyterhub_gateway_user: jupyterhub-gateway
 jupyterhub_gateway_group: jupyterhub-gateway
 jupyterhub_allowed_group: jupyterhub-users
-jupyterhub_gateway_public_key: ""
 
 # Shared HPC user-environment foundation.
 hpc_user_environment_epel_package: epel-release
