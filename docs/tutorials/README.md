@@ -136,3 +136,13 @@ The Jupyter milestone is deliberately split:
 The split is architectural: **workspace resources are not execution resources**.
 
 - [M2a — KubeSpawner with a shared NFS research home](m2a-kubespawner-shared-home.md)
+
+## M3 account, workbench and durable execution sprint
+
+The consolidated M3 workshop is [M3 Sprint — Account, Workbench and Slurm Execution](m3-account-workbench-slurm-sprint.md). It ties together account/access, POSIX identity, JupyterHub launch/status/stop, Sealed Secrets, private DNS, dynamic NSS, shared NFS homes and the restricted Slurm cpu-smoke path, including the real failure modes encountered during bring-up.
+
+Focused companion tutorials:
+
+- [M3a — WireGuard peer reconciliation](m3a-wireguard-peer-reconciliation.md)
+- [M3b — Quantum Platform identity handoff to JupyterHub](m3b-quantum-platform-jupyter-identity.md)
+- [M3c — Quantum Platform to Slurm cpu-smoke](m3c-cpu-smoke-slurm-execution.md)
