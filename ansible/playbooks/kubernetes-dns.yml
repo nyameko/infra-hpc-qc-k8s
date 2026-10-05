@@ -1,0 +1,13 @@
+---
+- name: Reconcile Kubernetes CoreDNS private-zone forwarding
+  hosts: k8s-cp-01
+  become: true
+  vars:
+    # Pi-hole on edge remains authoritative for infrastructure-only names.
+    # Derive the resolver address from inventory rather than duplicating the IP.
+    kubernetes_coredns_private_zones:
+      - zone: internal
+        forwarders:
+          - "{{ hostvars['edge'].ansible_host }}"
+  roles:
+    - kubernetes_coredns
