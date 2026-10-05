@@ -10,3 +10,14 @@ kubernetes_coredns_cluster_domain: cluster.local
 #   forwarders:
 #     - 10.50.0.10
 kubernetes_coredns_private_zones: []
+
+
+# Private/site-specific resolver addresses belong in protected inventory, e.g.
+# inventories/private/group_vars/all.yml:
+# kubernetes_coredns_internal_forwarders:
+#   - 10.50.0.10
+kubernetes_coredns_internal_forwarders: []
+
+# CoreDNS normally rolls quickly, but allow time for constrained clusters and
+# surface diagnostics rather than failing silently on a terminating old Pod.
+kubernetes_coredns_rollout_timeout_seconds: 300
