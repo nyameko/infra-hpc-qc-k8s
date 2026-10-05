@@ -1,0 +1,12 @@
+---
+# kubeadm owns the CoreDNS deployment; this role owns the CoreDNS ConfigMap
+# content after bootstrap.
+kubernetes_coredns_kubeconfig: /etc/kubernetes/admin.conf
+kubernetes_coredns_manifest_path: /etc/kubernetes/coredns-managed.yaml
+kubernetes_coredns_cluster_domain: cluster.local
+
+# Each item:
+#   zone: internal
+#   forwarders:
+#     - 10.50.0.10
+kubernetes_coredns_private_zones: []
