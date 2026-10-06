@@ -10,7 +10,7 @@ module "network" {
   mgmt_pool_end         = var.mgmt_pool_end
   k8s_pool_start        = var.k8s_pool_start
   k8s_pool_end          = var.k8s_pool_end
-  dns_nameservers        = var.dns_nameservers
+  dns_nameservers       = var.dns_nameservers
 }
 
 module "security" {
