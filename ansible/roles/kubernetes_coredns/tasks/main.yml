@@ -6,9 +6,15 @@
       - item.zone | string | length > 0
       - item.forwarders is defined
       - item.forwarders | length > 0
-      - item.forwarders | reject('match', '^[A-Za-z][A-Za-z0-9.-]*    fail_msg: >-
+      - >-
+        item.forwarders
+        | select('match', '^[0-9A-Fa-f:.]+$')
+        | list
+        | length == item.forwarders | length
+    fail_msg: >-
       Each kubernetes_coredns_private_zones item requires a non-empty zone and
-      at least one forwarder.
+      at least one literal IPv4/IPv6 forwarder address. Resolver hostnames are
+      deliberately rejected to avoid circular DNS dependencies.
   loop: "{{ kubernetes_coredns_private_zones }}"
   loop_control:
     label: "{{ item.zone | default('undefined') }}"
@@ -102,83 +108,29 @@
       ansible.builtin.debug:
         var: kubernetes_coredns_failed_pods.stdout_lines
 
+    - name: Capture CoreDNS deployment events after rollout failure
+      ansible.builtin.command:
+        argv:
+          - kubectl
+          - --kubeconfig
+          - "{{ kubernetes_coredns_kubeconfig }}"
+          - -n
+          - kube-system
+          - describe
+          - deployment/coredns
+      register: kubernetes_coredns_failed_deployment
+      changed_when: false
+      failed_when: false
+
+    - name: Show CoreDNS deployment diagnostics
+      ansible.builtin.debug:
+        var: kubernetes_coredns_failed_deployment.stdout_lines
+
     - name: Fail after CoreDNS rollout diagnostics
       ansible.builtin.fail:
         msg: >-
           CoreDNS configuration was applied but the deployment did not complete
           its rollout within {{ kubernetes_coredns_rollout_timeout_seconds }}s.
-          Inspect the Pod state printed above and Kubernetes events before
-          applying further changes.
-  when: kubernetes_coredns_diff.rc == 1
-) | list | length == item.forwarders | length
-    fail_msg: >-
-      Each kubernetes_coredns_private_zones item requires a non-empty zone and
-      at least one forwarder.
-  loop: "{{ kubernetes_coredns_private_zones }}"
-  loop_control:
-    label: "{{ item.zone | default('undefined') }}"
-
-- name: Render managed CoreDNS ConfigMap
-  ansible.builtin.template:
-    src: Corefile.yaml.j2
-    dest: "{{ kubernetes_coredns_manifest_path }}"
-    owner: root
-    group: root
-    mode: "0600"
-
-- name: Compare managed CoreDNS configuration with the cluster
-  ansible.builtin.command:
-    argv:
-      - kubectl
-      - --kubeconfig
-      - "{{ kubernetes_coredns_kubeconfig }}"
-      - diff
-      - -f
-      - "{{ kubernetes_coredns_manifest_path }}"
-  register: kubernetes_coredns_diff
-  changed_when: kubernetes_coredns_diff.rc == 1
-  failed_when: kubernetes_coredns_diff.rc not in [0, 1]
-
-- name: Apply managed CoreDNS configuration
-  ansible.builtin.command:
-    argv:
-      - kubectl
-      - --kubeconfig
-      - "{{ kubernetes_coredns_kubeconfig }}"
-      - apply
-      - -f
-      - "{{ kubernetes_coredns_manifest_path }}"
-  register: kubernetes_coredns_apply
-  changed_when: >-
-    'configured' in kubernetes_coredns_apply.stdout
-    or 'created' in kubernetes_coredns_apply.stdout
-  when: kubernetes_coredns_diff.rc == 1
-
-- name: Restart CoreDNS after managed configuration change
-  ansible.builtin.command:
-    argv:
-      - kubectl
-      - --kubeconfig
-      - "{{ kubernetes_coredns_kubeconfig }}"
-      - -n
-      - kube-system
-      - rollout
-      - restart
-      - deployment/coredns
-  when: kubernetes_coredns_diff.rc == 1
-  changed_when: true
-
-- name: Wait for CoreDNS rollout
-  ansible.builtin.command:
-    argv:
-      - kubectl
-      - --kubeconfig
-      - "{{ kubernetes_coredns_kubeconfig }}"
-      - -n
-      - kube-system
-      - rollout
-      - status
-      - deployment/coredns
-      - --timeout=120s
-  changed_when: false
+          Inspect the Pod/deployment diagnostics printed above before applying
+          further changes.
   when: kubernetes_coredns_diff.rc == 1
