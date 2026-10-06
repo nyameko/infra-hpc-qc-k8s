@@ -36,7 +36,7 @@ A physical GPU has one authoritative allocator at a time.
 
 Initial ownership:
 
-- `ace-gpu-a100-01`: dedicated vLLM serving; not a Slurm node and not a
+- `gpu-a100-01`: dedicated vLLM serving; not a Slurm node and not a
   Kubernetes GPU worker.
 - future `ace-gpu-a100-02`: Slurm GPU compute.
 
