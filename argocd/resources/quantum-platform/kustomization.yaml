@@ -40,6 +40,7 @@ patches:
       group: bitnami.com
       version: v1alpha1
       kind: SealedSecret
+      name: acp-signing
     patch: |-
       - op: add
         path: /metadata/annotations
