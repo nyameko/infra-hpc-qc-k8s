@@ -274,3 +274,11 @@ If the personal-agent path is unhealthy:
 5. investigate before re-enabling personal turns.
 
 Do not delete database volumes or downgrade migrations merely to disable M4a.
+
+## Plaintext secret staging and recovery
+
+Generated plaintext ACP Secret JSON, model API keys and signing/database material are operator bootstrap material, not Git-managed configuration. The preferred location is a private directory outside every Git checkout. If an operator deliberately keeps a short-lived working copy under the repository's ignored `secrets/` tree for convenience, that directory must remain mode 0700, must remain covered by `.gitignore`, and must never be treated as the durable backup.
+
+Keep an encrypted recovery copy on encrypted removable media or another encrypted private store before deleting the working plaintext. Use `rsync` only to an encrypted destination that is mounted/unlocked intentionally, verify the copy, then unmount/lock it. The SealedSecret YAML committed to Git is safe deployment ciphertext for the target controller but is **not** a substitute for securely retained plaintext/recovery material needed for credential rotation or cluster/controller loss.
+
+Never print plaintext Secret JSON, private keys, database URLs containing passwords, or model API keys into chat, CI logs, shell history, issues or documentation.
