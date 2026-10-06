@@ -28,6 +28,7 @@ What should I learn from the platform?
 |---|---|
 | `README.md` | Project identity, architecture, current state and roadmap |
 | `docs/README.md` | Documentation navigation and ownership model |
+| `docs/architecture/current-platform-state-m3-m4.md` | Current validated M3 state, remaining acceptance gate and M4 handoff |
 | `docs/QUICK_GUIDE.md` | Command-first deployment / operations |
 | `docs/INSTALLATION.md` | Complete deployment, rationale, validation and troubleshooting |
 | `docs/tutorials/README.md` | Teaching pack and module reading order |
@@ -150,15 +151,16 @@ Keep these concerns separate:
 5. end-to-end private ingress
 6. remove remaining normal-use port-forwards and SSH tunnels
 
-### Research platform third
+### Research platform — current M3/M4 progression
 
-1. PostgreSQL user/platform database
-2. JupyterHub
-3. Hermes Orchestrator
-4. Heretic controlled execution
-5. Astro portal
-6. Telegram/Discord liaison integrations for Hermes
-7. AI/ML and quantum workloads
+1. [x] PostgreSQL-backed platform identity
+2. [x] JupyterHub / KubeSpawner workbench
+3. [x] restricted Quantum Platform → Slurm execution
+4. [x] durable quantum-workflows cpu-smoke + provenance
+5. [ ] fresh managed POSIX user acceptance at UID/GID 21000
+6. [ ] M4 Agent Control Plane persistent conversations/projects/memory/skills
+7. [ ] A100/H200 execution providers and prebuilt scientific environments
+8. [ ] HPL/MPI/GPU/QPU learning and benchmarking progression
 
 ### Accounting later
 
