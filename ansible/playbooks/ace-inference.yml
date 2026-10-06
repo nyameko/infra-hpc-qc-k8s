@@ -6,8 +6,8 @@
     - common
     - ssh
     - node_exporter
-    - wazuh_agent
     - wg_fabric
+    - wazuh_agent
 
 - name: Configure ACE A100 inference host
   hosts: gpu_inference
