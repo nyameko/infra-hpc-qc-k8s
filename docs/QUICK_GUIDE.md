@@ -366,3 +366,46 @@ srun callback networking
       ↓
 exec/user environment
 ```
+
+
+## M3 current acceptance
+
+Validate Quantum Platform migrations:
+
+```bash
+kubectl -n quantum-platform exec   deploy/quantum-platform-user-api --   python manage.py showmigrations portal
+```
+
+Expected current application migrations include:
+
+```text
+[X] 0005_person_posix_identity
+[X] 0006_executionrecord
+[X] 0007_posix_identity_allocator
+```
+
+Validate the POSIX allocator:
+
+```bash
+kubectl -n quantum-platform exec   deploy/quantum-platform-user-api --   python manage.py shell -c '
+from portal.models import PosixIdentitySequence
+print(list(PosixIdentitySequence.objects.values()))
+'
+```
+
+The managed sequence should begin at `21000` until the first new approved research identity is allocated.
+
+Validate durable Slurm execution from the user-facing platform, then confirm from a login node:
+
+```bash
+squeue
+sacct -X -P   -o JobID,JobName,Partition,Account,User,State,ExitCode,NodeList,Elapsed   --starttime today
+```
+
+The reference accepted cpu-smoke is job 15 with `COMPLETED|0:0`.
+
+CoreDNS site variables must auto-load from the private inventory's `group_vars/all/` directory. Normal operation must not require an extra `-e @...` override.
+
+## M4 next
+
+Once a fresh `21000:21000` user is reconciled end-to-end, stop expanding M3. The next milestone is persistent Agent Control Plane state across portal, Jupyter, SSH/TUI and editor clients.

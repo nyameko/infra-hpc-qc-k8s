@@ -667,27 +667,31 @@ JupyterHub / Hermes / application metadata
 
 Backups and HA remain later hardening concerns.
 
-# 16. JupyterHub
+# 16. JupyterHub and M3 research execution
 
-JupyterHub is the next major integration after M1 Slurm hardening.
+JupyterHub is now an operational part of the M3 research path.
 
-The architectural rule is already fixed:
+The current architectural rule is:
 
 ```text
 browser
    ↓
+Quantum Platform
+   ↓
 JupyterHub in Kubernetes
    ↓
-Slurm submission
-   ↓
-allocated compute node
-   ↓
-jupyterhub-singleuser
+KubeSpawner lightweight workbench
    ↓
 shared /home/research
+   ↓
+Quantum Platform execution API
+   ↓
+restricted Slurm gateway
+   ↓
+Slurm durable workload
 ```
 
-Kubernetes hosts the Hub/control service. User notebook servers and kernels must consume Slurm allocations; there is no silent Kubernetes fallback compute path.
+Kubernetes hosts the Hub and lightweight notebook servers. Slurm remains authoritative for substantial CPU/GPU work. BatchSpawner is a secondary mode for cases where the notebook kernel itself must live inside a Slurm allocation.
 
 Start with a deliberately small profile set, for example:
 
@@ -707,9 +711,35 @@ Before exposing additional profiles, prove:
 
 Identity provisioning is not completed by manually creating research users. Quantum Platform will own the later approved-user → POSIX/storage/Slurm association flow.
 
-# 17. Hermes / Heretic
+## 16.1 Validated M3 execution
 
-Hermes is an orchestration layer, not an unrestricted administrator.
+The M3c acceptance path has completed successfully:
+
+```text
+Quantum Platform → restricted gateway → Slurm → Apptainer → quantum-workflows
+```
+
+Reference acceptance evidence:
+
+```text
+job 15
+partition cpu-small
+state COMPLETED
+exit 0:0
+cpu-smoke passed=true
+```
+
+The workflow produced durable structured results and a provenance manifest under the user's shared research home.
+
+## 16.2 POSIX allocator
+
+Quantum Platform migration `0007_posix_identity_allocator` introduces a never-reused research UID/GID allocator seeded at `21000`.
+
+The remaining M3 acceptance exercise is a completely fresh approved user reconciled through NFS, SSH, Jupyter and Slurm.
+
+# 17. Agent Control Plane / Hermes / future runtimes
+
+The agent architecture is now control-plane first. Hermes is the initial runtime adapter, not the platform identity or policy authority.
 
 The architecture separates:
 

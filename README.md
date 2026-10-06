@@ -10,6 +10,18 @@ The goal is not merely to produce a working cluster. The goal is to show, in a p
 
 ---
 
+## Current validated milestone
+
+The platform now has a validated M3 path from **Quantum Platform identity → Jupyter workbench → restricted Slurm submission → durable `quantum-workflows` result**.
+
+The reference cpu-smoke acceptance run completed on Slurm with exit code `0:0` and durable provenance under the shared research home. The POSIX allocator is seeded at `21000`; the remaining M3 acceptance gate is a completely fresh approved user reconciled end-to-end across NFS, SSH, Jupyter and Slurm.
+
+The next product milestone is **M4 persistent agents**: canonical conversations, projects, memories, skills and task history exposed consistently through the portal, Jupyter, SSH/TUI and editor clients.
+
+See [Current Platform State — M3 to M4 Handoff](docs/architecture/current-platform-state-m3-m4.md).
+
+---
+
 ## Public topology policy
 
 This repository is intentionally public, but the live network map is not part of the public API. Documentation uses semantic placeholders; deployable environment values live in protected Terraform variables and Ansible inventory. Historical Git commits may still contain earlier reference values, so secrecy is provided by access controls and key management rather than by assuming those old values are confidential.
