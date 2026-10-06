@@ -41,7 +41,7 @@
     group: root
     mode: "0600"
   no_log: true
-  notify: restart wg-fabric
+  notify: Restart wg-fabric
 
 - name: Enable wg-fabric
   ansible.builtin.systemd:
