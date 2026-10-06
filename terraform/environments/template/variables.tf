@@ -63,3 +63,24 @@ variable "jupyter_workers" {
   }))
   default = {}
 }
+
+variable "fabric_wireguard_port" {
+  type    = number
+  default = 51821
+}
+
+variable "fabric_wireguard_ingress_cidrs" {
+  type    = list(string)
+  default = []
+}
+
+variable "federated_site_cidrs" {
+  type    = list(string)
+  default = []
+}
+
+variable "federated_site_routes" {
+  description = "Map of remote site CIDR to local edge next-hop address."
+  type        = map(string)
+  default     = {}
+}
