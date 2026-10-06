@@ -30,7 +30,7 @@
     group: root
     mode: "0600"
   no_log: true
-  notify: restart vllm
+  notify: Restart vLLM
 
 - name: Install vLLM systemd service
   ansible.builtin.template:
@@ -39,7 +39,7 @@
     owner: root
     group: root
     mode: "0644"
-  notify: restart vllm
+  notify: Restart vLLM
 
 - name: Enable vLLM
   ansible.builtin.systemd:
