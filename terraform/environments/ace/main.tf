@@ -2,6 +2,8 @@ module "ace" {
   source = "../../modules/federated_gpu_site"
 
   name_prefix           = "ace"
+  edge_name             = "ace-edge-01"
+  gpu_name              = "gpu-a100-01"
   external_network_name = var.external_network_name
 
   private_cidr       = var.private_cidr
