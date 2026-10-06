@@ -146,3 +146,8 @@ Focused companion tutorials:
 - [M3a — WireGuard peer reconciliation](m3a-wireguard-peer-reconciliation.md)
 - [M3b — Quantum Platform identity handoff to JupyterHub](m3b-quantum-platform-jupyter-identity.md)
 - [M3c — Quantum Platform to Slurm cpu-smoke](m3c-cpu-smoke-slurm-execution.md)
+
+
+## Disaster recovery
+
+- [Private State Disaster Recovery](private-state-disaster-recovery.md) — encrypted offline backup and restore of protected inventory, local plaintext secret inputs, external credentials, WireGuard/SSH service keys and the Sealed Secrets controller recovery key.
