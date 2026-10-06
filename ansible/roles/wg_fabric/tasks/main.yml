@@ -1,0 +1,50 @@
+---
+- name: Require wg-fabric private configuration
+  ansible.builtin.assert:
+    that:
+      - wg_fabric_address | length > 0
+      - wg_fabric_private_key | length > 0
+      - wg_fabric_peers | length > 0
+    fail_msg: >-
+      wg-fabric requires an address, private key and at least one peer from
+      protected inventory/Vault. Do not commit live keys to the public repo.
+  no_log: true
+
+- name: Install WireGuard
+  ansible.builtin.dnf:
+    name:
+      - wireguard-tools
+      - iproute
+    state: present
+
+- name: Create WireGuard directory
+  ansible.builtin.file:
+    path: /etc/wireguard
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+
+- name: Enable IPv4 forwarding for routed fabric edges
+  when: wg_fabric_enable_forwarding | bool
+  ansible.posix.sysctl:
+    name: net.ipv4.ip_forward
+    value: "1"
+    state: present
+    reload: true
+
+- name: Deploy wg-fabric configuration
+  ansible.builtin.template:
+    src: wg-fabric.conf.j2
+    dest: "/etc/wireguard/{{ wg_fabric_interface }}.conf"
+    owner: root
+    group: root
+    mode: "0600"
+  no_log: true
+  notify: restart wg-fabric
+
+- name: Enable wg-fabric
+  ansible.builtin.systemd:
+    name: "wg-quick@{{ wg_fabric_interface }}"
+    enabled: true
+    state: started
