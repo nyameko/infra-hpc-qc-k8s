@@ -820,22 +820,23 @@ Ensure the account-to-cluster association first, verify it through
 
 ### M3c
 
-- restricted gateway is installed on login tier;
-- no interactive shell is exposed by gateway key;
-- research user is entitled;
-- Slurm account + cluster + user associations exist;
-- Quantum Platform Slurm secret is sealed and consumed;
-- `cpu-smoke` returns a numeric Slurm job ID;
-- state transitions are queryable after the job leaves `squeue`;
-- durable result exists under the user's shared home.
+- [x] restricted gateway is installed on login tier;
+- [x] no interactive shell is exposed by gateway key;
+- [x] research user is entitled;
+- [x] Slurm account + cluster + user associations exist;
+- [x] Quantum Platform Slurm secret is sealed and consumed;
+- [x] `cpu-smoke` returns a numeric Slurm job ID;
+- [x] state transitions are queryable after the job leaves `squeue`;
+- [x] durable result exists under the user's shared home;
+- [x] reference job 15 completed with exit code `0:0` and `passed=true`.
 
 ---
 
 ## 10. Follow-up engineering work
 
-- automated POSIX allocator in the canonical `20000–29999` block;
-- POSIX desired-state reconciliation from Quantum Platform into infrastructure;
-- never-reuse UID/GID ledger;
+- [x] automated POSIX allocator in the canonical `20000–29999` block;
+- [x] never-reuse UID/GID ledger seeded at `21000`;
+- [ ] fresh `21000:21000` user acceptance and POSIX desired-state reconciliation from Quantum Platform into infrastructure;
 - highly available `slurm-login.internal` across login1/login2 while preserving
   strict SSH host-key checking;
 - immutable image promotion instead of mutable `:dev` tags;
