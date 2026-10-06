@@ -5,6 +5,7 @@ resources:
 - api.yaml
 - configmap.yaml
 - hermes.yaml
+- personal-worker.yaml
 - migrate-job.yaml
 - namespace.yaml
 - networkpolicy.yaml
