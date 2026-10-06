@@ -1,0 +1,14 @@
+---
+apiVersion: bitnami.com/v1alpha1
+kind: SealedSecret
+metadata:
+  name: acp-verification
+  namespace: agent-control-plane
+spec:
+  encryptedData:
+    public.pem: AgCEd6gp9MKjNvMUKMFK8k7Hj17KreikFCVcvURn3JKTUvRHp28G1cNYTQjOLfJVUDEtiDFINbS44ZGsd33L6HvbM3om8up9R+aRBOwxEEYK22jwqgiWzLTSwvnLK/ksB2bNtfDHVlfseaXMk+CzzPQz8s/rzKFHiKxTtzU8bRLUtJsBX2qiW5xYOQ1EOSSLIGStMhNiiifmGYUv9Q298MuSWrVvYzbwJjtidXPMtjakL/CcW6f05ecOpyibyLpTa0FmfeRZa0VzCHyVyHOHcXB+7bW4DA8AAH3Q70eNdSQGT+vfBohIriP8IYHFT7EuoDVslJAL8iK/22LtYLhFdSHTKszm9MD71ORxOh07mAYurlAyHawInRRKKeqeEv0FrT9EsPHuGcNPfma793tfva2lDoHlxetI2K2zFMewwLnArfaAykFMlEnSwmlkczTtuiWk1DFP8pQJUGejGmCz16xIwtJS0a5rlgGk1K1jIrLBYjg8VdMaAuVhw2pq0qUzhCvR79kRtIgO6ViKXWs7RK7nA/oTK1CAUz9Bx5SBeZaUQIyMrMXVFfeD7C1a8UL7wc8NDRAE/jP0UVuI6Q3M9Ui6TZMrcjYSh/ulqv1QyRfsmMHRpQzuj+aBdq8G2b4c4BKuu/YagBmiu6AAdVLWGl89RT1V/VUhegAtS97nOiRTgO7RAYT3Xcuh8jXl3aOHMrbICx+dQXTORJqmRFkrKbpUAZlhDGDdMQX46VG5cVbjGyGV+SP+nyjHC1+bJAqy7J0kjOEBp+/F/rXhEBDYrf+ufAW4XVwZTPXNV+l6vaYaaEPKEiyO3qNZ3OajBqd0JoPthBQaKTtkGORxoEeIwmsK3w==
+  template:
+    metadata:
+      name: acp-verification
+      namespace: agent-control-plane
+    type: Opaque
