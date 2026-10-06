@@ -1,5 +1,5 @@
 ---
-- name: restart dcgm exporter
+- name: Restart DCGM Exporter
   ansible.builtin.systemd:
     name: dcgm-exporter
     state: restarted
