@@ -1,0 +1,7 @@
+---
+wg_fabric_interface: wg-fabric
+wg_fabric_address: ""
+wg_fabric_listen_port: 51821
+wg_fabric_private_key: ""
+wg_fabric_peers: []
+wg_fabric_enable_forwarding: true
