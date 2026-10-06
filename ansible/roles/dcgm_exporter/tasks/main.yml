@@ -6,7 +6,7 @@
     owner: root
     group: root
     mode: "0644"
-  notify: restart dcgm exporter
+  notify: Restart DCGM Exporter
 
 - name: Enable DCGM Exporter
   ansible.builtin.systemd:
@@ -20,7 +20,7 @@
     url: "http://127.0.0.1:{{ dcgm_exporter_port }}/metrics"
     status_code: 200
     return_content: false
-  register: dcgm_probe
+  register: dcgm_exporter_probe
   retries: 20
   delay: 3
-  until: dcgm_probe.status == 200
+  until: dcgm_exporter_probe.status == 200
