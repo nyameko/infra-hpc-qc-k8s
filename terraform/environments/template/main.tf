@@ -20,7 +20,10 @@ module "security" {
   vpn_cidr           = var.vpn_cidr
   mgmt_cidr          = var.mgmt_cidr
   k8s_cidr           = var.k8s_cidr
-  api_lb_address     = var.api_lb_address
+  api_lb_address                  = var.api_lb_address
+  fabric_wireguard_port            = var.fabric_wireguard_port
+  fabric_wireguard_ingress_cidrs   = var.fabric_wireguard_ingress_cidrs
+  federated_site_cidrs             = var.federated_site_cidrs
 }
 
 module "api_lb_haproxy" {
@@ -145,4 +148,12 @@ resource "openstack_networking_router_route_v2" "wireguard" {
   router_id        = module.network.router_id
   destination_cidr = var.vpn_cidr
   next_hop         = var.node_fixed_ips["edge"]
+}
+
+resource "openstack_networking_router_route_v2" "federated_sites" {
+  for_each = var.federated_site_routes
+
+  router_id        = module.network.router_id
+  destination_cidr = each.key
+  next_hop         = each.value
 }
