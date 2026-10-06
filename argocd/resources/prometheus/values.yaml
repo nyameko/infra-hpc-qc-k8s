@@ -88,3 +88,26 @@ extraScrapeConfigs: |
           - 10.50.0.40:9100
         labels:
           storage_role: nfs
+
+serverFiles:
+  alerting_rules.yml:
+    groups:
+    - name: agent-control-plane-m4a
+      rules:
+      - alert: ACPPersonalWorkerUnavailable
+        expr: |
+          kube_deployment_status_replicas_available{
+            namespace="agent-control-plane",
+            deployment="agent-control-plane-personal-worker"
+          }
+          <
+          kube_deployment_spec_replicas{
+            namespace="agent-control-plane",
+            deployment="agent-control-plane-personal-worker"
+          }
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: ACP personal worker is unavailable
+          description: The M4a personal-agent worker has fewer available replicas than desired.
