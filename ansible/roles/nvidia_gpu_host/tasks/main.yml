@@ -12,30 +12,30 @@
 
 - name: Configure NVIDIA CUDA repository
   ansible.builtin.get_url:
-    url: "{{ nvidia_cuda_repo_url }}"
+    url: "{{ nvidia_gpu_host_cuda_repo_url }}"
     dest: /etc/yum.repos.d/cuda-rhel9.repo
     owner: root
     group: root
     mode: "0644"
 
 - name: Enable NVIDIA open-DKMS module stream
-  when: nvidia_install_driver | bool
+  when: nvidia_gpu_host_install_driver | bool
   ansible.builtin.command:
-    cmd: "dnf -y module enable nvidia-driver:{{ nvidia_driver_module_stream }}"
-  register: nvidia_module_enable
-  changed_when: "'Nothing to do' not in nvidia_module_enable.stdout"
+    cmd: "dnf -y module enable nvidia-driver:{{ nvidia_gpu_host_driver_module_stream }}"
+  register: nvidia_gpu_host_module_enable
+  changed_when: "'Nothing to do' not in nvidia_gpu_host_module_enable.stdout"
 
 - name: Install NVIDIA headless compute driver
-  when: nvidia_install_driver | bool
+  when: nvidia_gpu_host_install_driver | bool
   ansible.builtin.dnf:
     name:
       - nvidia-driver-cuda
       - kmod-nvidia-open-dkms
     state: present
-  register: nvidia_driver_packages
+  register: nvidia_gpu_host_driver_packages
 
 - name: Install NVIDIA Container Toolkit repository file
-  when: nvidia_install_container_toolkit | bool
+  when: nvidia_gpu_host_install_container_toolkit | bool
   ansible.builtin.get_url:
     url: https://nvidia.github.io/libnvidia-container/stable/rpm/nvidia-container-toolkit.repo
     dest: /etc/yum.repos.d/nvidia-container-toolkit.repo
@@ -44,15 +44,15 @@
     mode: "0644"
 
 - name: Install NVIDIA Container Toolkit
-  when: nvidia_install_container_toolkit | bool
+  when: nvidia_gpu_host_install_container_toolkit | bool
   ansible.builtin.dnf:
     name: nvidia-container-toolkit
     state: present
 
 - name: Reboot after NVIDIA driver installation
   when:
-    - nvidia_reboot_after_driver_install | bool
-    - nvidia_driver_packages is changed
+    - nvidia_gpu_host_reboot_after_driver_install | bool
+    - nvidia_gpu_host_driver_packages is changed
   ansible.builtin.reboot:
     reboot_timeout: 900
 
@@ -76,17 +76,17 @@
 
 - name: Wait for model cache block device
   ansible.builtin.wait_for:
-    path: "{{ gpu_model_cache_device }}"
+    path: "{{ nvidia_gpu_host_model_cache_device }}"
     timeout: 60
 
 - name: Create model cache filesystem if absent
   community.general.filesystem:
-    fstype: "{{ gpu_model_cache_fstype }}"
-    dev: "{{ gpu_model_cache_device }}"
+    fstype: "{{ nvidia_gpu_host_model_cache_fstype }}"
+    dev: "{{ nvidia_gpu_host_model_cache_device }}"
 
 - name: Create model cache mountpoint
   ansible.builtin.file:
-    path: "{{ gpu_model_cache_mount }}"
+    path: "{{ nvidia_gpu_host_model_cache_mount }}"
     state: directory
     owner: root
     group: root
@@ -94,8 +94,8 @@
 
 - name: Mount model cache volume
   ansible.posix.mount:
-    path: "{{ gpu_model_cache_mount }}"
-    src: "{{ gpu_model_cache_device }}"
-    fstype: "{{ gpu_model_cache_fstype }}"
+    path: "{{ nvidia_gpu_host_model_cache_mount }}"
+    src: "{{ nvidia_gpu_host_model_cache_device }}"
+    fstype: "{{ nvidia_gpu_host_model_cache_fstype }}"
     opts: defaults,noatime
     state: mounted
