@@ -1,10 +1,10 @@
 ---
-nvidia_cuda_repo_url: https://developer.download.nvidia.com/compute/cuda/repos/rhel9/x86_64/cuda-rhel9.repo
-nvidia_driver_module_stream: open-dkms
-nvidia_install_driver: true
-nvidia_install_container_toolkit: true
-nvidia_reboot_after_driver_install: true
+nvidia_gpu_host_cuda_repo_url: https://developer.download.nvidia.com/compute/cuda/repos/rhel9/x86_64/cuda-rhel9.repo
+nvidia_gpu_host_driver_module_stream: open-dkms
+nvidia_gpu_host_install_driver: true
+nvidia_gpu_host_install_container_toolkit: true
+nvidia_gpu_host_reboot_after_driver_install: true
 
-gpu_model_cache_device: /dev/vdb
-gpu_model_cache_mount: /srv/models
-gpu_model_cache_fstype: xfs
+nvidia_gpu_host_model_cache_device: /dev/vdb
+nvidia_gpu_host_model_cache_mount: /srv/models
+nvidia_gpu_host_model_cache_fstype: xfs
