@@ -1,5 +1,5 @@
 ---
-- name: restart vllm
+- name: Restart vLLM
   ansible.builtin.systemd:
     name: vllm
     state: restarted
