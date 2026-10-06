@@ -101,6 +101,7 @@ spec:
       values:
       - api
       - worker
+      - personal-worker
       - migration
   policyTypes:
   - Egress
@@ -148,14 +149,12 @@ metadata:
     argocd.argoproj.io/sync-wave: '-2'
 spec:
   podSelector:
-    matchLabels:
-      app.kubernetes.io/part-of: agent-control-plane
-      matchExpressions:
-      - key: acp-role
-        operator: In
-        values:
-        - worker
-        - personal-worker
+    matchExpressions:
+    - key: acp-role
+      operator: In
+      values:
+      - worker
+      - personal-worker
   policyTypes:
   - Egress
   egress: []
