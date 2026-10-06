@@ -34,3 +34,14 @@ images:
   - name: quantum-platform-user-api
     newName: ghcr.io/nyameko/quantum-platform-user-api
     digest: sha256:59cc226a311bf6e6c14b08406d3e888283e5ff65253ab7db1345bf6cb4c81f85
+
+patches:
+  - target:
+      group: bitnami.com
+      version: v1alpha1
+      kind: SealedSecret
+    patch: |-
+      - op: add
+        path: /metadata/annotations
+        value:
+          argocd.argoproj.io/sync-wave: "-1"
