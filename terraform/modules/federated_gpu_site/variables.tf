@@ -3,6 +3,16 @@ variable "name_prefix" {
   type        = string
 }
 
+variable "edge_name" {
+  description = "Hostname for the site edge."
+  type        = string
+}
+
+variable "gpu_name" {
+  description = "Hostname for the first dedicated inference GPU node."
+  type        = string
+}
+
 variable "external_network_name" {
   description = "OpenStack external network used by the site router and edge floating IP."
   type        = string
