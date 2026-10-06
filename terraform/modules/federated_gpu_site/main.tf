@@ -151,7 +151,7 @@ resource "openstack_networking_port_v2" "edge" {
 }
 
 resource "openstack_networking_port_v2" "gpu" {
-  name               = "${var.name_prefix}-gpu-a100-01-port"
+  name               = "${var.gpu_name}-port"
   network_id         = openstack_networking_network_v2.private.id
   security_group_ids = [openstack_networking_secgroup_v2.gpu_inference.id]
 
@@ -162,7 +162,7 @@ resource "openstack_networking_port_v2" "gpu" {
 }
 
 resource "openstack_compute_instance_v2" "edge" {
-  name              = "${var.name_prefix}-edge-01"
+  name              = var.edge_name
   image_id          = var.edge_image_id
   flavor_name       = var.edge_flavor_name
   key_pair          = var.key_pair
@@ -176,7 +176,7 @@ resource "openstack_compute_instance_v2" "edge" {
 }
 
 resource "openstack_compute_instance_v2" "gpu" {
-  name              = "${var.name_prefix}-gpu-a100-01"
+  name              = var.gpu_name
   flavor_name       = var.gpu_flavor_name
   key_pair          = var.key_pair
   availability_zone = var.availability_zone
@@ -203,7 +203,7 @@ resource "openstack_networking_floatingip_associate_v2" "edge" {
 }
 
 resource "openstack_blockstorage_volume_v3" "model_cache" {
-  name              = "${var.name_prefix}-gpu-a100-01-model-cache"
+  name              = "${var.gpu_name}-model-cache"
   size              = var.model_volume_size_gb
   volume_type       = var.model_volume_type
   availability_zone = var.availability_zone
