@@ -10,15 +10,15 @@ module "ace" {
   private_pool_end   = var.private_pool_end
   dns_nameservers    = var.dns_nameservers
 
-  edge_fixed_ip             = var.edge_fixed_ip
-  gpu_fixed_ip              = var.gpu_fixed_ip
-  edge_floating_ip_address  = var.edge_floating_ip_address
+  edge_fixed_ip            = var.edge_fixed_ip
+  gpu_fixed_ip             = var.gpu_fixed_ip
+  edge_floating_ip_address = var.edge_floating_ip_address
 
-  edge_image_id     = var.edge_image_id
-  gpu_image_id      = var.gpu_image_id
-  edge_flavor_name  = var.edge_flavor_name
-  gpu_flavor_name   = var.gpu_flavor_name
-  key_pair          = var.key_pair
+  edge_image_id    = var.edge_image_id
+  gpu_image_id     = var.gpu_image_id
+  edge_flavor_name = var.edge_flavor_name
+  gpu_flavor_name  = var.gpu_flavor_name
+  key_pair         = var.key_pair
 
   bootstrap_ssh_cidrs     = var.bootstrap_ssh_cidrs
   wireguard_ingress_cidrs = var.wireguard_ingress_cidrs
