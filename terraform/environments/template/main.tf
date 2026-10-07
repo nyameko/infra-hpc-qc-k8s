@@ -14,16 +14,16 @@ module "network" {
 }
 
 module "security" {
-  source             = "../../modules/security"
-  name_prefix        = "infra-hpc-qc-k8s"
-  bootstrap_ssh_cidr = var.bootstrap_ssh_cidr
-  vpn_cidr           = var.vpn_cidr
-  mgmt_cidr          = var.mgmt_cidr
-  k8s_cidr           = var.k8s_cidr
+  source                          = "../../modules/security"
+  name_prefix                     = "infra-hpc-qc-k8s"
+  bootstrap_ssh_cidr              = var.bootstrap_ssh_cidr
+  vpn_cidr                        = var.vpn_cidr
+  mgmt_cidr                       = var.mgmt_cidr
+  k8s_cidr                        = var.k8s_cidr
   api_lb_address                  = var.api_lb_address
-  fabric_wireguard_port            = var.fabric_wireguard_port
-  fabric_wireguard_ingress_cidrs   = var.fabric_wireguard_ingress_cidrs
-  federated_site_cidrs             = var.federated_site_cidrs
+  fabric_wireguard_port           = var.fabric_wireguard_port
+  fabric_wireguard_ingress_cidrs  = var.fabric_wireguard_ingress_cidrs
+  federated_site_cidrs            = var.federated_site_cidrs
 }
 
 module "api_lb_haproxy" {
