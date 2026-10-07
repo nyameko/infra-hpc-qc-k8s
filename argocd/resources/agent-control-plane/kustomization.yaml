@@ -23,10 +23,20 @@ resources:
   - personal-worker.yaml
 
 images:
-  - name: agent-control-plane-api
-    newName: ghcr.io/nyameko/agent-control-plane
-    digest: sha256:5862983e290a384a4ad92281e8ceeac3dc200b9e0feaaa72abbf9f021f58e63c
+- name: agent-control-plane-api
+  newName: ghcr.io/nyameko/agent-control-plane
+  digest: sha256:5862983e290a384a4ad92281e8ceeac3dc200b9e0feaaa72abbf9f021f58e63c
+- name: agent-control-plane-hermes
+  newName: ghcr.io/nyameko/agent-control-plane-hermes
+  digest: sha256:609dd6a8c14fa9182a0fe6962873fde2a53e1b2efd6bd0eaaccce115692d4b7a
 
-  - name: agent-control-plane-hermes
-    newName: ghcr.io/nyameko/agent-control-plane-hermes
-    digest: sha256:609dd6a8c14fa9182a0fe6962873fde2a53e1b2efd6bd0eaaccce115692d4b7a
+patches:
+- target:
+    group: bitnami.com
+    version: v1alpha1
+    kind: SealedSecret
+  patch: |-
+    - op: add
+      path: /metadata/annotations
+      value:
+        argocd.argoproj.io/sync-wave: "-3"
