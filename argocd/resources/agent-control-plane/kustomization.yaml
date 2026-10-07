@@ -1,21 +1,27 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
+
 namespace: agent-control-plane
+
 resources:
-- acp-db-owner-sealed.yaml
-- acp-db-app-sealed.yaml
-- acp-verification-sealed.yaml
-- acp-model-sealed.yaml
-- api.yaml
-- configmap.yaml
-- hermes.yaml
-- personal-worker.yaml
-- migrate-job.yaml
-- namespace.yaml
-- networkpolicy.yaml
-- postgres-bootstrap.yaml
-- postgres.yaml
-- storage.yaml
+  - namespace.yaml
+
+  # M4a sealed credentials
+  - acp-db-owner-sealed.yaml
+  - acp-db-app-sealed.yaml
+  - acp-verification-sealed.yaml
+  - acp-model-sealed.yaml
+
+  - configmap.yaml
+  - networkpolicy.yaml
+  - storage.yaml
+  - postgres-bootstrap.yaml
+  - postgres.yaml
+  - migrate-job.yaml
+  - api.yaml
+  - hermes.yaml
+  - personal-worker.yaml
+
 images:
 - name: agent-control-plane-api
   newName: ghcr.io/nyameko/agent-control-plane
