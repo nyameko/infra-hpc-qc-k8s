@@ -1,4 +1,14 @@
 ---
+- name: Require explicit model-cache block device
+  ansible.builtin.assert:
+    that:
+      - nvidia_gpu_host_model_cache_device | length > 0
+      - nvidia_gpu_host_model_cache_device != "/dev/vda"
+      - nvidia_gpu_host_model_cache_device != "/dev/vdb"
+    fail_msg: >-
+      Set nvidia_gpu_host_model_cache_device explicitly after verifying lsblk.
+      Never point the role at the root disk or config-drive device.
+
 - name: Install GPU host prerequisites
   ansible.builtin.dnf:
     name:
