@@ -5,6 +5,6 @@ nvidia_gpu_host_install_driver: true
 nvidia_gpu_host_install_container_toolkit: true
 nvidia_gpu_host_reboot_after_driver_install: true
 
-nvidia_gpu_host_model_cache_device: /dev/vdb
+nvidia_gpu_host_model_cache_device: ""
 nvidia_gpu_host_model_cache_mount: /srv/models
 nvidia_gpu_host_model_cache_fstype: xfs
