@@ -693,3 +693,27 @@ resource "openstack_networking_secgroup_rule_v2" "slurm_node_exporters" {
   remote_ip_prefix  = var.k8s_cidr
   security_group_id = openstack_networking_secgroup_v2.this[each.key].id
 }
+
+resource "openstack_networking_secgroup_rule_v2" "edge_wireguard_fabric" {
+  for_each = toset(var.fabric_wireguard_ingress_cidrs)
+
+  direction         = "ingress"
+  ethertype         = "IPv4"
+  protocol          = "udp"
+  port_range_min    = var.fabric_wireguard_port
+  port_range_max    = var.fabric_wireguard_port
+  remote_ip_prefix  = each.value
+  security_group_id = openstack_networking_secgroup_v2.this["edge"].id
+}
+
+resource "openstack_networking_secgroup_rule_v2" "edge_wazuh_federated_sites" {
+  for_each = toset(var.federated_site_cidrs)
+
+  direction         = "ingress"
+  ethertype         = "IPv4"
+  protocol          = "tcp"
+  port_range_min    = 1514
+  port_range_max    = 1515
+  remote_ip_prefix  = each.value
+  security_group_id = openstack_networking_secgroup_v2.this["edge"].id
+}

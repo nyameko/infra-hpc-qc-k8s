@@ -1,0 +1,15 @@
+[Unit]
+Description=NVIDIA DCGM Exporter
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=5
+ExecStartPre=-/usr/bin/podman rm -f dcgm-exporter
+ExecStart=/usr/bin/podman run --rm --name dcgm-exporter --network host --device nvidia.com/gpu=all --cap-add SYS_ADMIN -e DCGM_EXPORTER_LISTEN=:{{ dcgm_exporter_port }} {{ dcgm_exporter_image }}
+ExecStop=/usr/bin/podman stop -t 20 dcgm-exporter
+
+[Install]
+WantedBy=multi-user.target

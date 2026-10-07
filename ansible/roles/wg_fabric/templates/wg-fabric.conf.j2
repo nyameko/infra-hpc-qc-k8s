@@ -1,0 +1,18 @@
+[Interface]
+Address = {{ wg_fabric_address }}
+ListenPort = {{ wg_fabric_listen_port }}
+PrivateKey = {{ wg_fabric_private_key }}
+
+{% for peer in wg_fabric_peers %}
+[Peer]
+PublicKey = {{ peer.public_key }}
+{% if peer.preshared_key is defined and peer.preshared_key | length > 0 %}
+PresharedKey = {{ peer.preshared_key }}
+{% endif %}
+AllowedIPs = {{ peer.allowed_ips | join(', ') }}
+{% if peer.endpoint is defined and peer.endpoint | length > 0 %}
+Endpoint = {{ peer.endpoint }}
+{% endif %}
+PersistentKeepalive = {{ peer.persistent_keepalive | default(25) }}
+
+{% endfor %}

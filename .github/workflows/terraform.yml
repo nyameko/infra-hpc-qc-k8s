@@ -21,9 +21,6 @@ permissions:
 jobs:
   terraform:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: terraform/environments/template
     steps:
       - uses: actions/checkout@v4
 
@@ -33,14 +30,17 @@ jobs:
         working-directory: terraform
         run: terraform fmt -check -recursive
 
-      - name: Terraform init
-        run: terraform init -backend=false
-
-      - name: Terraform validate
-        run: terraform validate
+      - name: Terraform init and validate public environments
+        run: |
+          set -euo pipefail
+          for environment in template ace; do
+            terraform -chdir="terraform/environments/$environment" init -backend=false
+            terraform -chdir="terraform/environments/$environment" validate
+          done
 
       - name: Terraform plan
         if: ${{ vars.TERRAFORM_CI_PLAN_ENABLED == 'true' }}
+        working-directory: terraform/environments/template
         run: terraform plan -refresh=false -input=false -lock=false -out=tfplan
 
       - name: Policy and security checks

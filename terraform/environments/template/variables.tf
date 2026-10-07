@@ -53,3 +53,34 @@ variable "kubernetes_api_port" {
   type    = number
   default = 6443
 }
+
+variable "jupyter_workers" {
+  description = "Optional additional Kubernetes/Jupyter worker nodes."
+  type = map(object({
+    name        = string
+    fixed_ip    = string
+    flavor_name = optional(string)
+  }))
+  default = {}
+}
+
+variable "fabric_wireguard_port" {
+  type    = number
+  default = 51821
+}
+
+variable "fabric_wireguard_ingress_cidrs" {
+  type    = list(string)
+  default = []
+}
+
+variable "federated_site_cidrs" {
+  type    = list(string)
+  default = []
+}
+
+variable "federated_site_routes" {
+  description = "Map of remote site CIDR to local edge next-hop address."
+  type        = map(string)
+  default     = {}
+}
