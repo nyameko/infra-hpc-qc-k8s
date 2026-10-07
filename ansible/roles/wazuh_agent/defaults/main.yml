@@ -1,0 +1,5 @@
+---
+wazuh_base: "4.x"
+wazuh_version: "4.14.7"
+wazuh_manager_address: ""
+wazuh_agent_enabled: true
