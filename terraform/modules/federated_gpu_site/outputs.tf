@@ -41,3 +41,15 @@ output "edge_security_group_id" {
 output "gpu_security_group_id" {
   value = openstack_networking_secgroup_v2.gpu_inference.id
 }
+
+output "gpu2_instance_id" {
+  value = var.gpu2_enabled ? openstack_compute_instance_v2.gpu2[0].id : null
+}
+
+output "gpu2_fixed_ip" {
+  value = var.gpu2_enabled ? var.gpu2_fixed_ip : null
+}
+
+output "gpu2_data_volume_id" {
+  value = var.gpu2_enabled ? openstack_blockstorage_volume_v3.gpu2_data[0].id : null
+}
