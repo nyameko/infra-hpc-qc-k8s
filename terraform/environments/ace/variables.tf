@@ -36,3 +36,33 @@ variable "model_volume_type" {
   type    = string
   default = null
 }
+
+variable "gpu2_enabled" {
+  type    = bool
+  default = false
+}
+
+variable "gpu2_name" {
+  type    = string
+  default = "gpu-a100-02"
+}
+
+variable "gpu2_fixed_ip" {
+  type    = string
+  default = "10.70.0.21"
+}
+
+variable "gpu2_flavor_name" {
+  type    = string
+  default = "QC A100"
+}
+
+variable "gpu2_data_volume_size_gb" {
+  type    = number
+  default = 750
+}
+
+variable "gpu2_data_volume_type" {
+  type    = string
+  default = null
+}

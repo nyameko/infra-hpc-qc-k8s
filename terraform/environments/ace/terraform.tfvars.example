@@ -33,3 +33,11 @@ remote_routed_cidrs = [
 
 model_volume_size_gb = 120
 model_volume_type    = null
+
+# Optional second A100 reserved for Slurm/batch GPU compute.
+gpu2_enabled             = false
+gpu2_name                = "gpu-a100-02"
+gpu2_fixed_ip            = "<ACE_A100_02_PRIVATE_IP>"
+gpu2_flavor_name         = "QC A100"
+gpu2_data_volume_size_gb = 750
+gpu2_data_volume_type    = null

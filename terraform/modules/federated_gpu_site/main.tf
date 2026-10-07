@@ -223,3 +223,56 @@ resource "openstack_networking_router_route_v2" "fabric_remote" {
 
   depends_on = [openstack_networking_router_interface_v2.private]
 }
+
+resource "openstack_networking_port_v2" "gpu2" {
+  count = var.gpu2_enabled ? 1 : 0
+
+  name               = "${var.gpu2_name}-port"
+  network_id         = openstack_networking_network_v2.private.id
+  security_group_ids = [openstack_networking_secgroup_v2.gpu_inference.id]
+
+  fixed_ip {
+    subnet_id  = openstack_networking_subnet_v2.private.id
+    ip_address = var.gpu2_fixed_ip
+  }
+}
+
+resource "openstack_compute_instance_v2" "gpu2" {
+  count = var.gpu2_enabled ? 1 : 0
+
+  name              = var.gpu2_name
+  flavor_name       = var.gpu2_flavor_name
+  key_pair          = var.key_pair
+  availability_zone = var.availability_zone
+  config_drive      = true
+  user_data         = var.gpu_user_data
+
+  block_device {
+    uuid                  = var.gpu_image_id
+    source_type           = "image"
+    destination_type      = "volume"
+    boot_index            = 0
+    volume_size           = var.gpu_root_volume_size_gb
+    delete_on_termination = true
+  }
+
+  network {
+    port = openstack_networking_port_v2.gpu2[0].id
+  }
+}
+
+resource "openstack_blockstorage_volume_v3" "gpu2_data" {
+  count = var.gpu2_enabled ? 1 : 0
+
+  name              = "${var.gpu2_name}-slurm-scratch"
+  size              = var.gpu2_data_volume_size_gb
+  volume_type       = var.gpu2_data_volume_type
+  availability_zone = var.availability_zone
+}
+
+resource "openstack_compute_volume_attach_v2" "gpu2_data" {
+  count = var.gpu2_enabled ? 1 : 0
+
+  instance_id = openstack_compute_instance_v2.gpu2[0].id
+  volume_id   = openstack_blockstorage_volume_v3.gpu2_data[0].id
+}

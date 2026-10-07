@@ -8,6 +8,7 @@ variable "nodes" {
     image_id        = string
     security_groups = list(string)
     key_pair        = string
-    user_data       = optional(string)
+    user_data             = optional(string)
+    allowed_address_pairs = optional(list(string), [])
   }))
 }
