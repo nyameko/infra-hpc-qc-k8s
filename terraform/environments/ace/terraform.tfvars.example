@@ -1,0 +1,35 @@
+openstack_cloud  = "<ACE_CLOUD>"
+openstack_region = "<ACE_REGION>"
+
+external_network_name = "<ACE_EXTERNAL_NETWORK>"
+
+private_cidr       = "<ACE_PRIVATE_CIDR>"
+private_gateway_ip = "<ACE_PRIVATE_GATEWAY>"
+private_pool_start = "<ACE_POOL_START>"
+private_pool_end   = "<ACE_POOL_END>"
+dns_nameservers    = ["<DNS_RESOLVER>"]
+
+edge_fixed_ip            = "<ACE_EDGE_PRIVATE_IP>"
+gpu_fixed_ip             = "<ACE_A100_01_PRIVATE_IP>"
+edge_floating_ip_address = "<REUSED_ACE_FLOATING_IP>"
+
+edge_image_id    = "<ROCKY9_IMAGE_ID>"
+gpu_image_id     = "<ROCKY9_IMAGE_ID>"
+edge_flavor_name = "medium"
+gpu_flavor_name  = "QC A100"
+key_pair         = "<ACE_KEYPAIR>"
+
+bootstrap_ssh_cidrs = ["<ADMIN_SOURCE_CIDR>"]
+
+wireguard_ingress_cidrs = [
+  "<SEBOWA_EDGE_PUBLIC_CIDR_OR_IP>",
+]
+
+remote_routed_cidrs = [
+  "<SEBOWA_MGMT_CIDR>",
+  "<SEBOWA_K8S_CIDR>",
+  "<INFRA_WG_FABRIC_CIDR>",
+]
+
+model_volume_size_gb = 120
+model_volume_type    = null

@@ -1,0 +1,52 @@
+all:
+  children:
+    fabric_edges:
+      hosts:
+        sebowa-edge:
+          ansible_host: <SEBOWA_EDGE_MANAGEMENT_ADDRESS>
+          wg_fabric_address: <SEBOWA_WG_FABRIC_ADDRESS/CIDR>
+          wg_fabric_listen_port: 51821
+          wg_fabric_private_key: <VAULT_OR_PRIVATE_INVENTORY_VALUE>
+          wg_fabric_peers:
+            - public_key: <ACE_EDGE_PUBLIC_KEY>
+              preshared_key: <VAULT_OR_PRIVATE_INVENTORY_VALUE>
+              endpoint: <ACE_EDGE_FLOATING_IP>:51821
+              allowed_ips:
+                - <ACE_WG_FABRIC_ADDRESS/CIDR>
+                - <ACE_PRIVATE_CIDR>
+              persistent_keepalive: 25
+
+        ace-edge-01:
+          ansible_host: <ACE_EDGE_FLOATING_IP>
+          wg_fabric_address: <ACE_WG_FABRIC_ADDRESS/CIDR>
+          wg_fabric_listen_port: 51821
+          wg_fabric_private_key: <VAULT_OR_PRIVATE_INVENTORY_VALUE>
+          wg_fabric_peers:
+            - public_key: <SEBOWA_EDGE_PUBLIC_KEY>
+              preshared_key: <VAULT_OR_PRIVATE_INVENTORY_VALUE>
+              endpoint: <SEBOWA_EDGE_PUBLIC_ENDPOINT>:51821
+              allowed_ips:
+                - <SEBOWA_WG_FABRIC_ADDRESS/CIDR>
+                - <SEBOWA_MGMT_CIDR>
+                - <SEBOWA_K8S_CIDR>
+              persistent_keepalive: 25
+
+    gpu_inference:
+      hosts:
+        gpu-a100-01:
+          ansible_host: <ACE_A100_PRIVATE_IP>
+          ansible_ssh_common_args: >-
+            -o ProxyJump=<ACE_ADMIN_USER>@<ACE_EDGE_FLOATING_IP>
+          nvidia_gpu_host_model_cache_device: /dev/vdb
+          vllm_server_model: Qwen/Qwen3.5-27B
+          vllm_server_served_model_name: qwen3.5-27b
+          vllm_server_bearer_token: <VAULT_OR_PRIVATE_INVENTORY_VALUE>
+          vllm_server_gpu_memory_utilization: "0.86"
+          vllm_server_max_model_len: 32768
+
+  vars:
+    ansible_user: <ROCKY_ADMIN_USER>
+    wazuh_manager_address: <WAZUH_MANAGER_ADDRESS_REACHABLE_OVER_WG_FABRIC>
+    wazuh_version: <PINNED_WAZUH_VERSION>
+    wazuh_base: <WAZUH_REPOSITORY_MAJOR_MINOR>
+    wazuh_agent_enabled: true

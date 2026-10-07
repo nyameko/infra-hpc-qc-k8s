@@ -1,0 +1,62 @@
+---
+- name: Require protected vLLM bearer token
+  ansible.builtin.assert:
+    that:
+      - vllm_server_bearer_token | length >= 24
+    fail_msg: "Set vllm_server_bearer_token in protected inventory/Vault."
+  no_log: true
+
+- name: Create vLLM model cache
+  ansible.builtin.file:
+    path: "{{ vllm_server_model_cache }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Create vLLM environment directory
+  ansible.builtin.file:
+    path: /etc/vllm
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+
+- name: Install vLLM environment
+  ansible.builtin.template:
+    src: vllm.env.j2
+    dest: /etc/vllm/vllm.env
+    owner: root
+    group: root
+    mode: "0600"
+  no_log: true
+  notify: Restart vLLM
+
+- name: Install vLLM systemd service
+  ansible.builtin.template:
+    src: vllm.service.j2
+    dest: /etc/systemd/system/vllm.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart vLLM
+
+- name: Enable vLLM
+  ansible.builtin.systemd:
+    name: vllm
+    enabled: true
+    state: started
+    daemon_reload: true
+
+- name: Wait for vLLM model endpoint
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ vllm_server_port }}/v1/models"
+    headers:
+      Authorization: "Bearer {{ vllm_server_bearer_token }}"
+    status_code: 200
+    return_content: true
+  register: vllm_server_probe
+  retries: 120
+  delay: 5
+  until: vllm_server_probe.status == 200
+  no_log: true

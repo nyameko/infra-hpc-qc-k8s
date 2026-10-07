@@ -1,0 +1,3 @@
+---
+dcgm_exporter_image: "nvcr.io/nvidia/k8s/dcgm-exporter:4.6.1-4.8.4-distroless"
+dcgm_exporter_port: 9400
