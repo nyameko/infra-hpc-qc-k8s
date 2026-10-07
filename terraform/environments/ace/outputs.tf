@@ -13,3 +13,11 @@ output "gpu_fixed_ip" {
 output "model_cache_volume_id" {
   value = module.ace.model_cache_volume_id
 }
+
+output "gpu2_fixed_ip" {
+  value = module.ace.gpu2_fixed_ip
+}
+
+output "gpu2_data_volume_id" {
+  value = module.ace.gpu2_data_volume_id
+}
