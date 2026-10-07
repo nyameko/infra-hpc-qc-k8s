@@ -64,7 +64,7 @@ module "api_lb_octavia" {
 locals {
   nodes = {
     edge = {
-      name = "edge", network_id = module.network.mgmt_network_id, subnet_id = module.network.mgmt_subnet_id, fixed_ip = var.node_fixed_ips["edge"], flavor_name = var.edge_flavor, image_id = var.image_id, security_groups = [module.security.group_ids["edge"]], key_pair = var.ssh_key_name
+      name = "edge", network_id = module.network.mgmt_network_id, subnet_id = module.network.mgmt_subnet_id, fixed_ip = var.node_fixed_ips["edge"], flavor_name = var.edge_flavor, image_id = var.image_id, security_groups = [module.security.group_ids["edge"]], key_pair = var.ssh_key_name, allowed_address_pairs = var.federated_site_cidrs
     }
     hermes = {
       name = "hermes-orchestrator-01", network_id = module.network.mgmt_network_id, subnet_id = module.network.mgmt_subnet_id, fixed_ip = var.node_fixed_ips["hermes"], flavor_name = var.hermes_flavor, image_id = var.image_id, security_groups = [module.security.group_ids["hermes-orchestrator"]], key_pair = var.ssh_key_name
