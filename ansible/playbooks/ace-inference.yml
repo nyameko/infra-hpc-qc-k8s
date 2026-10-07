@@ -1,6 +1,15 @@
 ---
-- name: Configure site-to-site infrastructure WireGuard edges
-  hosts: fabric_edges
+- name: Configure Sebowa infrastructure fabric edge
+  hosts: sebowa-edge
+  become: true
+  roles:
+    - common
+    - ssh
+    - node_exporter
+    - wg_fabric
+
+- name: Configure ACE infrastructure fabric edge
+  hosts: ace-edge-01
   become: true
   roles:
     - common

@@ -1,4 +1,10 @@
 ---
+- name: Require Wazuh manager address
+  ansible.builtin.assert:
+    that:
+      - wazuh_manager_address | length > 0
+    fail_msg: "Set wazuh_manager_address in protected inventory/group_vars."
+
 - name: Import Wazuh GPG key
   ansible.builtin.rpm_key:
     key: https://packages.wazuh.com/key/GPG-KEY-WAZUH

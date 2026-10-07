@@ -8,6 +8,13 @@ resource "openstack_networking_port_v2" "this" {
     subnet_id  = each.value.subnet_id
     ip_address = each.value.fixed_ip
   }
+
+  dynamic "allowed_address_pairs" {
+    for_each = each.value.allowed_address_pairs
+    content {
+      ip_address = allowed_address_pairs.value
+    }
+  }
 }
 
 resource "openstack_compute_instance_v2" "this" {

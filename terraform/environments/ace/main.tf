@@ -29,4 +29,11 @@ module "ace" {
 
   model_volume_size_gb = var.model_volume_size_gb
   model_volume_type    = var.model_volume_type
+
+  gpu2_enabled             = var.gpu2_enabled
+  gpu2_name                = var.gpu2_name
+  gpu2_fixed_ip            = var.gpu2_fixed_ip
+  gpu2_flavor_name         = var.gpu2_flavor_name
+  gpu2_data_volume_size_gb = var.gpu2_data_volume_size_gb
+  gpu2_data_volume_type    = var.gpu2_data_volume_type
 }

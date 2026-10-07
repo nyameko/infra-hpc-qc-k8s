@@ -143,3 +143,39 @@ variable "gpu_user_data" {
   type    = string
   default = null
 }
+
+variable "gpu2_enabled" {
+  description = "Provision a second GPU node in the federated site."
+  type        = bool
+  default     = false
+}
+
+variable "gpu2_name" {
+  description = "Hostname for the second GPU node."
+  type        = string
+  default     = "gpu-a100-02"
+}
+
+variable "gpu2_fixed_ip" {
+  description = "Private address for the second GPU node."
+  type        = string
+  default     = ""
+}
+
+variable "gpu2_flavor_name" {
+  description = "OpenStack flavor for the second GPU node."
+  type        = string
+  default     = ""
+}
+
+variable "gpu2_data_volume_size_gb" {
+  description = "Dedicated Cinder data/scratch volume for the second GPU node."
+  type        = number
+  default     = 0
+}
+
+variable "gpu2_data_volume_type" {
+  description = "Optional Cinder volume type for the second GPU data volume."
+  type        = string
+  default     = null
+}

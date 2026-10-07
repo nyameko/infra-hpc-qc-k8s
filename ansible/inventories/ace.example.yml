@@ -37,7 +37,7 @@ all:
           ansible_host: <ACE_A100_PRIVATE_IP>
           ansible_ssh_common_args: >-
             -o ProxyJump=<ACE_ADMIN_USER>@<ACE_EDGE_FLOATING_IP>
-          nvidia_gpu_host_model_cache_device: /dev/vdb
+          nvidia_gpu_host_model_cache_device: <VERIFIED_MODEL_CACHE_DEVICE>
           vllm_server_model: Qwen/Qwen3.5-27B
           vllm_server_served_model_name: qwen3.5-27b
           vllm_server_bearer_token: <VAULT_OR_PRIVATE_INVENTORY_VALUE>
