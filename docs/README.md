@@ -29,6 +29,7 @@ What should I learn from the platform?
 | `README.md` | Project identity, architecture, current state and roadmap |
 | `docs/README.md` | Documentation navigation and ownership model |
 | `docs/architecture/current-platform-state-m3-m4.md` | Current validated M3 state, remaining acceptance gate and M4 handoff |
+| `docs/architecture/federated-quantum-centric-platform.md` | Four-repository architecture diagram, vendor-specific catalogue, access federation and MPI/direct-client direction |
 | `docs/QUICK_GUIDE.md` | Command-first deployment / operations |
 | `docs/INSTALLATION.md` | Complete deployment, rationale, validation and troubleshooting |
 | `docs/tutorials/README.md` | Teaching pack and module reading order |
