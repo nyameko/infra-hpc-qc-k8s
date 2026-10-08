@@ -20,6 +20,42 @@
       - xfsprogs
     state: present
 
+# NVIDIA's EL9 open-DKMS packages require EPEL's DKMS framework and
+# development libraries from Rocky's CRB repository. These prerequisites
+# must be available before enabling/installing the driver module.
+- name: Enable Rocky Linux CodeReady Builder
+  ansible.builtin.command:
+    cmd: dnf config-manager --set-enabled crb
+  changed_when: false
+
+- name: Install Extra Packages for Enterprise Linux repository
+  ansible.builtin.dnf:
+    name: epel-release
+    state: present
+
+- name: Install NVIDIA DKMS build prerequisites
+  ansible.builtin.dnf:
+    name:
+      - dkms
+      - gcc
+      - make
+      - elfutils-libelf-devel
+    state: present
+
+- name: Check installed DKMS version
+  ansible.builtin.command:
+    cmd: rpm -q --qf '%{VERSION}' dkms
+  register: nvidia_gpu_host_dkms_version
+  changed_when: false
+
+- name: Require DKMS compatible with NVIDIA open modules
+  ansible.builtin.assert:
+    that:
+      - nvidia_gpu_host_dkms_version.stdout is version('3.1.8', '>=')
+    fail_msg: >-
+      NVIDIA open-DKMS requires DKMS >= 3.1.8. Verify that EPEL 9
+      is enabled and provides a current dkms package.
+
 - name: Configure NVIDIA CUDA repository
   ansible.builtin.get_url:
     url: "{{ nvidia_gpu_host_cuda_repo_url }}"
