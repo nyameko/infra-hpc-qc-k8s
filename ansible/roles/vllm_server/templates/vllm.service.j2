@@ -9,7 +9,7 @@ Restart=always
 RestartSec=10
 EnvironmentFile=/etc/vllm/vllm.env
 ExecStartPre=-/usr/bin/podman rm -f vllm
-ExecStart=/usr/bin/podman run --rm --name vllm --network host --ipc host --device nvidia.com/gpu=all -v {{ vllm_server_model_cache }}:/root/.cache/huggingface:Z {{ vllm_server_image }} --model {{ vllm_server_model }} --served-model-name {{ vllm_server_served_model_name }} --host 0.0.0.0 --port {{ vllm_server_port }} --dtype bfloat16 --gpu-memory-utilization {{ vllm_server_gpu_memory_utilization }} --max-model-len {{ vllm_server_max_model_len }} --api-key ${VLLM_BEARER_TOKEN}{% for arg in vllm_server_extra_args %} {{ arg }}{% endfor %}
+ExecStart=/usr/bin/podman run --rm --name vllm --network host --ipc host --device nvidia.com/gpu=all --entrypoint vllm -v {{ vllm_server_model_cache }}:/root/.cache/huggingface:Z {{ vllm_server_image }} serve {{ vllm_server_model }} --served-model-name {{ vllm_server_served_model_name }} --host 0.0.0.0 --port {{ vllm_server_port }} --dtype bfloat16 --gpu-memory-utilization {{ vllm_server_gpu_memory_utilization }} --max-model-len {{ vllm_server_max_model_len }} --api-key ${VLLM_BEARER_TOKEN}{% for arg in vllm_server_extra_args %} {{ arg }}{% endfor %}
 ExecStop=/usr/bin/podman stop -t 30 vllm
 TimeoutStartSec=0
 
