@@ -1,0 +1,28 @@
+---
+- name: Require protected ACE nftables policy inputs
+  ansible.builtin.assert:
+    that:
+      - ace_nft_admin_cidrs | length > 0
+      - ace_nft_fabric_peer_public_cidrs | length > 0
+      - ace_nft_local_cidr | length > 0
+      - ace_nft_remote_cidrs | length > 0
+      - ace_nft_fabric_peer_cidr | length > 0
+      - ace_nft_lan_interface != ace_nft_fabric_interface
+
+- name: Install nftables package
+  ansible.builtin.dnf:
+    name: nftables
+    state: present
+
+- name: Ensure nftables directory exists
+  ansible.builtin.file:
+    path: /etc/nftables
+    state: directory
+    mode: "0755"
+
+- name: Render ACE nftables policy
+  ansible.builtin.template:
+    src: ace-edge.nft.j2
+    dest: /etc/nftables/ace-edge.nft
+    mode: "0644"
+    validate: "nft -c -f %s"
