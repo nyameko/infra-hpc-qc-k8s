@@ -20,6 +20,25 @@
       - xfsprogs
     state: present
 
+- name: Enable Rocky Linux CodeReady Builder
+  ansible.builtin.command:
+    cmd: dnf config-manager --set-enabled crb
+  changed_when: false
+
+- name: Install EPEL repository
+  ansible.builtin.dnf:
+    name: epel-release
+    state: present
+
+- name: Install DKMS build prerequisites
+  ansible.builtin.dnf:
+    name:
+      - dkms
+      - gcc
+      - make
+      - elfutils-libelf-devel
+    state: present
+
 - name: Configure NVIDIA CUDA repository
   ansible.builtin.get_url:
     url: "{{ nvidia_gpu_host_cuda_repo_url }}"
