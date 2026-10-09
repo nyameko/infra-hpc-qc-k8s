@@ -1,0 +1,66 @@
+---
+- name: Require explicit ACE nftables authorization
+  ansible.builtin.assert:
+    that:
+      - ace_nft_admin_ssh_cidrs | length > 0
+      - ace_nft_wireguard_peer_public_cidrs | length > 0
+      - ace_nft_local_cidr | length > 0
+      - ace_nft_remote_cidrs | length > 0
+      - ace_nft_peer_tunnel_cidr | length > 0
+      - ace_nft_lan_interface != ace_nft_wg_interface
+    fail_msg: >-
+      Configure ACE nftables SSH/WireGuard CIDRs and routed subnets in
+      protected ace-edge-01 host_vars before enabling this role.
+
+- name: Install nftables
+  ansible.builtin.dnf:
+    name: nftables
+    state: present
+
+- name: Create nftables directory
+  ansible.builtin.file:
+    path: /etc/nftables
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Deploy and syntax-check ACE nftables rules
+  ansible.builtin.template:
+    src: ace-edge.nft.j2
+    dest: /etc/nftables/ace-edge.nft
+    owner: root
+    group: root
+    mode: "0644"
+    validate: "nft --check --file %s"
+  notify: Reload ACE nftables
+
+- name: Configure persistent ACE nftables entrypoint
+  ansible.builtin.copy:
+    dest: /etc/sysconfig/nftables.conf
+    content: |
+      include "/etc/nftables/ace-edge.nft"
+    owner: root
+    group: root
+    mode: "0644"
+    validate: "nft --check --file %s"
+  notify: Reload ACE nftables
+
+- name: Enable ACE nftables service
+  ansible.builtin.systemd:
+    name: nftables
+    enabled: true
+    state: started
+
+- name: Flush ACE nftables handler before post-check
+  ansible.builtin.meta: flush_handlers
+
+- name: Confirm ACE nftables input and forwarding policy is deployed
+  ansible.builtin.command:
+    cmd: nft list table inet filter
+  register: ace_nft_table
+  changed_when: false
+  failed_when: >-
+    ace_nft_table.rc != 0 or
+    'chain input' not in ace_nft_table.stdout or
+    'chain forward' not in ace_nft_table.stdout
