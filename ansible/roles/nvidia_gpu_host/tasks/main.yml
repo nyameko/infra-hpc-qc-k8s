@@ -88,7 +88,7 @@
 - name: Detect installed NVIDIA DKMS module version
   ansible.builtin.shell: |
     set -o pipefail
-    rpm -q --qf '%{VERSION}\\n' kmod-nvidia-open-dkms | head -1
+    rpm -q --qf '%{VERSION}' kmod-nvidia-open-dkms
   args:
     executable: /bin/bash
   register: nvidia_gpu_host_driver_version
