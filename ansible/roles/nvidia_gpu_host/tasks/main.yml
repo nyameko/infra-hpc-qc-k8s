@@ -66,6 +66,50 @@
   ansible.builtin.reboot:
     reboot_timeout: 900
 
+- name: Detect installed NVIDIA DKMS module version
+  ansible.builtin.shell: |
+    set -o pipefail
+    rpm -q --qf '%{VERSION}\\n' kmod-nvidia-open-dkms | head -1
+  args:
+    executable: /bin/bash
+  register: nvidia_gpu_host_driver_version
+  changed_when: false
+  when: nvidia_gpu_host_install_driver | bool
+
+- name: Check NVIDIA kernel module for running kernel
+  ansible.builtin.command:
+    cmd: modinfo nvidia
+  register: nvidia_gpu_host_modinfo
+  changed_when: false
+  failed_when: false
+  when: nvidia_gpu_host_install_driver | bool
+
+- name: Build NVIDIA DKMS module for running kernel if missing
+  ansible.builtin.command:
+    cmd: "dkms build -m nvidia -v {{ nvidia_gpu_host_driver_version.stdout }} -k {{ ansible_facts.kernel }}"
+  when:
+    - nvidia_gpu_host_install_driver | bool
+    - nvidia_gpu_host_modinfo.rc != 0
+
+- name: Install NVIDIA DKMS module for running kernel if missing
+  ansible.builtin.command:
+    cmd: "dkms install -m nvidia -v {{ nvidia_gpu_host_driver_version.stdout }} -k {{ ansible_facts.kernel }}"
+  when:
+    - nvidia_gpu_host_install_driver | bool
+    - nvidia_gpu_host_modinfo.rc != 0
+
+- name: Refresh running kernel module dependencies after DKMS installation
+  ansible.builtin.command:
+    cmd: "depmod -a {{ ansible_facts.kernel }}"
+  when:
+    - nvidia_gpu_host_install_driver | bool
+    - nvidia_gpu_host_modinfo.rc != 0
+
+- name: Load NVIDIA kernel module
+  ansible.builtin.command:
+    cmd: modprobe nvidia
+  changed_when: false
+
 - name: Verify NVIDIA GPU
   ansible.builtin.command:
     cmd: nvidia-smi
