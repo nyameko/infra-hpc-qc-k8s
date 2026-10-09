@@ -26,11 +26,3 @@
     dest: /etc/nftables/ace-edge.nft
     mode: "0644"
     validate: "nft -c -f %s"
-
-- name: Document ACE nftables service include
-  ansible.builtin.copy:
-    dest: /etc/sysconfig/nftables.conf
-    mode: "0644"
-    content: |
-      include "/etc/nftables/ace-edge.nft"
-    validate: "nft -c -f %s"
