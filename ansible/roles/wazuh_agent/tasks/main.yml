@@ -29,7 +29,10 @@
   ansible.builtin.dnf:
     name: "wazuh-agent-{{ wazuh_version }}-1"
     state: present
-    update_cache: true
+    # Wazuh does not depend on NVIDIA packages. CDN metadata failures in
+    # the CUDA repository must not block agent verification or enrollment.
+    disablerepo: cuda-rhel9-x86_64
+    update_cache: false
   environment:
     WAZUH_MANAGER: "{{ wazuh_manager_address }}"
     WAZUH_REGISTRATION_SERVER: "{{ wazuh_manager_address }}"
