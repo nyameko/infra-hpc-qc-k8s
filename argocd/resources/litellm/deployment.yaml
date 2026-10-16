@@ -45,6 +45,14 @@ spec:
           envFrom:
             - secretRef:
                 name: litellm-credentials
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: litellm-db-app
+                  key: DATABASE_URL
+            - name: DISABLE_SCHEMA_UPDATE
+              value: "true"
           ports:
             - containerPort: 4000
               name: http
