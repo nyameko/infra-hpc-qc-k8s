@@ -4,5 +4,8 @@ namespace: litellm
 resources:
   - namespace.yaml
   - configmap.yaml
+  - postgres-bootstrap.yaml
+  - postgres.yaml
+  - migrate-job.yaml
   - networkpolicy.yaml
   - deployment.yaml
