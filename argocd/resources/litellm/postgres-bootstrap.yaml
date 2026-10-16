@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: litellm-postgres-bootstrap
+  annotations:
+    argocd.argoproj.io/sync-wave: "-2"
+data:
+  10-app-role.sh: |
+    #!/bin/bash
+    set -euo pipefail
+    # Runs only when the PostgreSQL data volume is first initialized.
+    # The gateway and migration job use litellm_app, never the bootstrap superuser.
+    psql -v ON_ERROR_STOP=1 -v app_password="$LITELLM_DB_APP_PASSWORD" \
+      --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<'SQL'
+    SELECT format('CREATE ROLE litellm_app LOGIN PASSWORD %L', :'app_password') \gexec
+    GRANT CONNECT ON DATABASE litellm TO litellm_app;
+    GRANT USAGE, CREATE ON SCHEMA public TO litellm_app;
+    SQL
