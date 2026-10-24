@@ -11,7 +11,6 @@ import ipaddress
 import json
 import os
 from pathlib import Path
-import secrets
 import subprocess
 from urllib.parse import quote, urlsplit
 
@@ -68,13 +67,14 @@ def main():
     if not args.output_dir.is_dir():
         parser.error("Output directory must already exist; do not create it under a public checkout without care")
     namespace = "litellm"
-    password = secrets.token_urlsafe(40)
-    owner_password = secrets.token_urlsafe(40)
-    master = "sk-" + secrets.token_urlsafe(40)
-    salt = secrets.token_urlsafe(40)
+    print("Read the following existing/generated values from your encrypted credential vault.")
+    owner_password = getpass.getpass("LiteLLM PostgreSQL owner password: ")
+    password = getpass.getpass("LiteLLM PostgreSQL application password: ")
+    master = getpass.getpass("LiteLLM gateway master key (sk-...): ")
+    salt = getpass.getpass("LiteLLM stable salt key: ")
     ace_key = getpass.getpass("Existing A100 vLLM protected bearer key: ")
-    if not ace_key:
-        parser.error("A100 bearer key must not be empty")
+    if not all((owner_password, password, master, salt, ace_key)) or not master.startswith("sk-"):
+        parser.error("All passwords and keys must be supplied from a securely backed-up vault")
     host = "litellm-postgres.litellm.svc.cluster.local"
     db_url = f"postgresql://litellm_app:{quote(password, safe='')}@{host}:5432/litellm?schema=public"
     resources = {
@@ -89,11 +89,8 @@ def main():
         # Creates each file only if absent; never overwrite an existing SealedSecret.
         path = write_sealed(args.output_dir, name, sealed(args.cert, namespace, name, fields))
         print(f"Wrote encrypted manifest: {path}")
-    print("Generated values are NOT retained as plaintext. Securely escrow the gateway "
-          "master key and salt before losing this process: regenerate/reseal only "
-          "before first initialization; preserve the salt on subsequent upgrades.")
-    print("CAUTION: newly generated master key is not displayed; operator must arrange "
-          "secure recovery before deploying or use an existing protected key store.")
+    print("Encrypted manifest generation complete. Keep the source credentials in "
+          "the encrypted vault; preserve the master key and salt through upgrades.")
 
 
 if __name__ == "__main__":
