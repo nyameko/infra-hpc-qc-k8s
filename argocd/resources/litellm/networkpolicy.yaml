@@ -63,9 +63,30 @@ spec:
           port: 53
         - protocol: TCP
           port: 53
-# Deliberately NO backend-network egress here.
-# The operator must add a separate narrow, privately managed NetworkPolicy for
-# the verified ACE vLLM /32 (TCP 8000) and later an H200 /32 only if authorized.
+# M4a approved candidate for the primary ACE Dev A100 only.
+# Review end-to-end routing, OpenStack SG and Cilium policy before first sync.
+# No second A100/H200 access, no public ACE edge access, no wildcard CIDR.
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: litellm-to-ace-a100
+  namespace: litellm
+  annotations:
+    argocd.argoproj.io/sync-wave: "-2"
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: litellm
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - ipBlock:
+            cidr: 10.70.0.20/32
+      ports:
+        - protocol: TCP
+          port: 8000
 
 ---
 apiVersion: networking.k8s.io/v1
