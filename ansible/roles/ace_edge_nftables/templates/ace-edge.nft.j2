@@ -1,0 +1,25 @@
+# Managed by Ansible. Routed ACE federation; no source NAT.
+flush ruleset
+
+table inet filter {
+    chain input {
+        type filter hook input priority filter; policy drop;
+        iifname "lo" accept
+        ct state established,related accept
+        ip protocol icmp accept
+        ip6 nexthdr ipv6-icmp accept
+        iifname "{{ ace_nft_lan_interface }}" ip saddr {{ ace_nft_local_cidr }} tcp dport 22 accept
+        tcp dport 22 ip saddr { {{ ace_nft_admin_cidrs | join(', ') }} } accept
+        udp dport {{ ace_nft_fabric_port }} ip saddr { {{ ace_nft_fabric_peer_public_cidrs | join(', ') }} } accept
+        iifname "{{ ace_nft_fabric_interface }}" ip saddr { {{ ace_nft_remote_cidrs | join(', ') }} } tcp dport 9100 accept
+    }
+    chain forward {
+        type filter hook forward priority filter; policy drop;
+        ct state established,related accept
+        iifname "{{ ace_nft_lan_interface }}" oifname "{{ ace_nft_fabric_interface }}" ip saddr {{ ace_nft_local_cidr }} ip daddr { {{ (ace_nft_remote_cidrs + [ace_nft_fabric_peer_cidr]) | join(', ') }} } accept
+        iifname "{{ ace_nft_fabric_interface }}" oifname "{{ ace_nft_lan_interface }}" ip saddr { {{ (ace_nft_remote_cidrs + [ace_nft_fabric_peer_cidr]) | join(', ') }} } ip daddr {{ ace_nft_local_cidr }} accept
+    }
+    chain output {
+        type filter hook output priority filter; policy accept;
+    }
+}

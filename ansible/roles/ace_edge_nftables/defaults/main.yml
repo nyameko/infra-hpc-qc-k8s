@@ -1,0 +1,9 @@
+---
+ace_nft_lan_interface: "{{ ansible_facts.default_ipv4.interface }}"
+ace_nft_fabric_interface: wg-fabric
+ace_nft_fabric_port: 51821
+ace_nft_admin_cidrs: []
+ace_nft_fabric_peer_public_cidrs: []
+ace_nft_local_cidr: ""
+ace_nft_remote_cidrs: []
+ace_nft_fabric_peer_cidr: ""

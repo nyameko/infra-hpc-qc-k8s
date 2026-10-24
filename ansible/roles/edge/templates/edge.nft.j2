@@ -22,6 +22,12 @@ table inet filter {
         tcp dport { 80, 443 } ip saddr {{ vpn_cidr }} accept
 
         tcp dport { 1514, 1515, 55000 } ip saddr { {{ mgmt_cidr }}, {{ k8s_cidr }}, {{ vpn_cidr }} } accept
+
+{% if edge_fabric_wazuh_cidrs | default([]) | length > 0 %}
+        # Wazuh enrollment and agent transport only from authorized
+        # federation sources; Wazuh API port 55000 stays private.
+        iifname "wg-fabric" ip saddr { {{ edge_fabric_wazuh_cidrs | join(', ') }} } tcp dport { 1514, 1515 } accept
+{% endif %}
     }
 
     chain forward {
