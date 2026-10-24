@@ -14,7 +14,7 @@
 
 ## Secrets
 
-The Kustomization includes **three expected SealedSecret files**, intentionally absent until the authorized operator has generated them. This is a **fail-closed deployment gate**: CI will not render until the files exist.
+The Kustomization **does not yet include** the three operator-generated SealedSecret files. This keeps CI rendering valid while preventing anyone from mistaking placeholder ciphertext for working credentials. Add the reviewed sealed files and the Kustomization references together in a follow-up PR **before first sync**. The workloads cannot start successfully without the named Secrets.
 
 Required keys are:
 
