@@ -46,9 +46,13 @@ metadata:
   annotations:
     argocd.argoproj.io/sync-wave: "-2"
 spec:
+  # The gateway and one-shot Prisma Job both resolve the PostgreSQL service.
+  # Without this selector, default-deny blocks migration's DNS queries.
   podSelector:
-    matchLabels:
-      app.kubernetes.io/name: litellm
+    matchExpressions:
+      - key: app.kubernetes.io/name
+        operator: In
+        values: [litellm, litellm-migration]
   policyTypes: [Egress]
   egress:
     - to:
