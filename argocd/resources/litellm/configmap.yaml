@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: litellm-config
+  annotations:
+    argocd.argoproj.io/sync-wave: "-2"
+data:
+  config.yaml: |
+    model_list:
+      - model_name: research-general
+        litellm_params:
+          model: openai/qwen3.5-27b
+          api_base: os.environ/ACE_VLLM_BASE_URL
+          api_key: os.environ/ACE_VLLM_API_KEY
+    general_settings:
+      master_key: os.environ/LITELLM_MASTER_KEY
