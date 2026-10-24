@@ -34,6 +34,10 @@ spec:
                   key: DATABASE_URL
             - name: DISABLE_SCHEMA_UPDATE
               value: "false"
+            # Fail the hook if Prisma setup_database returns false; do not
+            # report a successful sync when no LiteLLM tables exist.
+            - name: ENFORCE_PRISMA_MIGRATION_CHECK
+              value: "true"
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:
