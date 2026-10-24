@@ -1,0 +1,14 @@
+---
+apiVersion: bitnami.com/v1alpha1
+kind: SealedSecret
+metadata:
+  name: litellm-db-owner
+  namespace: litellm
+spec:
+  encryptedData:
+    POSTGRES_PASSWORD: AgCRfkp00fekQOdEhzxaaKmg12AlbefXvLEhD048xM631KtFcRfwXOdnvK+JzUn7bKXgiUNkm8+yaUWpL2edX8B7nI1QPIT8cvflQmJI+VzZhrrn4rLj9WhHA3p4tyKxlYkwQpuLWN2bzAsc10Y8J/gwL1vyb2zkjXvIitde7SDFKqiC1yw5qA+ZwOuDfmj5EHt6UEf14euiIWC4bxTviDFNsTQ/0DSFqFDI5ARMkLEvWNH7dmiNPTteltqkvHxx5748HoeRMFSRZTHeJXSc3P75Xg21moW8ER2gNZ9gN+sYYIwvdoSkCQ14QGMVctPz8s5ZVirBPgY8igDUpOEAQ7Leav33ybEqer5UUFgHUKLe73ZsrFrvDR+rcH9rMZeFg3d0wDHru1iawFnlzJf5zlWerzOynNhlPDgZ2ff8pK2ZUBrgRj/cP070tkPVb5spIMWNaHo1YKTGj9G/KOZd1LQMvHbbctA2XjiRO1g+N1mXO/uvamxYa48zM4guiBIh5K7xHwpHTcY2rb4mkOAPb6sjnjDSgFB2+lI3k1VewSCdkyMa6VxDTgOknhXfDr4EIUu+dMwjpZxRCWiWmZJuxXgwUEiRRKRkO8V7Aaq6CGJDIUMe7pFTDQy/8zuGpKfS14bUsEasDemfOl0Ra5HjWvO5spt+NDVzCWFSqxRbP9KAtcv9sl1TSA97W/6NgP/iKmcg74+Zc87L89d4VQTKm38COyIBQ/pawThDHT+SW5SOfjRb1U1moOTZOkEk4LnBmcrp/doDW3wNrm/LnfDa+mVK
+  template:
+    metadata:
+      name: litellm-db-owner
+      namespace: litellm
+    type: Opaque

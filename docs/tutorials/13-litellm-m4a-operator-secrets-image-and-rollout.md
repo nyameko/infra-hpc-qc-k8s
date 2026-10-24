@@ -7,8 +7,99 @@
 - `blackmyth`: Git, editor, private Secret JSON and direct `kubeseal` using the certified controller certificate. No assumption of local `kubectl` or `yamllint`.
 - `k8s-cp-01`: `kubectl`, Argo CD manual sync and inspection. Do **not** install or invoke Kubernetes tooling on blackmyth as an implicit step.
 - ACE edge `196.24.241.108` / `10.70.0.10`; primary A100 vLLM `10.70.0.20:8000`. The public edge address is **not** the LiteLLM backend.
-- AC P canonical state in its **separate** PostgreSQL. The LiteLLM database is only for virtual-key and spend records.
+- ACP canonical state in its **separate** PostgreSQL. The LiteLLM database is only for virtual-key and spend records.
 - No Traefik, new DNS, extra Pi-hole, TLS ingress, firewall-cmd, new WireGuard peer or extra network services for M4a.
+
+## Generating and escrowing the credentials (blackmyth, **not** k8s-cp-01)
+
+`VAULT-ESCROWED` means a strong random value that has a **separate, encrypted, recoverable copy** under the operator's control. An ordinary private directory with Unix mode 0700 is **not** by itself an encrypted password vault. Prefer a password manager with an encrypted offline backup and documented operator recovery. Do not store the plaintext originals on `k8s-cp-01`, in Git, in Argo CD parameters or in Kubernetes Pod logs. Once SealedSecrets are applied, the controller creates ordinary Kubernetes Secrets in the `litellm` namespace. Verify that Kubernetes etcd encryption-at-rest and backup access controls meet site policy; sealing does not itself encrypt etcd contents.
+
+The working directories below are on `blackmyth`. Confirm that the workstation filesystem is encrypted, use restrictive modes, and do not keep the extra plaintext working files any longer than necessary. A protected tmpfs may be preferable for temporary creation if disk-remanence matters.
+
+### A. Create four independent random credentials
+
+From the `infra-hpc-qc-k8s` checkout, **without `set -x`**, run:
+
+```sh
+umask 077
+install -d -m 700 "$HOME/.local/private/litellm"
+install -d -m 700 secrets/litellm
+PRIVATE="$HOME/.local/private/litellm"
+
+# Generates 256 random bits for each database account.
+openssl rand -hex 32 | tr -d '\n' > "$PRIVATE/db-owner"
+openssl rand -hex 32 | tr -d '\n' > "$PRIVATE/db-app"
+
+# Master key is distinct from database roles, and starts with sk-.
+{ printf 'sk-'; openssl rand -hex 32 | tr -d '\n'; } > "$PRIVATE/master-key"
+
+# Stable salt: preserve the same value across LiteLLM gateway restarts/upgrades.
+openssl rand -hex 32 | tr -d '\n' > "$PRIVATE/salt-key"
+chmod 600 "$PRIVATE/db-owner" "$PRIVATE/db-app" "$PRIVATE/master-key" "$PRIVATE/salt-key"
+```
+
+These commands write no password to console output or shell command arguments. They do create **plaintext working files** (mode 0600) at `$PRIVATE`. The `db-app` password uses lowercase hex only, making it safe to embed directly in the database URL without further URL escaping; if using a password containing other characters instead, percent-encode the URL password separately.
+
+**Escrow each value in the encrypted vault before sealing**, using distinct entries: `LiteLLM/PostgresOwner`, `LiteLLM/PostgresApp`, `LiteLLM/MasterKey`, and `LiteLLM/SaltKey`. Verify secure recovery from an independent vault/backup, not just access to these local files. Do **not** rerun the commands over existing files after database initialization: PostgreSQL `initdb` only initializes first-run credentials, and a changed salt/master key may make stored LiteLLM data unusable.
+
+The fifth value, the ACE vLLM bearer token, **already exists** on `gpu-a100-01` and was proven to work in an authenticated `/v1/models` request. Reuse the *exact existing backend token*; do not generate a new A100 token just to deploy LiteLLM. Retrieve it through your approved credential vault or another protected channel, and store a temporary copy as `$PRIVATE/ace-vllm-api-key` with mode 0600. Do not paste the token into chat, issues, shell history or logs. Do not assume `secrets/agent-control-plane/model-api-key` contains the A100 token unless it is verified against the source.
+
+### B. Build Kubernetes Secret JSON locally using jq
+
+These commands read each secret via `--rawfile` (avoiding secret values in process arguments) and write files only under the already-ignored `secrets/` directory:
+
+```sh
+# Database bootstrap owner Secret.
+jq -n --rawfile pw "$PRIVATE/db-owner" '{
+  apiVersion: "v1", kind: "Secret",
+  metadata: {name: "litellm-db-owner", namespace: "litellm"},
+  type: "Opaque",
+  stringData: {POSTGRES_PASSWORD: $pw}
+}' > secrets/litellm/litellm-db-owner.json
+
+# Database application Secret. Same db-app password in both fields.
+jq -n --rawfile pw "$PRIVATE/db-app" '{
+  apiVersion: "v1", kind: "Secret",
+  metadata: {name: "litellm-db-app", namespace: "litellm"},
+  type: "Opaque",
+  stringData: {
+    LITELLM_DB_APP_PASSWORD: $pw,
+    DATABASE_URL: (
+      "postgresql://litellm_app:" + $pw +
+      "@litellm-postgres.litellm.svc.cluster.local:5432/litellm?schema=public"
+    )
+  }
+}' > secrets/litellm/litellm-db-app.json
+
+# Gateway Secret. Uses the existing authenticated A100 backend token.
+jq -n \
+  --rawfile master "$PRIVATE/master-key" \
+  --rawfile salt "$PRIVATE/salt-key" \
+  --rawfile ace "$PRIVATE/ace-vllm-api-key" '{
+  apiVersion: "v1", kind: "Secret",
+  metadata: {name: "litellm-credentials", namespace: "litellm"},
+  type: "Opaque",
+  stringData: {
+    LITELLM_MASTER_KEY: $master,
+    LITELLM_SALT_KEY: $salt,
+    ACE_VLLM_API_KEY: $ace,
+    ACE_VLLM_BASE_URL: "http://10.70.0.20:8000/v1"
+  }
+}' > secrets/litellm/litellm-credentials.json
+
+chmod 600 secrets/litellm/*.json
+git check-ignore -v secrets/litellm/litellm-credentials.json
+```
+
+Expected result of `git check-ignore`: an ignore match for `secrets/`. If the command exits nonzero, **stop** and repair ignore rules *before any Git staging*. Run the metadata validation below and check all three `stringData` key sets without dumping secret values. For `litellm-db-app`, verify the password in `DATABASE_URL` matches `LITELLM_DB_APP_PASSWORD`. **Never commit the plaintext JSON.**
+
+### C. Seal, review, and retain recovery material
+
+Use the existing direct `kubeseal --cert ... --format yaml` commands later in this document. The inputs must be namespaced exactly `litellm` with the expected Secret names. The three encrypted outputs go in `argocd/resources/litellm/`, and only the sealed outputs are committed. Add those files to the same reviewed Kustomization PR, preserving the deliberate manual-first-sync gate.
+
+After confirming all three SealedSecrets contain the expected encrypted field names and that all **original values are recoverable from the encrypted vault**, remove unneeded plaintext working files and JSON inputs from `blackmyth`. Simple deletion on SSD/Btrfs is not a forensic wipe, so minimize disk copies and rely on workstation full-disk encryption / temporary memory-backed storage where necessary. Keep the **vault entries** securely backed up for reinstallation, database restore and credential rotation. The generated SealedSecret ciphertext alone is not a substitute for a master-key/salt recovery process.
+
+Do not transfer plaintext secrets to the Kubernetes control-plane host. The controller will produce the runtime Secrets during the approved GitOps rollout; administrators should not hand-create them with `kubectl create secret`.
 
 ## Exactly three dedicated LiteLLM Secrets
 
