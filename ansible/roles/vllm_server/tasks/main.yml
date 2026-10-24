@@ -48,6 +48,11 @@
     state: started
     daemon_reload: true
 
+# A changed unit/environment queues a restart handler. Run that restart
+# before probing so Ansible verifies the service that remains running.
+- name: Apply queued vLLM restart before readiness verification
+  ansible.builtin.meta: flush_handlers
+
 - name: Wait for vLLM model endpoint
   ansible.builtin.uri:
     url: "http://127.0.0.1:{{ vllm_server_port }}/v1/models"
