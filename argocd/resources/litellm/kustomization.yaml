@@ -9,17 +9,6 @@ resources:
   - migrate-job.yaml
   - networkpolicy.yaml
   - deployment.yaml
-  - litellm-db-owner-sealed.yaml
-  - litellm-db-app-sealed.yaml
-  - litellm-credentials-sealed.yaml
+  # Add three operator-generated SealedSecret files here in a follow-up
+  # reviewed commit; never commit plaintext secrets or placeholder ciphertext.
 
-patches:
-  - target:
-      group: bitnami.com
-      version: v1alpha1
-      kind: SealedSecret
-    patch: |-
-      - op: add
-        path: /metadata/annotations
-        value:
-          argocd.argoproj.io/sync-wave: "-3"
