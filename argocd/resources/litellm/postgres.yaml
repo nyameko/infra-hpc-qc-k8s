@@ -112,9 +112,9 @@ spec:
         name: data
         annotations:
           argocd.argoproj.io/sync-options: Prune=false,Delete=false
-    spec:
-      accessModes: ["ReadWriteOnce"]
-      storageClassName: cinder-litellm-retain
-      resources:
-        requests:
-          storage: 20Gi
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        storageClassName: cinder-litellm-retain
+        resources:
+          requests:
+            storage: 20Gi
