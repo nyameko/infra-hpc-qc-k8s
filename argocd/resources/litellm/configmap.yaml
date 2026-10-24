@@ -12,5 +12,7 @@ data:
           model: openai/qwen3.5-27b
           api_base: os.environ/ACE_VLLM_BASE_URL
           api_key: os.environ/ACE_VLLM_API_KEY
+          input_cost_per_token: 0.00000001
+          output_cost_per_token: 0.00000001
     general_settings:
       master_key: os.environ/LITELLM_MASTER_KEY

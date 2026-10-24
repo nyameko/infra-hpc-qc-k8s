@@ -9,3 +9,6 @@ resources:
   - migrate-job.yaml
   - networkpolicy.yaml
   - deployment.yaml
+  # Add three operator-generated SealedSecret files here in a follow-up
+  # reviewed commit; never commit plaintext secrets or placeholder ciphertext.
+
