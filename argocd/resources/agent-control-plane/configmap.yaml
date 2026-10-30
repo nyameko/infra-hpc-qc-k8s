@@ -11,3 +11,4 @@ data:
   ACP_MODEL_BASE_URL: http://litellm.litellm.svc.cluster.local:4000/v1
   ACP_RUN_TIMEOUT_SECONDS: '180'
   HERMES_HOME: /var/lib/hermes/admin-readonly
+  ACP_PERSONAL_MODEL_EXTRA_BODY_JSON: '{"chat_template_kwargs":{"enable_thinking":false}}'
