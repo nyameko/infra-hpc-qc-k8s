@@ -1,0 +1,77 @@
+name: Refresh ACP personal-worker dev image
+on:
+  # GitHub's shortest supported schedule interval is five minutes.
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: acp-personal-worker-dev-image
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: true
+      - uses: docker/setup-buildx-action@v3
+      - name: Discover current ACP dev commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          sha="$(git ls-remote https://github.com/nyameko/agent-control-plane.git refs/heads/dev | awk '{print $1}')"
+          if [[ ! "$sha" =~ ^[a-f0-9]{40}$ ]]; then
+            echo "::error::Could not resolve ACP dev SHA"
+            exit 1
+          fi
+          echo "ACP_DEV_SHA=$sha" >> "$GITHUB_ENV"
+          echo "Source dev revision: $sha"
+      - name: Verify BOTH commit-tagged images were published
+        id: published
+        shell: bash
+        run: |
+          set -euo pipefail
+          for name in agent-control-plane agent-control-plane-hermes; do
+            tag="ghcr.io/nyameko/${name}:sha-${ACP_DEV_SHA}"
+            if ! docker buildx imagetools inspect "$tag" > /dev/null 2>&1; then
+              echo "Image not published yet: $tag"
+              echo "ready=false" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          done
+          echo "ready=true" >> "$GITHUB_OUTPUT"
+      - name: Change only the personal-worker image
+        if: steps.published.outputs.ready == 'true'
+        run: python3 scripts/update_acp_personal_worker_image.py
+      - name: Verify generated diff is restricted to the worker Deployment
+        if: steps.published.outputs.ready == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --check
+          changed="$(git diff --name-only)"
+          if [[ -n "$changed" && "$changed" != "argocd/resources/agent-control-plane-personal-worker/deployment.yaml" ]]; then
+            echo "::error::Unexpected changed file(s): $changed"
+            exit 1
+          fi
+          git diff -- argocd/resources/agent-control-plane-personal-worker/deployment.yaml
+      - name: Commit the approved dev image automatically to GitOps main
+        if: steps.published.outputs.ready == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- argocd/resources/agent-control-plane-personal-worker/deployment.yaml; then
+            echo "No new image to roll out"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add argocd/resources/agent-control-plane-personal-worker/deployment.yaml
+          git commit -m "chore(acp): advance personal worker to dev ${ACP_DEV_SHA}"
+          git push origin HEAD:main
