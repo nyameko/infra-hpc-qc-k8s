@@ -440,3 +440,7 @@ That allows the same host/bootstrap logic to survive a change from OpenStack VMs
 - [Terraform](../terraform/README.md)
 - [Argo CD](../argocd/README.md)
 - [Documentation](../docs/README.md)
+
+## Protected ACE inference credentials
+
+ACE and Sebowa are **two separate OpenStack clouds** connected only by `wg-fabric`. The protected `vllm_server_bearer_token` in ACE inventory configures `VLLM_BEARER_TOKEN` in `gpu-a100-01:/etc/vllm/vllm.env`; the same bytes are provided to LiteLLM as `ACE_VLLM_API_KEY` through Sebowa's separate `litellm-credentials` SealedSecret. `ACP_MODEL_API_KEY` is a separate, restricted LiteLLM client virtual key; `LITELLM_MASTER_KEY` is operator-only. Preserve originals in an encrypted vault, not just Ansible inventory or Git ciphertext. See [Credential custody and vault recovery](../docs/architecture/credential-stores-and-recovery.md).

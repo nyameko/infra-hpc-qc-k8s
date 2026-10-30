@@ -233,3 +233,8 @@ The tutorials deliberately preserve real failures and debugging lessons. The cou
 - [Grafana dashboard family and data provenance](../argocd/resources/grafana/dashboards/wazuh-suricata-observability/README.md) — measured metrics versus exporters still missing.
 
 Use the official name **Suricata** for the IDS and **Wazuh & Suricata** for the course. Preserve historical spelling in old incident records rather than renaming implementation paths in a documentation-only change. The dated 23 September 2026 verification is an acceptance record, not a current-health guarantee.
+
+## Credentials and recovery
+
+- [Credential stores and vault recovery](architecture/credential-stores-and-recovery.md) — separation of Sebowa/ACE OpenStack credential domains; A100 vLLM bearer vs LiteLLM master and ACP virtual keys; workstation/Kubernetes/host locations; vault inventory and secret-safe recovery.
+- [Private state disaster recovery](tutorials/private-state-disaster-recovery.md) — encrypted offline backups, controller recovery keys and restore drills.
