@@ -151,3 +151,10 @@ Focused companion tutorials:
 ## Disaster recovery
 
 - [Private State Disaster Recovery](private-state-disaster-recovery.md) — encrypted offline backup and restore of protected inventory, local plaintext secret inputs, external credentials, WireGuard/SSH service keys and the Sealed Secrets controller recovery key.
+
+## M4a persistent research-agent case study
+
+- [M4a — comprehensive architecture, debugging, provenance and teaching case study](14-m4a-persistence-architecture-incident-and-teaching.md) — canonical ACP state, human identity, LiteLLM/A100/Hermes failure analysis, CI/GitOps model, observed 30 October 2026 restart-and-recovery evidence, guided staging exercises, grading rubric and remaining conformance gates.
+- [M4a deployment and destructive test](11-m4a-persistent-personal-agent.md) — operator walkthrough and security model.
+- [M4a closeout evidence](12-m4a-closeout-evidence.md) — portal-first restart/isolation acceptance.
+- [M4a LiteLLM staging](13-litellm-m4a-operator-secrets-image-and-rollout.md) — restricted model routing and secret boundaries.
