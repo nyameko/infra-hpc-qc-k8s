@@ -6,6 +6,11 @@ metadata:
     argocd.argoproj.io/sync-wave: '2'
 spec:
   replicas: 1
+  # The worker holds a PostgreSQL advisory lock for singleton execution.
+  # RollingUpdate creates a second Pod before terminating the first, which
+  # immediately exits because it cannot acquire that lock.
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app.kubernetes.io/part-of: agent-control-plane
