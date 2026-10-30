@@ -437,3 +437,7 @@ Prefer rebuilding those from Git, immutable images and declared infrastructure.
 
 The recovery set should stay as small as possible while retaining every
 non-reconstructable credential and private desired-state input.
+
+## 15. Credential vault inventory and operator custody
+
+Use [Credential stores and vault recovery](../architecture/credential-stores-and-recovery.md) to reconcile **both separate OpenStack clouds**, A100 vLLM bearer, LiteLLM master/salt and PostgreSQL credentials, ACP signing/model/DB material, SealedSecrets controller **private** keys, VPN/SSH, PKI, Wazuh, Slurm, JupyterHub, Cloudflare, Cinder and other deployed service credentials. A plaintext file in `secrets/` or an encrypted SealedSecret in Git does **not** establish a tested independent vault backup. Track recoverability and a separate offsite encrypted copy without recording values in Git.
