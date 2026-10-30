@@ -1,0 +1,26 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: agent-control-plane-personal-worker
+  namespace: argocd
+  annotations:
+    # The root app creates this child; it alone owns the M4a personal worker Deployment.
+    argocd.argoproj.io/sync-wave: '2'
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/nyameko/infra-hpc-qc-k8s.git
+    targetRevision: main
+    path: argocd/resources/agent-control-plane-personal-worker
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: agent-control-plane
+  # Automatic reconciliation is deliberately limited to the personal-worker Deployment.
+  # No migration hooks, databases, Secrets, API, or other workloads are in this Application.
+  syncPolicy:
+    automated:
+      prune: false
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=false
+      - Prune=false
