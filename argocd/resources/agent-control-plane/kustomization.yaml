@@ -20,7 +20,6 @@ resources:
   - migrate-job.yaml
   - api.yaml
   - hermes.yaml
-  - personal-worker.yaml
 
 images:
 - name: agent-control-plane-api
