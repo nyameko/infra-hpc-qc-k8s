@@ -180,3 +180,7 @@ Before deployment, run non-secret routing/HTTP status checks on both edges and s
 6. Only then run `tools/m4a-conformance.py` with different AgentPrincipal subjects, record baseline, **manually** replace the disposable worker and API Pods and destroy client/Jupyter runtime, then verify canonical history and subject isolation. Close ACP issue #21 only with observed evidence.
 
 **Unresolved**: actual immutable image digest, secret values/ciphertext, Pod-to-A100 connectivity, migration execution and destructive acceptance. None is represented as completed.
+
+## Operator addendum — 2026-10-30 observed backend discovery
+
+An operator observed authenticated `GET /v1/models` **HTTP 200**, model `qwen3.5-27b`, from the running LiteLLM Pod to the ACE A100 via `wg-fabric`, after correcting the URL to end in `/v1` and reconciling the backend bearer credential. This supersedes the *earlier snapshot* in this document asserting Pod-to-A100 was unverified; it does **not** prove a completed LiteLLM inference request or the M4a ACP destructive continuity gate. See [Credential stores and vault recovery](../architecture/credential-stores-and-recovery.md) for the distinction between `VLLM_BEARER_TOKEN`/`ACE_VLLM_API_KEY`, `LITELLM_MASTER_KEY`, `LITELLM_SALT_KEY`, and `ACP_MODEL_API_KEY`. Preserve the operator's original protected credentials and back up the SealedSecrets controller **private** key; do not regenerate master/salt or vLLM bearer while recovering a client configuration error.
