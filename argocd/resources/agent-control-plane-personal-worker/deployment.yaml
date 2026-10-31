@@ -45,6 +45,9 @@ spec:
         - configMapRef:
             name: acp-config
         env:
+        # Release gate: promote to main ONLY after schema-v4 + ACP API verification.
+        - name: ACP_PERSONAL_MEMORY_ENABLED
+          value: '1'
         - name: ACP_DATABASE_URL
           valueFrom:
             secretKeyRef:
