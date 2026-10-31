@@ -1,25 +1,22 @@
-name: Refresh ACP personal-worker dev image
+name: Inspect ACP personal-worker candidate image (no deployment)
 on:
-  # GitHub's shortest supported schedule interval is five minutes.
-  schedule:
-    - cron: '*/5 * * * *'
+  # Intentionally manual. The older workflow pushed a new image directly to
+  # GitOps main every five minutes, triggering worker auto-reconciliation.
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
-  group: acp-personal-worker-dev-image
+  group: acp-personal-worker-image-inspection
   cancel-in-progress: false
 
 jobs:
-  update:
+  inspect-candidate:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: main
-          persist-credentials: true
       - uses: docker/setup-buildx-action@v3
       - name: Discover current ACP dev commit
         shell: bash
@@ -31,47 +28,24 @@ jobs:
             exit 1
           fi
           echo "ACP_DEV_SHA=$sha" >> "$GITHUB_ENV"
-          echo "Source dev revision: $sha"
-      - name: Verify BOTH commit-tagged images were published
-        id: published
+          echo "Candidate source revision: $sha"
+      - name: Inspect published immutable API and Hermes image digests
         shell: bash
         run: |
           set -euo pipefail
           for name in agent-control-plane agent-control-plane-hermes; do
             tag="ghcr.io/nyameko/${name}:sha-${ACP_DEV_SHA}"
-            if ! docker buildx imagetools inspect "$tag" > /dev/null 2>&1; then
-              echo "Image not published yet: $tag"
-              echo "ready=false" >> "$GITHUB_OUTPUT"
-              exit 0
+            if ! output="$(docker buildx imagetools inspect "$tag" 2>&1)"; then
+              echo "::error::Cannot inspect published candidate $tag"
+              echo "$output"
+              exit 1
             fi
+            digest="$(printf '%s\\n' "$output" | awk '$1 == "Digest:" { print $2; exit }')"
+            if [[ ! "$digest" =~ ^sha256:[a-f0-9]{64}$ ]]; then
+              echo "::error::Invalid digest for $tag"
+              exit 1
+            fi
+            echo "Verified candidate: ghcr.io/nyameko/${name}@${digest}"
           done
-          echo "ready=true" >> "$GITHUB_OUTPUT"
-      - name: Change only the personal-worker image
-        if: steps.published.outputs.ready == 'true'
-        run: python3 scripts/update_acp_personal_worker_image.py
-      - name: Verify generated diff is restricted to the worker Deployment
-        if: steps.published.outputs.ready == 'true'
-        shell: bash
-        run: |
-          set -euo pipefail
-          git diff --check
-          changed="$(git diff --name-only)"
-          if [[ -n "$changed" && "$changed" != "argocd/resources/agent-control-plane-personal-worker/deployment.yaml" ]]; then
-            echo "::error::Unexpected changed file(s): $changed"
-            exit 1
-          fi
-          git diff -- argocd/resources/agent-control-plane-personal-worker/deployment.yaml
-      - name: Commit the approved dev image automatically to GitOps main
-        if: steps.published.outputs.ready == 'true'
-        shell: bash
-        run: |
-          set -euo pipefail
-          if git diff --quiet -- argocd/resources/agent-control-plane-personal-worker/deployment.yaml; then
-            echo "No new image to roll out"
-            exit 0
-          fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add argocd/resources/agent-control-plane-personal-worker/deployment.yaml
-          git commit -m "chore(acp): advance personal worker to dev ${ACP_DEV_SHA}"
-          git push origin HEAD:main
+          echo "Inspection only: open reviewed feature-branch PR to change GitOps."
+          echo "Never write directly to main or trigger a rollout from this workflow."
