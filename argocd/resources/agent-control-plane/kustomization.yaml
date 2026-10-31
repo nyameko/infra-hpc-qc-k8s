@@ -24,7 +24,7 @@ resources:
 images:
 - name: agent-control-plane-api
   newName: ghcr.io/nyameko/agent-control-plane
-  newTag: dev
+  digest: sha256:b1289eab095fae443979d10ca1d5a27e8111a7689ddb346cb76ea7217e945bc4
 - name: agent-control-plane-hermes
   newName: ghcr.io/nyameko/agent-control-plane-hermes
   newTag: dev
