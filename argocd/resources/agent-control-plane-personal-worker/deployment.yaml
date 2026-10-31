@@ -33,7 +33,9 @@ spec:
       terminationGracePeriodSeconds: 30
       containers:
       - name: personal-worker
-        image: ghcr.io/nyameko/agent-control-plane-hermes:sha-102959770de203a358263d774e7462d0bcce0e1e
+        image: ghcr.io/nyameko/agent-control-plane-hermes@sha256:73fbc34301e9cd700e6fbb5cb6ba1f46018e1a9c22a439fdda5f81c56433f9c5
+        # M4b compatible build at ACP source commit dab5e4c84eac428a990fe948c21a78b41ba1c04f.
+        # The feature remains OFF until a separately approved v4 migration and activation.
         imagePullPolicy: Always
         command:
         - python
