@@ -36,15 +36,15 @@ case "$op" in
     user="$arg"
     [[ "$user" =~ ^[a-z_][a-z0-9_-]*$ ]] || exit 64
     id "$user" >/dev/null 2>&1 || exit 77
-    id -nG "$user" | tr ' ' '\\n' | grep -Fxq "{{ jupyterhub_allowed_group }}" || {
+    id -nG "$user" | tr ' ' '\n' | grep -Fxq "{{ jupyterhub_allowed_group }}" || {
       echo "research identity is not execution-entitled" >&2
       exit 77
     }
     # Use -X for one row per allocation, -u for server-side ownership,
     # and a 7-day window. Client cannot choose user, dates or sacct fields.
-    /usr/bin/sacct -nP -X -u "$user" \\
-      -S "$(date -u -d '7 days ago' +%Y-%m-%d)" \\
-      --format=JobIDRaw,JobName%128,Partition%64,State,ExitCode,Elapsed,Submit,Start,End,NodeList%128 \\
+    /usr/bin/sacct -nP -X -u "$user" \
+      -S "$(date -u -d '7 days ago' +%Y-%m-%d)" \
+      --format=JobIDRaw,JobName%128,Partition%64,State,ExitCode,Elapsed,Submit,Start,End,NodeList%128 \
       | awk 'NR <= 75'
     ;;
 
