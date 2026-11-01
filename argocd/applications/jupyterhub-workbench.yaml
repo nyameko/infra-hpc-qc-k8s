@@ -20,5 +20,3 @@ spec:
       # Restore pruning only after the workbench no longer declares that Namespace.
       prune: false
       selfHeal: true
-    syncOptions:
-      - CreateNamespace=true
