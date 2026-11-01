@@ -45,7 +45,7 @@ case "$op" in
     /usr/bin/sacct -nP -X -u "$user" \
       -S "$(date -u -d '7 days ago' +%Y-%m-%d)" \
       --format=JobIDRaw,JobName%128,Partition%64,State,ExitCode,Elapsed,Submit,Start,End,NodeList%128 \
-      | awk 'NR <= 75'
+      | sort -t '|' -k7,7r | awk 'NR <= 75'
     ;;
 
   query)
