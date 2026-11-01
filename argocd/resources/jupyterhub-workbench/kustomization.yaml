@@ -4,7 +4,6 @@ kind: Kustomization
 namespace: jupyterhub
 
 resources:
-  - namespace.yaml
   - resource-policy.yaml
   - rbac.yaml
   - configmap.yaml
