@@ -2,7 +2,7 @@
 set -euo pipefail
 
 case "${SSH_ORIGINAL_COMMAND:-}" in
-  submit\ *|query\ *|cancel\ *)
+  submit\ *|query\ *|cancel\ *|history\ *)
     read -r op arg extra <<<"${SSH_ORIGINAL_COMMAND}"
     [[ -z "${extra:-}" ]] || exit 64
     exec sudo /usr/local/sbin/jupyterhub-slurm-helper "$op" "$arg"
