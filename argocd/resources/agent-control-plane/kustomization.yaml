@@ -24,10 +24,10 @@ resources:
 images:
 - name: agent-control-plane-api
   newName: ghcr.io/nyameko/agent-control-plane
-  digest: sha256:b1289eab095fae443979d10ca1d5a27e8111a7689ddb346cb76ea7217e945bc4
+  digest: sha256:988046302b8bc2ebfd59ab63deb1c137f23173d1bab76a6991170aba714a7fd2
 - name: agent-control-plane-hermes
   newName: ghcr.io/nyameko/agent-control-plane-hermes
-  digest: sha256:609dd6a8c14fa9182a0fe6962873fde2a53e1b2efd6bd0eaaccce115692d4b7a
+  digest: sha256:7ba81aab4fc4df5ee4f2bf23e8b0051604ecd33c44e6bf34cbfa0c69f41b3863
 
 patches:
 - target:
