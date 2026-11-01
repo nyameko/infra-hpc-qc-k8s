@@ -16,7 +16,9 @@ spec:
     namespace: jupyterhub
   syncPolicy:
     automated:
-      prune: true
+      # Temporary safety gate while removing a Namespace owned by the legacy jupyterhub app.
+      # Restore pruning only after the workbench no longer declares that Namespace.
+      prune: false
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
