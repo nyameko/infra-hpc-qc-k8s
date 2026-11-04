@@ -19,3 +19,13 @@ Use descriptive nouns in titles; begin with scope and prerequisites; explain act
 ## Assistant/agent retrieval rules
 
 Index page title, repository, audience, updated source revision, feature status and relative links. A matching public documentation snippet is not authorization to execute it. Cite its source and version; ask for minimal non-sensitive diagnostics; do not invent endpoints or assume a live feature based only on a design doc. Escalate contradictory claims to maintainers and open an issue with links and an observable reproduction.
+
+## Automatic publishing from `dev`
+
+The `.github/workflows/publish-github-wiki.yml` workflow publishes reviewed `docs/wiki/*.md` pages on changes merged into `dev` (and supports a manual dispatch from `dev` when available). It first validates the Guide index and local links, sets up a secure short-lived `GITHUB_TOKEN` Git credential helper, runs the existing publisher in dry-run mode, then publishes. No ChatGPT, OpenAI, Anthropic, QPU or inference API key is required.
+
+**Before the first run**, enable repository Wiki in Settings → General → Features and create/save one `Home` page from the Wiki tab. The underlying `.wiki.git` remote does not exist until that initial save. Repository Actions must permit `contents: write` for the job. Do not add a PAT unless the repository/organization policy requires an alternative and it has been security-reviewed.
+
+After each reviewed `dev` wiki edit is merged, inspect Actions → Publish GitHub Wiki and then check the actual Wiki Home/sidebar. It publishes from **`dev`**, so articles must distinguish source/development behavior from live deployment. To republish manually, authenticate Git via `gh auth login` and `gh auth setup-git`, check out `dev`, and run `bash scripts/publish-github-wiki.sh --dry-run` followed by `bash scripts/publish-github-wiki.sh`. A manual `workflow_dispatch` may not appear in the Actions UI until the workflow also exists on the default branch; automatic `push: dev` is sufficient.
+
+This job does not erase unrelated Wiki pages. Reviewers should verify source SHA/version links, redact private material and use Wiki Git history for recovery. Publication does not enable a live RAG backend or grant permission to run documented commands.

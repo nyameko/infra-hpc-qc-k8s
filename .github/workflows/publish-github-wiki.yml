@@ -1,0 +1,38 @@
+name: Publish GitHub Wiki
+on:
+  push:
+    branches: [dev]
+    paths:
+      - 'docs/wiki/**'
+      - 'scripts/publish-github-wiki.sh'
+      - 'scripts/check-wiki-docs.py'
+      - '.github/workflows/publish-github-wiki.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: wiki-${{ github.repository }}
+  cancel-in-progress: false
+jobs:
+  publish:
+    if: github.ref == 'refs/heads/dev'
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Validate source documentation
+        run: python3 scripts/check-wiki-docs.py
+      - name: Configure GitHub App Git credential helper
+        run: |
+          gh auth setup-git
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email '41898282+github-actions[bot]@users.noreply.github.com'
+      - name: Verify Wiki initialization
+        run: git ls-remote "https://github.com/${GITHUB_REPOSITORY}.wiki.git" HEAD
+      - name: Preview publication
+        run: bash scripts/publish-github-wiki.sh --dry-run
+      - name: Publish reviewed pages
+        run: bash scripts/publish-github-wiki.sh
