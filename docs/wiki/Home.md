@@ -26,3 +26,7 @@ Infrastructure as Code, operations, and reproducible engineering for the hybrid 
 The historical M3 acceptance documented a restricted Slurm CPU smoke job with durable scientific artifacts. M4 agent persistence, richer programme integration, GPU federation, remote QPUs and terminal pairing have additional schema, authorization, image-promotion and live-conformance gates. **Do not infer a feature is usable from an Argo Healthy status alone.** Inspect the current release and evidence before advising users.
 
 Canonical references: [README](https://github.com/nyameko/infra-hpc-qc-k8s/blob/main/README.md), [installation and operations guide](https://github.com/nyameko/infra-hpc-qc-k8s/blob/main/docs/INSTALLATION.md), [M3→M4 handoff](https://github.com/nyameko/infra-hpc-qc-k8s/blob/main/docs/architecture/current-platform-state-m3-m4.md), [recent release notes](https://github.com/nyameko/infra-hpc-qc-k8s/tree/main/docs/releases).
+
+## Guide and automated help
+
+See [Guide integration and ticket routing](Guide-assistance.md) and the [machine-readable discovery index](guide-index.json). Public documentation is not an execution authorization.

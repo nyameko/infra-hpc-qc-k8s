@@ -8,3 +8,4 @@
 - [Security and recovery](Security-and-recovery.md)
 - [Developer guide](Developer-guide.md)
 - [Contributing](Contributing.md)
+- [Guide integration and support](Guide-assistance.md)
