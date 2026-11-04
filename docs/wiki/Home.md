@@ -30,3 +30,13 @@ Canonical references: [README](https://github.com/nyameko/infra-hpc-qc-k8s/blob/
 ## Guide and automated help
 
 See [Guide integration and ticket routing](Guide-assistance.md) and the [machine-readable discovery index](guide-index.json). Public documentation is not an execution authorization.
+
+
+## Subsystem deep dives
+
+- [Networking and private access](Networking-and-private-access.md)
+- [Kubernetes GitOps and deployments](Kubernetes-GitOps-and-deployments.md)
+- [Slurm and resource scheduling](Slurm-and-resource-scheduling.md)
+- [Storage postgresql and recovery](Storage-postgresql-and-recovery.md)
+- [Monitoring and security operations](Monitoring-and-security-operations.md)
+- [Cloud portability and contribution patterns](Cloud-portability-and-contribution-patterns.md)

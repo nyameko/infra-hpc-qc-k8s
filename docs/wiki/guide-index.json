@@ -13,6 +13,13 @@
       "wiki_url": "https://github.com/nyameko/infra-hpc-qc-k8s/wiki/Architecture"
     },
     {
+      "slug": "Cloud-portability-and-contribution-patterns",
+      "title": "Cloud portability and contribution patterns",
+      "source_path": "docs/wiki/Cloud-portability-and-contribution-patterns.md",
+      "source_url": "https://github.com/nyameko/infra-hpc-qc-k8s/blob/main/docs/wiki/Cloud-portability-and-contribution-patterns.md",
+      "wiki_url": "https://github.com/nyameko/infra-hpc-qc-k8s/wiki/Cloud-portability-and-contribution-patterns"
+    },
+    {
       "slug": "Contributing",
       "title": "Contributing",
       "source_path": "docs/wiki/Contributing.md",
@@ -48,6 +55,27 @@
       "wiki_url": "https://github.com/nyameko/infra-hpc-qc-k8s/wiki/Installation"
     },
     {
+      "slug": "Kubernetes-GitOps-and-deployments",
+      "title": "Kubernetes GitOps and deployments",
+      "source_path": "docs/wiki/Kubernetes-GitOps-and-deployments.md",
+      "source_url": "https://github.com/nyameko/infra-hpc-qc-k8s/blob/main/docs/wiki/Kubernetes-GitOps-and-deployments.md",
+      "wiki_url": "https://github.com/nyameko/infra-hpc-qc-k8s/wiki/Kubernetes-GitOps-and-deployments"
+    },
+    {
+      "slug": "Monitoring-and-security-operations",
+      "title": "Monitoring and security operations",
+      "source_path": "docs/wiki/Monitoring-and-security-operations.md",
+      "source_url": "https://github.com/nyameko/infra-hpc-qc-k8s/blob/main/docs/wiki/Monitoring-and-security-operations.md",
+      "wiki_url": "https://github.com/nyameko/infra-hpc-qc-k8s/wiki/Monitoring-and-security-operations"
+    },
+    {
+      "slug": "Networking-and-private-access",
+      "title": "Networking and private access",
+      "source_path": "docs/wiki/Networking-and-private-access.md",
+      "source_url": "https://github.com/nyameko/infra-hpc-qc-k8s/blob/main/docs/wiki/Networking-and-private-access.md",
+      "wiki_url": "https://github.com/nyameko/infra-hpc-qc-k8s/wiki/Networking-and-private-access"
+    },
+    {
       "slug": "Operator-runbook",
       "title": "Operator runbook",
       "source_path": "docs/wiki/Operator-runbook.md",
@@ -67,6 +95,20 @@
       "source_path": "docs/wiki/Security-and-recovery.md",
       "source_url": "https://github.com/nyameko/infra-hpc-qc-k8s/blob/main/docs/wiki/Security-and-recovery.md",
       "wiki_url": "https://github.com/nyameko/infra-hpc-qc-k8s/wiki/Security-and-recovery"
+    },
+    {
+      "slug": "Slurm-and-resource-scheduling",
+      "title": "Slurm and resource scheduling",
+      "source_path": "docs/wiki/Slurm-and-resource-scheduling.md",
+      "source_url": "https://github.com/nyameko/infra-hpc-qc-k8s/blob/main/docs/wiki/Slurm-and-resource-scheduling.md",
+      "wiki_url": "https://github.com/nyameko/infra-hpc-qc-k8s/wiki/Slurm-and-resource-scheduling"
+    },
+    {
+      "slug": "Storage-postgresql-and-recovery",
+      "title": "Storage postgresql and recovery",
+      "source_path": "docs/wiki/Storage-postgresql-and-recovery.md",
+      "source_url": "https://github.com/nyameko/infra-hpc-qc-k8s/blob/main/docs/wiki/Storage-postgresql-and-recovery.md",
+      "wiki_url": "https://github.com/nyameko/infra-hpc-qc-k8s/wiki/Storage-postgresql-and-recovery"
     },
     {
       "slug": "Troubleshooting",
