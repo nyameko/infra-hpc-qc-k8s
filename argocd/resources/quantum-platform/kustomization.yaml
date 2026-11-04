@@ -29,11 +29,11 @@ images:
 
   - name: quantum-platform-users
     newName: ghcr.io/nyameko/quantum-platform-users
-    digest: sha256:fd406e707f54af6fbcf55ca872be3d6736ad99f0a498cecbe8a17116d5546269
+    digest: sha256:2c7e05081ad81102af8e4e15df8fc1f442eae8d2c919cef6aa71948223db7250
 
   - name: quantum-platform-user-api
     newName: ghcr.io/nyameko/quantum-platform-user-api
-    digest: sha256:561de764bc0b9492a38dfa79a6b6a87ffc8194606a098c520a8f10cc89bf7bbc
+    digest: sha256:47e99cb404c3daeb16357c9f8385cec774a8065d064fca8215fe74cfe8db84a6
 
 patches:
   - target:
