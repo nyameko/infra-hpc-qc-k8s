@@ -33,8 +33,8 @@ spec:
       terminationGracePeriodSeconds: 30
       containers:
       - name: personal-worker
-        image: ghcr.io/nyameko/agent-control-plane-hermes@sha256:c480caffaf7faa2576299897a4a6cd13290a244ab1b722aed6366f605532d4e2
-        # Candidate from ACP main d7f673fb94739e04b2339edf1eb564e2acbabe1c (schema v7).
+        image: ghcr.io/nyameko/agent-control-plane-hermes@sha256:876bc6877b85160dc78e265ac5311dcfbeb86e381080da484f12f4aa749df30e
+        # Candidate from ACP main 937cb1e4eeefd71c65e6b3a2b2db669e8111ec6d (review API, v7).
         # Activate only after operator-reviewed v5/v6 schema migration and test evidence.
         imagePullPolicy: Always
         command:
