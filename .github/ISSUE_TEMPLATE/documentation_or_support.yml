@@ -1,0 +1,41 @@
+name: Documentation correction or support question
+description: Report missing or incorrect wiki guidance; ask a focused use question
+title: "[Docs/Help] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Search docs/wiki/ and existing issues first. Do not include passwords, API tokens, private SSH/WireGuard keys, browser cookies, raw Kubernetes Secrets, protected datasets, or private topology. Report security vulnerabilities privately.
+  - type: input
+    id: article
+    attributes:
+      label: Page or source-file link
+      description: Link the exact wiki article, guide or README (if known).
+    validations:
+      required: false
+  - type: dropdown
+    id: kind
+    attributes:
+      label: Request type
+      options:
+        - Wrong or outdated documentation
+        - Missing installation / setup step
+        - Usage or troubleshooting guidance
+        - Developer / contribution guidance
+        - Guide assistant answer incorrect or missing citation
+    validations:
+      required: true
+  - type: textarea
+    id: question
+    attributes:
+      label: Question, problem or proposed correction
+      description: Describe which task you were trying to accomplish and what was unclear.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Expected behavior or authoritative source
+      description: Cite versioned source code, observed result, source revision or independent science reference if relevant.
+    validations:
+      required: false
