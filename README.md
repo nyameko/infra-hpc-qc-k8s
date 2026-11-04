@@ -1,5 +1,8 @@
 # infra-hpc-qc-k8s
 
+> **Guides:** [Wiki home](docs/wiki/Home.md) · [Researcher guide](docs/wiki/Researcher-guide.md) · [Installation](docs/wiki/Installation.md) · [Operator runbook](docs/wiki/Operator-runbook.md) · [Developer guide](docs/wiki/Developer-guide.md) · [Troubleshooting](docs/wiki/Troubleshooting.md). Reviewed sources live in `docs/wiki/`; publication to the separate [GitHub Wiki](https://github.com/nyameko/infra-hpc-qc-k8s/wiki) is described in [the publishing guide](docs/WIKI_PUBLISHING.md). Historical docs remain available below.
+
+
 ## Hybrid Quantum-Centric Supercomputing Infrastructure
 
 **Infrastructure as Code for a reproducible hybrid HPC + Kubernetes + AI/ML + quantum-computing platform.**
