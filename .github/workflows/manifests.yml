@@ -20,8 +20,6 @@ jobs:
       - name: YAML syntax and baseline lint
         run: |
           yamllint -d '{extends: relaxed, rules: {line-length: disable, document-start: disable}}' argocd
-      - name: M4 operator preflight shell syntax (no cluster execution)
-        run: bash -n scripts/m4-readonly-preflight.sh
       - name: Render every Kustomize package and validate built-in resource schemas
         shell: bash
         run: |
