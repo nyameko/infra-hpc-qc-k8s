@@ -33,9 +33,9 @@ spec:
       terminationGracePeriodSeconds: 30
       containers:
       - name: personal-worker
-        image: ghcr.io/nyameko/agent-control-plane-hermes@sha256:73fbc34301e9cd700e6fbb5cb6ba1f46018e1a9c22a439fdda5f81c56433f9c5
-        # M4b compatible build at ACP source commit dab5e4c84eac428a990fe948c21a78b41ba1c04f.
-        # The feature remains OFF until a separately approved v4 migration and activation.
+        image: ghcr.io/nyameko/agent-control-plane-hermes@sha256:abf077dbc0bbf957b31b0a1c540d65b7cb99f9690b203c358b1fb1499d6fe245
+        # Candidate from ACP main e988adcfb42b204c301582221e50b1739299cb19.
+        # Activate only after operator-reviewed v5/v6 schema migration and test evidence.
         imagePullPolicy: Always
         command:
         - python
@@ -45,7 +45,8 @@ spec:
         - configMapRef:
             name: acp-config
         env:
-        # Release gate: promote to main ONLY after schema-v4 + ACP API verification.
+        # Gate: verify schema v6, owner-only profile hydration and memory revocation
+        # before accepting this worker image in a production GitOps sync.
         - name: ACP_PERSONAL_MEMORY_ENABLED
           value: '1'
         - name: ACP_DATABASE_URL
