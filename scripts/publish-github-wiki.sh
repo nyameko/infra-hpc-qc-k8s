@@ -12,7 +12,7 @@ temp="$(mktemp -d)"
 trap 'rm -rf "$temp"' EXIT
 echo "Cloning wiki (authentication is handled by your configured Git credential helper)"
 git clone --quiet "$remote" "$temp/wiki"
-find docs/wiki -maxdepth 1 -type f -name '*.md' -print0 | while IFS= read -r -d '' file; do cp "$file" "$temp/wiki/$(basename "$file")"; done
+python3 scripts/prepare_github_wiki.py --source docs/wiki --destination "$temp/wiki" --repo "nyameko/infra-hpc-qc-k8s"
 git -C "$temp/wiki" add -- '*.md'
 git -C "$temp/wiki" status --short
 if git -C "$temp/wiki" diff --cached --quiet; then echo "No changes"; exit 0; fi
