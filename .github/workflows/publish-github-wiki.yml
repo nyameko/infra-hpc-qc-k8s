@@ -5,12 +5,14 @@ on:
     paths:
       - 'docs/wiki/**'
       - 'scripts/publish-github-wiki.sh'
+      - 'scripts/prepare_github_wiki.py'
+      - 'scripts/test_prepare_github_wiki.py'
       - 'scripts/check-wiki-docs.py'
       - '.github/workflows/publish-github-wiki.yml'
   workflow_dispatch:
   pull_request:
     branches: [dev]
-    paths: ['docs/wiki/**', 'docs/WIKI_PUBLISHING.md', 'scripts/publish-github-wiki.sh', 'scripts/check-wiki-docs.py', '.github/workflows/publish-github-wiki.yml']
+    paths: ['docs/wiki/**', 'docs/WIKI_PUBLISHING.md', 'scripts/publish-github-wiki.sh', 'scripts/prepare_github_wiki.py', 'scripts/test_prepare_github_wiki.py', 'scripts/check-wiki-docs.py', '.github/workflows/publish-github-wiki.yml']
 permissions:
   contents: read
 concurrency:
@@ -23,6 +25,12 @@ jobs:
       - uses: actions/checkout@v4
       - name: Check public Wiki sources and index
         run: python3 scripts/check-wiki-docs.py
+      - name: Test rendered Wiki link conversion
+        run: python3 -m unittest discover -s scripts -p 'test_prepare_github_wiki.py' -v
+      - name: Generate offline rendered Wiki preview
+        run: >-
+          python3 scripts/prepare_github_wiki.py --source docs/wiki
+          --destination "$RUNNER_TEMP/wiki-preview" --repo "$GITHUB_REPOSITORY"
   publish:
     needs: validate
     permissions:
