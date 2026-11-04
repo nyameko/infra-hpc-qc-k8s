@@ -6,7 +6,7 @@ on:
       - 'scripts/check-wiki-docs.py'
       - '.github/workflows/wiki-docs.yml'
   push:
-    branches: [main]
+    branches: [dev, main]
     paths:
       - 'docs/wiki/**'
       - 'scripts/check-wiki-docs.py'

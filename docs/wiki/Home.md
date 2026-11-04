@@ -2,7 +2,7 @@
 
 Infrastructure as Code, operations, and reproducible engineering for the hybrid HPC + Kubernetes + quantum research environment.
 
-**Audience:** researchers, students, administrators, platform engineers and automated assistants. **Snapshot:** source repository `main`, 4 November 2026. The wiki documents contracts and examples; `main` is not proof of the currently deployed image or cluster state.
+**Audience:** researchers, students, administrators, platform engineers and automated assistants. **Published source:** reviewed `dev` documentation. The native Wiki is published from `dev`, not necessarily the `main` release or running cluster. Check the source commit, image digest and actual operational state before using privileged commands.
 
 ## Start here
 
