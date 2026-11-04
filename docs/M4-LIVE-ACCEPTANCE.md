@@ -31,15 +31,32 @@ digests in `dev` — it does **not** deploy them.
 
 ## 2. Read-only baseline (safe before operator approval)
 
-On `k8s-cp-01`, from an inspected checkout of this branch:
+**Do not clone, pull, check out or execute repository scripts on
+`k8s-cp-01`.** This host is not a development or deployment workstation.
+The following `kubectl` commands can be pasted individually at its normal
+administrative prompt. They use Kubernetes API reads; `kubectl exec` below
+performs **only SQL SELECT** through a read-only transaction, without
+printing a database URL, token or user content. Do **not** use the ArgoCD CLI.
 
 ```bash
-bash scripts/m4-readonly-preflight.sh
+kubectl -n argocd get applications quantum-platform agent-control-plane agent-control-plane-personal-worker
+kubectl -n argocd get application agent-control-plane -o jsonpath='{range .status.resources[*]}{.kind}{" "}{.namespace}{"/"}{.name}{" "}{.status}{"\\n"}{end}'
+kubectl -n agent-control-plane get deploy,sts,pods,jobs
+kubectl -n agent-control-plane get pods -o jsonpath='{range .items[*]}{.metadata.name}{"\\t"}{range .status.containerStatuses[*]}{.name}{"="}{.imageID}{" "}{end}{"\\n"}{end}'
+kubectl -n quantum-platform get pods -o jsonpath='{range .items[*]}{.metadata.name}{"\\t"}{range .status.containerStatuses[*]}{.name}{"="}{.imageID}{" "}{end}{"\\n"}{end}'
 ```
 
-Record the sanitized output, UTC timestamp, actual Pod imageIDs, Argo
-`Synced/OutOfSync` status, schema versions and required tables. No secrets,
-database URLs, full JWTs, user chat bodies or raw signed assertions.
+ACP schema inventory without displaying the credential:
+
+```bash
+kubectl -n agent-control-plane exec deployment/agent-control-plane-api -- python -c 'import os,psycopg; c=psycopg.connect(os.environ["ACP_DATABASE_URL"],options="-c default_transaction_read_only=on"); print("Versions:",c.execute("SELECT version,left(checksum,12) FROM acp1.schema_version ORDER BY version").fetchall()); print("Tables:",c.execute("SELECT to_regclass(\x27acp1.programme_conversation\x27)::text,to_regclass(\x27acp1.personal_profile\x27)::text").fetchone()); print("DB role:",c.execute("SELECT rolname,rolsuper,rolbypassrls FROM pg_roles WHERE rolname=current_user").fetchone()); c.close()'
+```
+
+Record only sanitized stdout, UTC timestamp, actual Pod imageIDs, observed
+`Synced/OutOfSync` resource status, schema versions and required tables.
+Do not publish full JWTs, database URLs, user chat bodies or assertions.
+If the SELECT fails, report only the failure category; don't paste a traceback
+that could include connection details.
 
 Required schema checks: `acp1.schema_version` includes ordered
 **1,2,3,4,5,6,7** with unchanged checksums; `programme_conversation` and
