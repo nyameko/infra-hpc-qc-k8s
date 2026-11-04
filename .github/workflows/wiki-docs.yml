@@ -1,0 +1,22 @@
+name: Wiki documentation checks
+on:
+  pull_request:
+    paths:
+      - 'docs/wiki/**'
+      - 'scripts/check-wiki-docs.py'
+      - '.github/workflows/wiki-docs.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'docs/wiki/**'
+      - 'scripts/check-wiki-docs.py'
+      - '.github/workflows/wiki-docs.yml'
+permissions:
+  contents: read
+jobs:
+  validate-wiki:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate Wiki pages and agent discovery index
+        run: python3 scripts/check-wiki-docs.py

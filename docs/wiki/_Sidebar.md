@@ -1,0 +1,18 @@
+**Infrastructure**
+- [Home](Home.md)
+- [Architecture](Architecture.md)
+- [Researcher guide](Researcher-guide.md)
+- [Installation](Installation.md)
+- [Operator runbook](Operator-runbook.md)
+- [Troubleshooting](Troubleshooting.md)
+- [Security and recovery](Security-and-recovery.md)
+- [Developer guide](Developer-guide.md)
+- [Contributing](Contributing.md)
+- [Guide integration and support](Guide-assistance.md)
+**Subsystem reference**
+- [Networking and private access](Networking-and-private-access.md)
+- [Kubernetes GitOps and deployments](Kubernetes-GitOps-and-deployments.md)
+- [Slurm and resource scheduling](Slurm-and-resource-scheduling.md)
+- [Storage postgresql and recovery](Storage-postgresql-and-recovery.md)
+- [Monitoring and security operations](Monitoring-and-security-operations.md)
+- [Cloud portability and contribution patterns](Cloud-portability-and-contribution-patterns.md)
