@@ -1,0 +1,50 @@
+name: Bug report
+description: Reproducible infrastructure, Kubernetes, GitOps, Slurm, storage or private connectivity problem (non-sensitive only)
+title: "[Bug] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This is a public issue. Do not include passwords, API tokens, private SSH/WireGuard keys, browser cookies, raw Kubernetes Secrets, protected datasets, or private topology. Report security vulnerabilities privately.
+  - type: input
+    id: component
+    attributes:
+      label: Affected subsystem
+      description: "Example: Terraform/Ansible/Argo/Slurm/NFS"
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Source version or deployment identity
+      description: Git SHA, package version, image digest or documented release; never a token.
+    validations:
+      required: true
+  - type: textarea
+    id: expectation
+    attributes:
+      label: Expected and observed results
+      description: Distinguish what you expected from what actually happened.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Minimal reproducible steps
+      description: Include safe commands, environment, permissions/role and exact failure without secrets.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Sanitized evidence and timestamps
+      description: Redacted logs, HTTP status, run/job ID and local timezone (optional).
+    validations:
+      required: false
+  - type: textarea
+    id: mitigation
+    attributes:
+      label: Safe diagnostics already performed
+      description: Read-only checks and whether you tested in a non-production environment.
+    validations:
+      required: false

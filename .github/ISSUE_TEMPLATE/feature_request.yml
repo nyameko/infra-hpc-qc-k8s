@@ -1,0 +1,36 @@
+name: Feature or improvement proposal
+description: Propose a scoped, evidence-backed feature or documentation enhancement
+title: "[Proposal] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Proposals are not proof of current implementation. Do not include passwords, API tokens, private SSH/WireGuard keys, browser cookies, raw Kubernetes Secrets, protected datasets, or private topology. Report security vulnerabilities privately.
+  - type: textarea
+    id: usecase
+    attributes:
+      label: User problem and intended outcome
+      description: Who would use it and what productive task is blocked?
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Current tools, alternatives and ownership
+      description: Existing libraries/frameworks and which repository should own the behavior.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria and evidence
+      description: Positive/negative tests, security/authorization, documentation and measurable scientific results if applicable.
+    validations:
+      required: true
+  - type: textarea
+    id: risks
+    attributes:
+      label: Compatibility, compute, privacy and operational risks
+      description: Cost/quotas, migrations, rollback or safety concerns.
+    validations:
+      required: false
