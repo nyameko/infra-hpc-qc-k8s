@@ -8,14 +8,26 @@ on:
       - 'scripts/check-wiki-docs.py'
       - '.github/workflows/publish-github-wiki.yml'
   workflow_dispatch:
+  pull_request:
+    branches: [dev]
+    paths: ['docs/wiki/**', 'docs/WIKI_PUBLISHING.md', 'scripts/publish-github-wiki.sh', 'scripts/check-wiki-docs.py', '.github/workflows/publish-github-wiki.yml']
 permissions:
-  contents: write
+  contents: read
 concurrency:
   group: wiki-${{ github.repository }}
   cancel-in-progress: false
 jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check public Wiki sources and index
+        run: python3 scripts/check-wiki-docs.py
   publish:
-    if: github.ref == 'refs/heads/dev'
+    needs: validate
+    permissions:
+      contents: write
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/dev'
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ github.token }}
