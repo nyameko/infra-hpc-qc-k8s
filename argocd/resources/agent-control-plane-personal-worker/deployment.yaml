@@ -33,9 +33,9 @@ spec:
       terminationGracePeriodSeconds: 30
       containers:
       - name: personal-worker
-        image: ghcr.io/nyameko/agent-control-plane-hermes@sha256:876bc6877b85160dc78e265ac5311dcfbeb86e381080da484f12f4aa749df30e
-        # Candidate from ACP main 937cb1e4eeefd71c65e6b3a2b2db669e8111ec6d (review API, v7).
-        # Activate only after operator-reviewed v5/v6 schema migration and test evidence.
+        image: ghcr.io/nyameko/agent-control-plane-hermes@sha256:9819ab1f22607f2d61be51fcbcb62b6d02c1b91229f9a5e88565bc805db44d48
+        # Candidate from ACP main 7cc20e13a26e194ba200692d7dde58678c1e3717 (M4d skills schema v8).
+        # Activate only after operator-reviewed v5-v8 schema migrations and test evidence.
         imagePullPolicy: Always
         command:
         - python
