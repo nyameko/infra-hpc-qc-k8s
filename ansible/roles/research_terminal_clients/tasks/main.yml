@@ -1,0 +1,40 @@
+---
+- name: Install existing system terminal utilities
+  ansible.builtin.package:
+    name: "{{ research_terminal_packages }}"
+    state: present
+
+- name: Validate pinned Herdr release for selected host architecture
+  ansible.builtin.assert:
+    that:
+      - research_terminal_herdr_version == 'v0.9.5'
+      - ansible_architecture in ['x86_64', 'aarch64']
+      - research_terminal_herdr_sha256[ansible_architecture] is match('^[a-f0-9]{64}$')
+    fail_msg: "Unsupported Herdr version or architecture; review a new release and SHA-256 explicitly."
+  when: research_terminal_herdr_enabled | bool
+
+- name: Install checked Herdr binary without executing a shell installer
+  ansible.builtin.get_url:
+    url: "{{ research_terminal_herdr_url }}"
+    dest: "{{ research_terminal_herdr_binary_path }}"
+    checksum: "sha256:{{ research_terminal_herdr_sha256[ansible_architecture] }}"
+    owner: root
+    group: root
+    mode: "0755"
+  when: research_terminal_herdr_enabled | bool
+
+- name: Read installed Herdr version without starting its server
+  ansible.builtin.command:
+    argv:
+      - "{{ research_terminal_herdr_binary_path }}"
+      - --version
+  register: research_terminal_herdr_version_output
+  changed_when: false
+  when: research_terminal_herdr_enabled | bool
+
+- name: Confirm the selected Herdr release was installed
+  ansible.builtin.assert:
+    that:
+      - "'0.9.5' in research_terminal_herdr_version_output.stdout"
+    fail_msg: "Herdr binary version differs from the pinned expected release."
+  when: research_terminal_herdr_enabled | bool
