@@ -14,7 +14,8 @@ spec:
     metadata:
       labels:
         app.kubernetes.io/part-of: agent-control-plane
-        acp-role: personal-worker-preflight
+        acp-role: personal-worker
+        app.kubernetes.io/component: schema-preflight
     spec:
       restartPolicy: Never
       automountServiceAccountToken: false
