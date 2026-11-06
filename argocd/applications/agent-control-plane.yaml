@@ -12,8 +12,13 @@ spec:
   destination:
     server: https://kubernetes.default.svc
     namespace: agent-control-plane
-  # Manual first sync: image publication, sealed secrets and model endpoint are prerequisites.
-  # No deletion finalizer: deleting this Application must not cascade into durable state.
+  # The reviewed infra main commit is the production deployment approval.
+  # A schema-version gate in acp-migrate blocks unapproved database upgrades.
+  # Never prune this app: preserve PostgreSQL, PVCs, secrets and run history.
+  # No deletion finalizer: Application deletion must not cascade to durable state.
   syncPolicy:
+    automated:
+      prune: false
+      selfHeal: true
     syncOptions:
       - CreateNamespace=true
