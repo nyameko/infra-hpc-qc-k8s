@@ -92,9 +92,9 @@ jobs:
           body: |
             Automated immutable digest proposal **against infra dev only**.
 
-            Source: `nyameko/agent-control-plane@\${{ steps.source.outputs.sha }}` (main).
-            API: `ghcr.io/nyameko/agent-control-plane@\${{ steps.images.outputs.api_digest }}`.
-            Hermes/worker: `ghcr.io/nyameko/agent-control-plane-hermes@\${{ steps.images.outputs.hermes_digest }}`.
+            Source: `nyameko/agent-control-plane@${{ steps.source.outputs.sha }}` (main).
+            API: `ghcr.io/nyameko/agent-control-plane@${{ steps.images.outputs.api_digest }}`.
+            Hermes/worker: `ghcr.io/nyameko/agent-control-plane-hermes@${{ steps.images.outputs.hermes_digest }}`.
 
             Both digests were resolved from full-commit SHA tags published by upstream
             CI. This PR changes image references only; it cannot change
