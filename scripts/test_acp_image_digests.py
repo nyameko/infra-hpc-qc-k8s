@@ -31,6 +31,22 @@ class DigestPromotionTests(unittest.TestCase):
         self.assertEqual(updated.count(pinned), 2)
         self.assertEqual(promoter.rewrite_worker(updated, B), updated)
 
+    def test_presync_gate_pins_same_hermes_digest(self):
+        path = ROOT / "argocd/resources/agent-control-plane-personal-worker/schema-presync.yaml"
+        original = path.read_text()
+        updated = promoter.rewrite_worker(original, B, expected_count=1)
+        self.assertEqual(
+            updated.count("ghcr.io/nyameko/agent-control-plane-hermes@" + B), 1
+        )
+        self.assertIn("argocd.argoproj.io/hook: PreSync", original)
+        self.assertEqual(
+            promoter.rewrite_worker(updated, B, expected_count=1), updated
+        )
+
+    def test_presync_gate_fails_closed_when_its_image_disappears(self):
+        with self.assertRaises(ValueError):
+            promoter.rewrite_worker("kind: Job\n", B, expected_count=1)
+
     def test_rejects_untrusted_or_incomplete_digests(self):
         for wrong in ("dev", "sha256:" + "Z" * 64, "sha256:" + "a" * 63, A + ";rm -rf /"):
             with self.assertRaises(ValueError):
