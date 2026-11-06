@@ -38,3 +38,43 @@
       - "'0.9.5' in research_terminal_clients_herdr_version_output.stdout"
     fail_msg: "Herdr binary version differs from the pinned expected release."
   when: research_terminal_clients_herdr_enabled | bool
+
+- name: Inspect the operator-selected Python for optional ACP CLI
+  ansible.builtin.stat:
+    path: "{{ research_terminal_clients_acp_cli_python }}"
+  register: research_terminal_clients_acp_python_stat
+  when: research_terminal_clients_acp_cli_enabled | bool
+
+- name: Require a pre-provisioned compatible Python for optional ACP CLI
+  ansible.builtin.assert:
+    that:
+      - research_terminal_clients_acp_python_stat.stat.exists
+      - research_terminal_clients_acp_python_stat.stat.executable
+      - research_terminal_clients_acp_cli_revision is match('^[a-f0-9]{40}$')
+    fail_msg: "Provide an approved Python 3.13/3.14 interpreter and immutable ACP revision."
+  when: research_terminal_clients_acp_cli_enabled | bool
+
+- name: Install the existing ACP CLI into a dedicated Python virtualenv
+  ansible.builtin.pip:
+    name: >-
+      git+https://github.com/nyameko/agent-control-plane.git@{{ research_terminal_clients_acp_cli_revision }}
+    virtualenv: "{{ research_terminal_clients_acp_cli_venv }}"
+    virtualenv_command: "{{ research_terminal_clients_acp_cli_python }} -m venv"
+  when: research_terminal_clients_acp_cli_enabled | bool
+
+- name: Expose the installed ACP client without changing the login shell
+  ansible.builtin.file:
+    src: "{{ research_terminal_clients_acp_cli_venv }}/bin/acp"
+    dest: /usr/local/bin/acp
+    state: link
+    owner: root
+    group: root
+  when: research_terminal_clients_acp_cli_enabled | bool
+
+- name: Verify the installed ACP terminal client command
+  ansible.builtin.command:
+    argv:
+      - "{{ research_terminal_clients_acp_cli_venv }}/bin/acp"
+      - --help
+  changed_when: false
+  when: research_terminal_clients_acp_cli_enabled | bool
