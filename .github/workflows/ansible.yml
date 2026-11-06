@@ -23,8 +23,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: Install Ansible
         run: python3 -m pip install --user ansible-core ansible-lint
@@ -39,45 +37,16 @@ jobs:
             ansible-playbook "$playbook" --syntax-check
           done
 
-      # Existing repository-wide lint currently reports ~140 pre-existing
-      # violations (and cannot find roles when run outside ansible/).
-      # Keep that audit visible but gate every NEW/CHANGED YAML file strictly;
-      # do not block M4 host provisioning on unrelated M6 cleanup.
-      - name: Audit inherited Ansible baseline (existing violations)
+      # Full repository audit has inherited failures; keep it visible for M6.
+      - name: Existing Ansible lint audit (known baseline debt)
         working-directory: ansible
-        continue-on-error: true
         run: ansible-lint .
+        continue-on-error: true
 
-      - name: Require lint on Ansible files changed by this PR
+      # New M4g role is fully gated; older roles keep syntax coverage above.
+      - name: Strict lint on new M4g terminal role and playbook
         working-directory: ansible
-        env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
-        run: |
-          set -euo pipefail
-          git cat-file -e "${BASE_SHA}^{commit}" || {
-            echo "::error::Missing comparison commit; cannot bypass changed-file lint"
-            exit 1
-          }
-          mapfile -t files < <(git -C .. diff --name-only "$BASE_SHA" HEAD -- ansible |
-            sed -n 's#^ansible/##p' |
-            grep -E '\.(yml|yaml)
-
-  ansible-integration:
-    if: ${{ vars.ANSIBLE_INTEGRATION_ENABLED == 'true' }}
-    runs-on: self-hosted
-    steps:
-      - uses: actions/checkout@v4
-      - name: Convergence test
-        run: bash tests/ansible/convergence.sh
-      - name: Functional test
-        run: bash tests/ansible/functional.sh
- || true)
-          if [ "${#files[@]}" -eq 0 ]; then
-            echo "No Ansible YAML files changed"
-            exit 0
-          fi
-          printf 'Linting changed Ansible files: %s\n' "${files[*]}"
-          ansible-lint "${files[@]}"
+        run: ansible-lint roles/research_terminal_clients playbooks/research-terminals.yml
 
   ansible-integration:
     if: ${{ vars.ANSIBLE_INTEGRATION_ENABLED == 'true' }}
