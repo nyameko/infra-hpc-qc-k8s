@@ -20,8 +20,9 @@ terminal ergonomics for M4g and optional engineering agent sandboxes,
   state and detected agent status. Users can choose Herdr, tmux, or an
   ordinary shell; never replace the login shell automatically.
 - **ACP**: canonical PostgreSQL conversations, per-user authorization,
-  projects, memories and browser-approved terminal pairing. The `acp`
-  command is installed separately through its reviewed package/source;
+  projects, memories and browser-approved terminal pairing. The existing ACP `acp` CLI is optionally installed by this role from a
+  pinned ACP Git commit into an isolated Python virtual environment, once an
+  approved Python 3.13/3.14 runtime is available on the login host;
   Herdr does NOT identify the user or bypass ACP access checks.
 - **Slurm**: existing job scheduler and execution/accounting. Herdr/tmux
   runs on login/client hosts, not on compute nodes as new management daemons.
@@ -42,6 +43,13 @@ ansible-playbook -i inventories/PRIVATE.yml playbooks/research-terminals.yml
 ```
 
 This installs a binary and OS utilities; no Herdr process is started.
+To opt into ACP terminal-client installation, the operator may set
+`research_terminal_clients_acp_cli_enabled: true` in protected inventory,
+after verifying `research_terminal_clients_acp_cli_python` is a compatible,
+already-installed Python interpreter. The optional isolated venv runs the
+**existing** M4g browser-paired ACP CLI; it is not a new login protocol.
+This opt-in path requires GitHub/Python package access and is intentionally
+separate from the basic Herdr/tmux installation.
 From a normal researcher session:
 
 ```bash
