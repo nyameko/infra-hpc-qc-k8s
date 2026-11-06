@@ -58,7 +58,7 @@ jobs:
             echo "::error::Missing comparison commit; cannot bypass changed-file lint"
             exit 1
           }
-          mapfile -t files < <(git diff --name-only "$BASE_SHA" HEAD -- ansible |
+          mapfile -t files < <(git -C .. diff --name-only "$BASE_SHA" HEAD -- ansible |
             sed -n 's#^ansible/##p' |
             grep -E '\.(yml|yaml)
 
