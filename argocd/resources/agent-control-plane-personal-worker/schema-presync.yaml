@@ -1,0 +1,67 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: acp-personal-worker-schema-preflight
+  annotations:
+    # Stop a personal-worker *application* sync BEFORE its Recreate Deployment
+    # terminates the currently healthy worker, if migrations are not complete.
+    argocd.argoproj.io/hook: PreSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation,HookSucceeded
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: 90
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/part-of: agent-control-plane
+        acp-role: personal-worker
+        app.kubernetes.io/component: schema-preflight
+    spec:
+      restartPolicy: Never
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: schema-check
+        image: ghcr.io/nyameko/agent-control-plane-hermes@sha256:9819ab1f22607f2d61be51fcbcb62b6d02c1b91229f9a5e88565bc805db44d48
+        command:
+        - python
+        - -c
+        - |
+          import os
+          import psycopg
+          from agent_control_plane.migrate import MIGRATIONS
+
+          required = max(version for version, _ in MIGRATIONS)
+          with psycopg.connect(os.environ["ACP_DATABASE_URL"], connect_timeout=5) as conn:
+              actual = conn.execute(
+                  "SELECT COALESCE(MAX(version), 0) FROM acp1.schema_version"
+              ).fetchone()[0]
+          if actual < required:
+              raise SystemExit(
+                  f"ACP schema {actual} < required {required}: "
+                  "retain current worker; approve and complete migration first"
+              )
+          print(f"ACP schema {actual} satisfies worker requirement {required}")
+        env:
+        - name: ACP_DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: acp-db-app
+              key: ACP_DATABASE_URL
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            memory: 256Mi

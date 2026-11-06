@@ -36,7 +36,7 @@ def rewrite_kustomization(content: str, api: str, hermes: str) -> str:
     return content
 
 
-def rewrite_worker(content: str, digest: str) -> str:
+def rewrite_worker(content: str, digest: str, expected_count: int = 2) -> str:
     expression = (
         r"(?m)^([ \t]*image:[ \t]*)" + re.escape(HERMES_IMAGE)
         + r"@sha256:[0-9a-f]{64}(?=[ \t]*$)"
@@ -44,10 +44,9 @@ def rewrite_worker(content: str, digest: str) -> str:
     content, count = re.subn(
         expression, lambda m: m.group(1) + HERMES_IMAGE + "@" + digest, content
     )
-    if count != 2:
+    if count != expected_count:
         raise ValueError(
-            "Expected exactly two pinned Hermes references (worker and init check); "
-            f"got {count}"
+            f"Expected {expected_count} pinned Hermes image references; got {count}"
         )
     return content
 
@@ -62,15 +61,22 @@ def main() -> None:
 
     primary = BASE / "agent-control-plane/kustomization.yaml"
     worker = BASE / "agent-control-plane-personal-worker/deployment.yaml"
-    # Validate BOTH complete updates before writing EITHER file.
-    current_primary, current_worker = primary.read_text(), worker.read_text()
+    gate = BASE / "agent-control-plane-personal-worker/schema-presync.yaml"
+    # Validate ALL updates before writing ANY file. Keep the worker, init
+    # container and PreSync hook on the same reviewed Hermes image digest.
+    current_primary, current_worker, current_gate = (
+        primary.read_text(), worker.read_text(), gate.read_text()
+    )
     new_primary = rewrite_kustomization(current_primary, api, hermes)
-    new_worker = rewrite_worker(current_worker, hermes)
+    new_worker = rewrite_worker(current_worker, hermes, expected_count=2)
+    new_gate = rewrite_worker(current_gate, hermes, expected_count=1)
     if new_primary != current_primary:
         primary.write_text(new_primary)
     if new_worker != current_worker:
         worker.write_text(new_worker)
-    print("Paired ACP API + Hermes digests pinned; no deployment performed")
+    if new_gate != current_gate:
+        gate.write_text(new_gate)
+    print("ACP paired API/Hermes + worker/init/pre-sync digests pinned; no deployment")
 
 
 if __name__ == "__main__":

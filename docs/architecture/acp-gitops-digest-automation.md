@@ -1,8 +1,10 @@
 # ACP immutable-image GitOps automation (M4 release candidate)
 
-**Status:** proposed on infra `dev`; not proof of a running rollout. All new
-pull requests target `dev`. Production Argo applications watch infra `main`,
-which must be promoted separately by the operator's normal reviewed process.
+**Status:** The automation was promoted to infra `main` by PR #259
+(6 November 2026). Live Argo reconciliation, the current schema and worker
+availability have **not** been observed after promotion. All new PRs target
+`dev`; production Argo applications watch infra `main`.
+This follow-up fixes an independent-worker rollout-order risk.
 
 ## Dependency and ownership boundaries
 
@@ -23,9 +25,13 @@ which must be promoted separately by the operator's normal reviewed process.
    schema hook precedes API/Hermes wave 2; PostgreSQL, PVCs, secrets and durable
    history are never pruned by this Application.
 6. The personal-worker child Application remains the sole owner of its Deployment.
-   Its auto-update init container reads the schema via the existing restricted
-   application database credential and waits for the **exact schema version
-   packaged in its image** before starting the worker.
+   Its `PreSync` Job tests the schema required by the candidate Hermes image
+   **before** changing the `Recreate` Deployment. A failed check leaves the
+   existing healthy Deployment untouched. The separately pinned worker
+   init container provides defense in depth, checking the same schema before
+   starting the new worker. The hook uses the existing restricted application
+   database role and allowed `personal-worker` DB-only network policy.
+   This protects **future** rollouts, not already interrupted Pods.
 
 ## Schema upgrade safety: current v4 is NOT cleared for automatic v8
 
@@ -52,11 +58,19 @@ which continues checking historical migration checksums. Subsequent
 **same-schema** image promotions are fully automated after `main` promotion.
 A newly added schema version will fail closed until separately authorized.
 
-The existing worker Deployment uses `Recreate` because its process holds an
-exclusive PostgreSQL advisory lock. A rollout can interrupt in-flight personal
-turns; schedule and verify accordingly. If the schema gate blocks the new init
-container, worker availability may be reduced until an approved migration.
-**Do not promote this deployment policy to production while the database is v4.**
+The worker Deployment uses `Recreate` because its process holds an exclusive
+PostgreSQL advisory lock. An ordinary `Recreate` rollout can interrupt
+in-flight personal turns; schedule and verify accordingly. A `PreSync` hook
+blocks **future** worker replacements if the schema is behind and prevents
+the new init container from being reached during normal Argo sync.
+
+**Existing production risk:** PR #259 is already merged to `main`. If its
+child auto-sync has already replaced the worker while the database remained v4,
+the worker may be unavailable while waiting for v8. The follow-up guard cannot
+retroactively prevent that. Inspect the Pods and Argo operations before
+choosing an authorized recovery or migration. Do not run a selective sync that
+bypasses the PreSync hook. <https://argo-cd.readthedocs.io/en/stable/user-guide/sync-waves/>
+documents hook behavior and the selective-sync exception.
 
 ## Verification gates
 
@@ -74,7 +88,9 @@ container, worker availability may be reduced until an approved migration.
 - After approved promotion: confirm Argo synced/healthy, migration Job completed,
   `acp1.schema_version` is the expected version, both API and Hermes digests
   match the promoted Kustomization, and the worker Pod's *init and main*
-  container images use the same Hermes digest.
+  container images plus the schema PreSync Job use the same Hermes digest.
+  Prove the child PreSync failure on v4 leaves a previously healthy worker
+  running in **disposable staging**, and passes once a test database reaches v8.
 - Run the existing ACP M4 tests: signed Guide turn, RLS/wrong-user denial,
   memory correction/revocation, browser-Jupyter-SSH UUID continuity, and
   Slurm run provenance. Healthy Pods are insufficient evidence.

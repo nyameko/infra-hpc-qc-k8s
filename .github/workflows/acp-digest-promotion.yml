@@ -73,7 +73,8 @@ jobs:
           while IFS= read -r path; do
             case "$path" in
               argocd/resources/agent-control-plane/kustomization.yaml|\
-              argocd/resources/agent-control-plane-personal-worker/deployment.yaml) ;;
+              argocd/resources/agent-control-plane-personal-worker/deployment.yaml|\
+              argocd/resources/agent-control-plane-personal-worker/schema-presync.yaml) ;;
               *) echo "::error::Unexpected file modified: $path"; exit 1 ;;
             esac
           done < <(git diff --name-only)
@@ -87,6 +88,7 @@ jobs:
           add-paths: |
             argocd/resources/agent-control-plane/kustomization.yaml
             argocd/resources/agent-control-plane-personal-worker/deployment.yaml
+            argocd/resources/agent-control-plane-personal-worker/schema-presync.yaml
           commit-message: "chore(acp): pin reviewed source image digests"
           title: "chore(acp): promote paired published API/Hermes digests to infra dev"
           body: |
