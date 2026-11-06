@@ -27,11 +27,36 @@ spec:
       containers:
       - name: migrate
         image: agent-control-plane-api
+        # Check the live schema against the operator-approved automatic migration
+        # ceiling BEFORE running the existing checksum-checked migration driver.
+        # A newer schema release requires a separately reviewed backup/approval.
         command:
         - python
-        - -m
-        - agent_control_plane.migrate
+        - -c
+        - |
+          import os
+          import psycopg
+          from agent_control_plane.migrate import MIGRATIONS, migrate
+          desired = max(version for version, _ in MIGRATIONS)
+          approved = int(os.environ["ACP_APPROVED_MIGRATION_VERSION"])
+          dsn = os.environ["ACP_MIGRATION_DATABASE_URL"]
+          with psycopg.connect(dsn, connect_timeout=5) as conn:
+              current = conn.execute(
+                  "SELECT COALESCE(MAX(version), 0) FROM acp1.schema_version"
+              ).fetchone()[0]
+          if current < desired and desired > approved:
+              raise SystemExit(
+                  f"Schema upgrade {current}->{desired} requires separately "
+                  f"approved migration (automatic ceiling {approved})"
+              )
+          migrate(dsn)
         env:
+        # Current observed production schema is v4. Do not auto-apply v5-v8
+        # before an operator verifies a restorable DB backup and authorizes
+        # the upgrade. Once schema v8 is installed, same-schema deployments
+        # automatically pass this gate without changing this value.
+        - name: ACP_APPROVED_MIGRATION_VERSION
+          value: '4'
         - name: ACP_MIGRATION_DATABASE_URL
           valueFrom:
             secretKeyRef:

@@ -31,11 +31,58 @@ spec:
         seccompProfile:
           type: RuntimeDefault
       terminationGracePeriodSeconds: 30
+      # This Deployment is owned by a separate auto-syncing Application.
+      # Do not start a new harness image until the parent app's migration hook
+      # has brought PostgreSQL to the schema packaged inside that image.
+      initContainers:
+      - name: wait-for-acp-schema
+        image: ghcr.io/nyameko/agent-control-plane-hermes@sha256:9819ab1f22607f2d61be51fcbcb62b6d02c1b91229f9a5e88565bc805db44d48
+        command:
+        - python
+        - -c
+        - |
+          import os
+          import time
+          import psycopg
+          from agent_control_plane.migrate import MIGRATIONS
+          expected = max(version for version, _ in MIGRATIONS)
+          dsn = os.environ["ACP_DATABASE_URL"]
+          for _ in range(60):
+              try:
+                  with psycopg.connect(dsn, connect_timeout=5) as conn:
+                      actual = conn.execute(
+                          "SELECT COALESCE(MAX(version), 0) FROM acp1.schema_version"
+                      ).fetchone()[0]
+                  if actual >= expected:
+                      break
+              except psycopg.Error:
+                  pass
+              time.sleep(10)
+          else:
+              raise SystemExit(f"ACP schema {expected} not available; worker gated")
+        env:
+        - name: ACP_DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: acp-db-app
+              key: ACP_DATABASE_URL
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            memory: 256Mi
       containers:
       - name: personal-worker
         image: ghcr.io/nyameko/agent-control-plane-hermes@sha256:9819ab1f22607f2d61be51fcbcb62b6d02c1b91229f9a5e88565bc805db44d48
-        # Candidate from ACP main 7cc20e13a26e194ba200692d7dde58678c1e3717 (M4d skills schema v8).
-        # Activate only after operator-reviewed v5-v8 schema migrations and test evidence.
+        # Both personal worker and schema-check init container use the same
+        # reviewed immutable Hermes digest, promoted through infra dev PR.
         imagePullPolicy: Always
         command:
         - python
