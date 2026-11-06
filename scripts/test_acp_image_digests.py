@@ -39,6 +39,12 @@ class DigestPromotionTests(unittest.TestCase):
             updated.count("ghcr.io/nyameko/agent-control-plane-hermes@" + B), 1
         )
         self.assertIn("argocd.argoproj.io/hook: PreSync", original)
+        self.assertIn("acp-role: personal-worker", original)
+        self.assertIn("name: acp-db-app", original)
+        kustomization = (
+            ROOT / "argocd/resources/agent-control-plane-personal-worker/kustomization.yaml"
+        ).read_text()
+        self.assertIn("- schema-presync.yaml", kustomization)
         self.assertEqual(
             promoter.rewrite_worker(updated, B, expected_count=1), updated
         )
