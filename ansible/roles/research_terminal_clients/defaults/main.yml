@@ -15,3 +15,10 @@ research_terminal_clients_herdr_sha256:
 # Mirror override is permitted only if its bytes match the pinned upstream hash.
 research_terminal_clients_herdr_url: >-
   https://github.com/herdrdev/herdr/releases/download/{{ research_terminal_clients_herdr_version }}/herdr-linux-{{ ansible_architecture }}
+
+# Optional existing ACP M4g terminal client. This requires an already reviewed
+# Python 3.13/3.14 interpreter on the login host; never replace system Python.
+research_terminal_clients_acp_cli_enabled: false
+research_terminal_clients_acp_cli_python: /usr/bin/python3.14
+research_terminal_clients_acp_cli_venv: /opt/acp-terminal-client
+research_terminal_clients_acp_cli_revision: "7cc20e13a26e194ba200692d7dde58678c1e3717"
