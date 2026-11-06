@@ -31,6 +31,8 @@ jobs:
             docker run --rm -i ghcr.io/yannh/kubeconform:v0.8.0-alpine               \
               -summary -strict -ignore-missing-schemas -kubernetes-version 1.36.0 - < /tmp/rendered.yaml
           done < <(find argocd -name kustomization.yaml -o -name kustomization.yml | sort)
+      - name: Verify paired ACP digest-promotion contract
+        run: python3 -m unittest discover -s scripts -p 'test_acp_image_digests.py'
       - name: Terraform/Kubernetes static security report (advisory for baseline)
         uses: bridgecrewio/checkov-action@v12
         with:

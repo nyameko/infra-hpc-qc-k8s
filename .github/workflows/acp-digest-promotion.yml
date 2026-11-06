@@ -1,0 +1,106 @@
+name: Propose ACP immutable image digests (PR to dev only)
+on:
+  # Schedule runs on the default branch once this workflow is promoted.
+  schedule:
+    - cron: '17 */6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: acp-immutable-digests
+  cancel-in-progress: false
+
+jobs:
+  propose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: dev
+          fetch-depth: 0
+      - uses: docker/setup-buildx-action@v3
+      - name: Resolve reviewed ACP main source
+        id: source
+        shell: bash
+        run: |
+          set -euo pipefail
+          sha="$(git ls-remote https://github.com/nyameko/agent-control-plane.git refs/heads/main | awk '{print $1}')"
+          [[ "$sha" =~ ^[a-f0-9]{40}$ ]] || { echo "::error::Invalid ACP source SHA"; exit 1; }
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          echo "ACP main source commit: $sha"
+      - name: Verify BOTH published commit-tagged OCI digests
+        id: images
+        shell: bash
+        env:
+          ACP_SHA: ${{ steps.source.outputs.sha }}
+        run: |
+          set -euo pipefail
+          for kind in api hermes; do
+            if [[ "$kind" == api ]]; then name=agent-control-plane; else name=agent-control-plane-hermes; fi
+            tag="ghcr.io/nyameko/${name}:sha-${ACP_SHA}"
+            if ! metadata="$(docker buildx imagetools inspect "$tag" 2>&1)"; then
+              echo "::notice::ACP image not yet published: $tag"
+              echo "published=false" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            digest="$(printf '%s\n' "$metadata" | awk '$1 == "Digest:" {print $2; exit}')"
+            [[ "$digest" =~ ^sha256:[a-f0-9]{64}$ ]] || {
+              echo "::error::Unexpected digest for $tag"
+              exit 1
+            }
+            echo "${kind}_digest=$digest" >> "$GITHUB_OUTPUT"
+            echo "Verified: ghcr.io/nyameko/${name}@${digest}"
+          done
+          echo "published=true" >> "$GITHUB_OUTPUT"
+      - name: Validate promoter against existing manifest contracts
+        if: steps.images.outputs.published == 'true'
+        run: python3 -m unittest discover -s scripts -p 'test_acp_image_digests.py'
+      - name: Update only ACP pinned digests
+        if: steps.images.outputs.published == 'true'
+        env:
+          API_DIGEST: ${{ steps.images.outputs.api_digest }}
+          HERMES_DIGEST: ${{ steps.images.outputs.hermes_digest }}
+        run: |
+          set -euo pipefail
+          python3 scripts/update_acp_image_digests.py \
+            --api-digest "$API_DIGEST" \
+            --hermes-digest "$HERMES_DIGEST"
+          git diff --check
+          while IFS= read -r path; do
+            case "$path" in
+              argocd/resources/agent-control-plane/kustomization.yaml|\
+              argocd/resources/agent-control-plane-personal-worker/deployment.yaml) ;;
+              *) echo "::error::Unexpected file modified: $path"; exit 1 ;;
+            esac
+          done < <(git diff --name-only)
+      - uses: peter-evans/create-pull-request@v7
+        if: steps.images.outputs.published == 'true'
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          base: dev
+          branch: automation/acp-image-digests
+          delete-branch: true
+          add-paths: |
+            argocd/resources/agent-control-plane/kustomization.yaml
+            argocd/resources/agent-control-plane-personal-worker/deployment.yaml
+          commit-message: "chore(acp): pin reviewed source image digests"
+          title: "chore(acp): promote paired published API/Hermes digests to infra dev"
+          body: |
+            Automated immutable digest proposal **against infra dev only**.
+
+            Source: `nyameko/agent-control-plane@${{ steps.source.outputs.sha }}` (main).
+            API: `ghcr.io/nyameko/agent-control-plane@${{ steps.images.outputs.api_digest }}`.
+            Hermes/worker: `ghcr.io/nyameko/agent-control-plane-hermes@${{ steps.images.outputs.hermes_digest }}`.
+
+            Both digests were resolved from full-commit SHA tags published by upstream
+            CI. This PR changes image references only; it cannot change
+            migration approval, ArgoCD policy or any secrets.
+
+            **Do not promote infra dev to main before checking ACP database
+            schema, backup restoration evidence, CI, image compatibility and
+            migration approval.** Production ArgoCD watches infra main, never dev.
+            The migration gate rejects unapproved schema-changing releases.
