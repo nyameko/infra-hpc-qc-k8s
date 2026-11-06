@@ -1,17 +1,17 @@
 ---
 # This role runs only when explicitly selected in playbooks/research-terminals.yml.
 # Do not update running Herdr sessions as part of an unrelated Slurm change.
-research_terminal_packages:
+research_terminal_clients_packages:
   - tmux
   - git
   - jq
 
-research_terminal_herdr_enabled: true
-research_terminal_herdr_version: "v0.9.5"
-research_terminal_herdr_binary_path: /usr/local/bin/herdr
-research_terminal_herdr_sha256:
+research_terminal_clients_herdr_enabled: true
+research_terminal_clients_herdr_version: "v0.9.5"
+research_terminal_clients_herdr_binary_path: /usr/local/bin/herdr
+research_terminal_clients_herdr_sha256:
   x86_64: "14d9e8bc8b4a9e0118d77c32266f76d461f09b40342eb23752960bd89f59929d"
   aarch64: "17d7536f2da50859523680ef279dffcac8e4a235f4e46fe8da6c2ec44141897c"
 # Mirror override is permitted only if its bytes match the pinned upstream hash.
-research_terminal_herdr_url: >-
-  https://github.com/herdrdev/herdr/releases/download/{{ research_terminal_herdr_version }}/herdr-linux-{{ ansible_architecture }}
+research_terminal_clients_herdr_url: >-
+  https://github.com/herdrdev/herdr/releases/download/{{ research_terminal_clients_herdr_version }}/herdr-linux-{{ ansible_architecture }}
