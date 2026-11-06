@@ -1,0 +1,9 @@
+---
+# Run deliberately against a protected inventory with research_terminals group.
+# No SSH, PAM, Slurm, WireGuard, service, agent, or model changes.
+- name: Install lightweight per-user terminal controls on explicitly selected hosts
+  hosts: research_terminals
+  become: true
+  gather_facts: true
+  roles:
+    - research_terminal_clients
