@@ -11,7 +11,7 @@ from pathlib import Path
 BASE = Path("argocd/resources")
 API_IMAGE = "ghcr.io/nyameko/agent-control-plane"
 HERMES_IMAGE = "ghcr.io/nyameko/agent-control-plane-hermes"
-HEX_DIGEST = re.compile(r"sha256:[0-9a-f]{64}\\Z")
+HEX_DIGEST = re.compile(r"sha256:[0-9a-f]{64}\Z")
 
 
 def valid_digest(value: str) -> str:
@@ -27,8 +27,8 @@ def rewrite_kustomization(content: str, api: str, hermes: str) -> str:
     ):
         expression = (
             r"(?m)(^-[ ]name: " + re.escape(alias)
-            + r"\\n[ ]+newName: " + re.escape(name)
-            + r"\\n[ ]+digest: )sha256:[0-9a-f]{64}(?=[ \\t]*$)"
+            + r"\n[ ]+newName: " + re.escape(name)
+            + r"\n[ ]+digest: )sha256:[0-9a-f]{64}(?=[ \t]*$)"
         )
         content, count = re.subn(expression, lambda m: m.group(1) + digest, content)
         if count != 1:
@@ -38,8 +38,8 @@ def rewrite_kustomization(content: str, api: str, hermes: str) -> str:
 
 def rewrite_worker(content: str, digest: str) -> str:
     expression = (
-        r"(?m)^([ \\t]*image:[ \\t]*)" + re.escape(HERMES_IMAGE)
-        + r"@sha256:[0-9a-f]{64}(?=[ \\t]*$)"
+        r"(?m)^([ \t]*image:[ \t]*)" + re.escape(HERMES_IMAGE)
+        + r"@sha256:[0-9a-f]{64}(?=[ \t]*$)"
     )
     content, count = re.subn(
         expression, lambda m: m.group(1) + HERMES_IMAGE + "@" + digest, content
