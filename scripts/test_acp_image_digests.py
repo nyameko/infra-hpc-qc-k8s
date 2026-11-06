@@ -19,8 +19,8 @@ class DigestPromotionTests(unittest.TestCase):
         path = ROOT / "argocd/resources/agent-control-plane/kustomization.yaml"
         original = path.read_text()
         updated = promoter.rewrite_kustomization(original, A, B)
-        self.assertIn("newName: ghcr.io/nyameko/agent-control-plane\\n  digest: " + A, updated)
-        self.assertIn("newName: ghcr.io/nyameko/agent-control-plane-hermes\\n  digest: " + B, updated)
+        self.assertIn("newName: ghcr.io/nyameko/agent-control-plane\n  digest: " + A, updated)
+        self.assertIn("newName: ghcr.io/nyameko/agent-control-plane-hermes\n  digest: " + B, updated)
         self.assertEqual(promoter.rewrite_kustomization(updated, A, B), updated)
 
     def test_worker_pins_init_and_main_to_identical_hermes_digest(self):
@@ -38,11 +38,11 @@ class DigestPromotionTests(unittest.TestCase):
 
     def test_fails_closed_if_kustomization_layout_drifted(self):
         with self.assertRaises(ValueError):
-            promoter.rewrite_kustomization("images: []\\n", A, B)
+            promoter.rewrite_kustomization("images: []\n", A, B)
 
     def test_fails_closed_if_worker_image_count_drifted(self):
         with self.assertRaises(ValueError):
-            promoter.rewrite_worker("containers: []\\n", B)
+            promoter.rewrite_worker("containers: []\n", B)
 
 
 if __name__ == "__main__":
