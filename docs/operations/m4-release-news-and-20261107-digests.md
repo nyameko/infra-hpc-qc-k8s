@@ -1,4 +1,4 @@
-# M4 release candidate — News hostname, CSS and verified image digests
+# M4 release candidate — News styling and verified image digests
 
 **Source only, operator-promoted and observed acceptance required.**
 These updates are based on the November 7, 2026 successful *main-branch*
@@ -29,40 +29,27 @@ The ACP Hermes digest is also updated in **personal-worker init container,
 main container and schema PreSync hook**, which use literal images
 rather than Kustomize image substitutions.
 
-## DNS and redirect
+## News remains on the existing blog hostname
 
-New canonical public URL: `https://news.quantum.nyameko.com/`.
-Old URL `https://blog.nyameko.com/` remains reachable via a permanent
-Traefik RedirectRegex middleware and HTTPS-specific legacy Ingress. Existing
-`/posts/<slug>/` paths are preserved; never redirect authenticated
-`quantum.nyameko.com` application routes.
+The **News** navigation label points to the existing public blog:
+`https://blog.nyameko.com/`. The blog's Astro canonical site is the
+same hostname, and Traefik continues to serve the blog using the existing
+Ingress host and existing `quantum-platform-tls` certificate configuration.
 
-DNS is **not managed in this repository**. An authorized Cloudflare zone
-administrator must create/confirm a record for
-`news.quantum.nyameko.com` pointing to the **existing approved public
-HAProxy/Traefik endpoint**, using the *current* verified target from
-`quantum.nyameko.com`; do not guess an IP. Existing
-`blog.nyameko.com` DNS must remain in place. Choose Cloudflare proxy
-settings consistent with existing approved TLS/proxy deployment, and
-verify hostname reachability and `cert-manager` DNS-01 issuance.
+There is **no new `news.quantum.nyameko.com` domain**, no new DNS,
+Cloudflare or cert-manager request, and no redirect middleware. Existing
+post paths stay unchanged. News keeps the same shared Quantum Platform
+`@nyameko/ui` site layout, theme, and typography. The separate
+wireframe sign-out control remains on the authenticated portal.
 
-Before production promotion and after Argo reconciles, check from an
-authorized operator workstation:
+Verify the existing host only, after any separately approved deployment:
 
 ```bash
-dig +short news.quantum.nyameko.com
-dig +short blog.nyameko.com
-curl -IL --max-redirs 3 https://news.quantum.nyameko.com/
 curl -IL --max-redirs 3 https://blog.nyameko.com/
-curl -IL --max-redirs 3 https://blog.nyameko.com/posts/first-post/
 ```
 
-Acceptance: canonical site responds over valid HTTPS with Quantum Platform
-navigation; old host returns **permanent redirect** to the same path on
-News, no loops, no internal hostname leakage. Verify actual certificate
-SANs for both old and new hosts and that Traefik recognizes
-`traefik.io/v1alpha1` Middleware. Review Cloudflare/TLS separately; a
-GitHub YAML check alone cannot confirm DNS or certificates.
+Do not use this News styling change to trigger Cloudflare changes or
+additional DNS records.
 
 ## Portal sign-out human UX
 
