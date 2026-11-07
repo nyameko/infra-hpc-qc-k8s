@@ -12,12 +12,12 @@ spec:
 
   tls:
     - hosts:
-        - blog.nyameko.com
+        - news.quantum.nyameko.com
         - quantum.nyameko.com
       secretName: quantum-platform-tls
 
   rules:
-    - host: blog.nyameko.com
+    - host: news.quantum.nyameko.com
       http:
         paths:
           - path: /
