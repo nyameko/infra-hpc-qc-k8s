@@ -23,6 +23,38 @@
     mode: "0755"
   when: research_terminal_clients_herdr_enabled | bool
 
+# Rocky login shells can omit /usr/local/bin from PATH, particularly with
+# non-default per-user zsh or sudo -iu. /usr/bin is already in their PATH.
+# Never touch /etc/profile, a user's dotfiles, the login shell, or Slurm.
+- name: Inspect optional system-path Herdr entry before linking
+  ansible.builtin.stat:
+    path: /usr/bin/herdr
+    follow: false
+  register: research_terminal_clients_herdr_system_entry
+  when: research_terminal_clients_herdr_enabled | bool
+
+- name: Refuse to overwrite a different system Herdr executable
+  ansible.builtin.assert:
+    that:
+      - >-
+        not research_terminal_clients_herdr_system_entry.stat.exists
+        or (
+          research_terminal_clients_herdr_system_entry.stat.islnk | default(false)
+          and research_terminal_clients_herdr_system_entry.stat.lnk_target
+          == research_terminal_clients_herdr_binary_path
+        )
+    fail_msg: "/usr/bin/herdr already exists and is not our approved /usr/local/bin/herdr link."
+  when: research_terminal_clients_herdr_enabled | bool
+
+- name: Publish verified Herdr in Rocky default binary search path
+  ansible.builtin.file:
+    src: "{{ research_terminal_clients_herdr_binary_path }}"
+    dest: /usr/bin/herdr
+    state: link
+    owner: root
+    group: root
+  when: research_terminal_clients_herdr_enabled | bool
+
 - name: Read installed Herdr version without starting its server
   ansible.builtin.command:
     argv:

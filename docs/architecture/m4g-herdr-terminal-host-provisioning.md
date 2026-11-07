@@ -92,6 +92,38 @@ Pinned upstream asset/source:
 [Herdr v0.9.5 release](https://github.com/herdrdev/herdr/releases/tag/v0.9.5)
 and [official SSH use](https://herdr.dev/tui/docs/how-to-work/).
 
+## Shared storage versus shell home
+
+The existing `storage-nfs-01` exports shared research data and user homes
+under `/home/research`, `/datasets`, and `/staging`. An NFS mount at
+`/home/research` does **not** mean an administrative user's `/home/nyameko`
+is also NFS-backed. The actual mount for each account must be checked with
+`findmnt -T "$HOME"` after login. Keep research home ownership and POSIX
+permissions unchanged, even if admins cannot inspect another researcher's
+private directory.
+
+Herdr is installed at `/usr/local/bin/herdr` and published via a guarded
+`/usr/bin/herdr` symlink to support Rocky login environments that do not
+include `/usr/local/bin` in the default `PATH`. No user or global shell
+configuration is changed. If `/usr/bin/herdr` is an unrelated binary, Ansible
+fails instead of overwriting it. Verify with:
+
+```bash
+ls -l /usr/local/bin/herdr /usr/bin/herdr
+command -v herdr && herdr --version
+getent passwd "$USER" | cut -d: -f7
+findmnt -T "$HOME" -o SOURCE,TARGET,FSTYPE
+findmnt -T /home/research -o SOURCE,TARGET,FSTYPE
+```
+
+`zsh` and Zim remain **explicit per-user opt-in**. A user who installed Zim
+on login2's local `/home/nyameko` will not automatically get it on login1.
+To share the same config while retaining separate home directories, use a
+reviewed per-user synchronization of `~/.zshrc`, `~/.zimrc` and `~/.zim`;
+do not modify `/etc/profile`, account login shells, Slurm or private research
+homes. The same NFS mount can be visible to compute nodes; avoid shared
+automatic shell-switching logic.
+
 ## Testing / rollback
 
 CI: Ansible syntax check/lint; compare the downloaded SHA-256 with the pinned
