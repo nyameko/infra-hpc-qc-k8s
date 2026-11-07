@@ -30,14 +30,18 @@
       - --version
   register: research_terminal_clients_herdr_version_output
   changed_when: false
-  when: research_terminal_clients_herdr_enabled | bool
+  when:
+    - research_terminal_clients_herdr_enabled | bool
+    - not ansible_check_mode
 
 - name: Confirm the selected Herdr release was installed
   ansible.builtin.assert:
     that:
       - "'0.9.5' in research_terminal_clients_herdr_version_output.stdout"
     fail_msg: "Herdr binary version differs from the pinned expected release."
-  when: research_terminal_clients_herdr_enabled | bool
+  when:
+    - research_terminal_clients_herdr_enabled | bool
+    - not ansible_check_mode
 
 - name: Inspect the operator-selected Python for optional ACP CLI
   ansible.builtin.stat:
@@ -77,4 +81,6 @@
       - "{{ research_terminal_clients_acp_cli_venv }}/bin/acp"
       - --help
   changed_when: false
-  when: research_terminal_clients_acp_cli_enabled | bool
+  when:
+    - research_terminal_clients_acp_cli_enabled | bool
+    - not ansible_check_mode

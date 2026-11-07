@@ -45,15 +45,21 @@ regardless of an interactive `zsh` session.
 
 ## Operator installation after host review
 
-Use a protected Ansible inventory with an explicit `research_terminals`
-group. The inventory example is a shape only; it is not a deployed ACE host.
+Use the **existing** protected Sebowa inventory
+`ansible/inventories/private/hosts.yml` and its `slurm_login` group,
+which already contains `login1` and `login2`. The `group_vars/`
+files are variable definitions, **not inventories**. Do not pass
+`inventories/private/group_vars/slurm_login/jupyterhub-gateway.yml`
+to `-i`. ACE has a separate inventory and is not targeted by this play.
 On a machine authorized for infrastructure operations (not `k8s-cp-01`):
 
 ```bash
 cd ansible
-ansible-playbook -i inventories/PRIVATE.yml playbooks/research-terminals.yml --check --diff
-# After separate human authorization:
-ansible-playbook -i inventories/PRIVATE.yml playbooks/research-terminals.yml
+ansible-inventory -i inventories/private/hosts.yml --graph
+ansible-playbook -i inventories/private/hosts.yml playbooks/research-terminals.yml --limit slurm_login --list-hosts
+ansible-playbook -i inventories/private/hosts.yml playbooks/research-terminals.yml --limit slurm_login --check --diff
+# After separate human authorization, from this same directory:
+ansible-playbook -i inventories/private/hosts.yml playbooks/research-terminals.yml --limit slurm_login
 ```
 
 This installs binaries and OS utilities only; no Herdr process is started, no shell is switched and no Slurm service is changed.

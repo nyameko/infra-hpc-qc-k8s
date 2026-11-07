@@ -1,11 +1,15 @@
 ---
-# Documentation-only inventory; supply real private addresses/identities
-# through the existing protected inventory. No privileged host is targeted
-# until an operator explicitly runs the playbook with a real inventory.
+# Documentation-only example, not a real inventory and never applied.
+# Actual Sebowa login hosts are already configured in private/hosts.yml:
+#   slurm_login: login1, login2
+# Keep ACE logins in their own approved inventory and playbook.
 all:
   children:
-    research_terminals:
+    slurm_login:
       hosts:
-        research-login-example:
-          ansible_host: "<APPROVED_SEBOWA_OR_ACE_LOGIN_HOST_WG_ADDRESS>"
+        login1:
+          ansible_host: "<APPROVED_PRIVATE_LOGIN1_ADDRESS>"
+          ansible_user: "<AUTHORIZED_HOST_ADMIN>"
+        login2:
+          ansible_host: "<APPROVED_PRIVATE_LOGIN2_ADDRESS>"
           ansible_user: "<AUTHORIZED_HOST_ADMIN>"
