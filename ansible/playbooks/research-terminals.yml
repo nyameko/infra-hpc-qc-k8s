@@ -1,8 +1,9 @@
 ---
-# Run deliberately against a protected inventory with research_terminals group.
-# No SSH, PAM, Slurm, WireGuard, service, agent, or model changes.
+# Explicitly run against an operator-provided private inventory; this host
+# group already exists on Sebowa (login1/login2). Use --limit for narrower scope.
+# No SSH, PAM, account login shell, Slurm, WireGuard, service or model changes.
 - name: Install lightweight per-user terminal controls on explicitly selected hosts
-  hosts: research_terminals
+  hosts: slurm_login
   become: true
   gather_facts: true
   roles:
