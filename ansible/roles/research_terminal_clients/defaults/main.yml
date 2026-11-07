@@ -24,4 +24,4 @@ research_terminal_clients_herdr_url: >-
 research_terminal_clients_acp_cli_enabled: false
 research_terminal_clients_acp_cli_python: /usr/bin/python3.14
 research_terminal_clients_acp_cli_venv: /opt/acp-terminal-client
-research_terminal_clients_acp_cli_revision: "7cc20e13a26e194ba200692d7dde58678c1e3717"
+research_terminal_clients_acp_cli_revision: "583de1600e540e0907e8d7a746a62884b97e3195"

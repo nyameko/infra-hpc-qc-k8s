@@ -1,6 +1,8 @@
 # M4g — Herdr/tmux/optional-zsh terminal host provisioning through Ansible
 
-**Status:** opt-in source deployment recipe, not live installed. This is
+**Status:** Herdr v0.9.5, tmux and zsh are operator-verified on `login1`
+and `login2`; **the optional ACP CLI is not installed** and the M4g
+cross-client continuity acceptance is still outstanding. This is
 terminal ergonomics for M4g and optional engineering agent sandboxes,
 **not an ACP authentication broker, a scheduler or a research agent**.
 
@@ -70,6 +72,56 @@ already-installed Python interpreter. The optional isolated venv runs the
 **existing** M4g browser-paired ACP CLI; it is not a new login protocol.
 This opt-in path requires GitHub/Python package access and is intentionally
 separate from the basic Herdr/tmux installation.
+
+**ACP installation is the missing M4g link.** The role's default remains
+`research_terminal_clients_acp_cli_enabled: false`; it now pins the
+promoted ACP #93 source commit (`583de1600e540e0907e8d7a746a62884b97e3195`)
+and publishes a guarded `/usr/bin/acp` symlink (the `/usr/local/bin`
+directory is **not** in the research login PATH). First check available
+interpreters without changing hosts:
+
+```bash
+ansible -i inventories/private/hosts.yml slurm_login \
+  -m shell -a 'command -v python3.14 || command -v python3.13 || python3 --version'
+```
+
+The optional client requires Python 3.13 or 3.14. **Do not enable** the role
+until an authorized, compatible interpreter exists on each target; Python
+3.9's system executable does not satisfy the package's pinned requirements.
+Set the interpreter absolute path via `research_terminal_clients_acp_cli_python`
+if different from the default, then preview the explicit opt-in:
+
+```bash
+ansible-playbook -i inventories/private/hosts.yml \
+  playbooks/research-terminals.yml --limit slurm_login \
+  -e research_terminal_clients_acp_cli_enabled=true --check --diff
+```
+
+After an operator has reviewed the target/runtime and granted installation
+approval, run the same command without `--check --diff`. This installs the
+existing CLI in an isolated `/opt/acp-terminal-client` virtual environment;
+it does not alter anyone's login shell or Slurm services. Verify:
+
+```bash
+ssh login1 'command -v acp && acp --help'
+ssh login2 'command -v acp && acp --help'
+```
+
+**Actual command** (inside an authorized login terminal or Herdr pane):
+
+```bash
+acp --url https://quantum.nyameko.com --browser-pair session
+```
+
+The resulting interactive prompt is `acp>`. Type `chats`, `memories`,
+`show <real-uuid>` **only inside that prompt**. Do not paste `acp>`
+into Bash, and do not paste angle-bracket placeholder values literally.
+Approval lasts about 300 seconds and must be renewed explicitly using
+`connect` when expired. Current memories are retrieved from ACP after
+an owner-scoped authorization check; the terminal cannot itself create
+private memories or override owner permissions.
+
+
 From a normal researcher session:
 
 ```bash
