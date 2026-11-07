@@ -16,7 +16,6 @@ resources:
   - users.yaml
   - user-api.yaml
   - ingress.yaml
-  - news-legacy-redirect.yaml
   - postgres-exporter.yaml
   - admin-ingress.yaml
 
