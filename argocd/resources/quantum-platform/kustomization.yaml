@@ -25,15 +25,15 @@ components:
 images:
   - name: quantum-platform-blog
     newName: ghcr.io/nyameko/quantum-platform-blog
-    newTag: dev
+    digest: sha256:34bdb7a491e8b0086f6c2b76e1a75ce45752b757c47ba4e2d6af65c23c7a6678
 
   - name: quantum-platform-users
     newName: ghcr.io/nyameko/quantum-platform-users
-    digest: sha256:abf66ae433c9e97435bf5d104c30f39c9ffcb774f69b4103ab4c54a8d50bf66f
+    digest: sha256:37db85f9ec2f4206881b93a76d275ef934e6ceee0acfcc77f2198e4924c54556
 
   - name: quantum-platform-user-api
     newName: ghcr.io/nyameko/quantum-platform-user-api
-    digest: sha256:4f956b6fb214122e2589997e1b32bbbf09569042b116f5f325bc4c9f1155de6b
+    digest: sha256:38ead0c6f49b6a5ec4f7401b50f36aace412c20ae1ea123a28650ce3b77b5929
 
 patches:
   - target:
