@@ -3,6 +3,9 @@
 # Do not update running Herdr sessions as part of an unrelated Slurm change.
 research_terminal_clients_packages:
   - tmux
+  # Installed on login hosts, never set as anyone's default login shell.
+  # Users opt in themselves by starting 'zsh' from their existing shell.
+  - zsh
   - git
   - jq
 
