@@ -27,7 +27,7 @@ spec:
           type: RuntimeDefault
       containers:
       - name: schema-check
-        image: ghcr.io/nyameko/agent-control-plane-hermes@sha256:9819ab1f22607f2d61be51fcbcb62b6d02c1b91229f9a5e88565bc805db44d48
+        image: ghcr.io/nyameko/agent-control-plane-hermes@sha256:e36c46927bfd1805f6a513a5872d9dcf5bb3aa42b9b981c17d35fc38fdcb8c78
         command:
         - python
         - -c
