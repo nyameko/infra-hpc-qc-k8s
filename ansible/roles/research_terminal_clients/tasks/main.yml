@@ -98,10 +98,32 @@
     virtualenv_command: "{{ research_terminal_clients_acp_cli_python }} -m venv"
   when: research_terminal_clients_acp_cli_enabled | bool
 
+# Administrative and research-login shells both include /usr/bin but may
+# deliberately omit /usr/local/bin. Avoid dotfile, PATH or /etc/profile edits.
+- name: Inspect target ACP executable path before linking
+  ansible.builtin.stat:
+    path: /usr/bin/acp
+    follow: false
+  register: research_terminal_clients_acp_system_entry
+  when: research_terminal_clients_acp_cli_enabled | bool
+
+- name: Refuse to replace another executable named acp
+  ansible.builtin.assert:
+    that:
+      - >-
+        not research_terminal_clients_acp_system_entry.stat.exists
+        or (
+          research_terminal_clients_acp_system_entry.stat.islnk | default(false)
+          and research_terminal_clients_acp_system_entry.stat.lnk_target
+          == research_terminal_clients_acp_cli_venv ~ '/bin/acp'
+        )
+    fail_msg: "/usr/bin/acp is already in use; do not overwrite unrelated tools."
+  when: research_terminal_clients_acp_cli_enabled | bool
+
 - name: Expose the installed ACP client without changing the login shell
   ansible.builtin.file:
     src: "{{ research_terminal_clients_acp_cli_venv }}/bin/acp"
-    dest: /usr/local/bin/acp
+    dest: /usr/bin/acp
     state: link
     owner: root
     group: root

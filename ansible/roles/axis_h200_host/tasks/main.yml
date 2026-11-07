@@ -1,0 +1,120 @@
+---
+- name: Refuse to apply Axis H200 preflight to the wrong OS
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['distribution'] == 'Rocky'
+      - ansible_facts['distribution_major_version'] == '10'
+    fail_msg: "Axis H200 readiness is for the approved Rocky Linux 10 host only."
+
+- name: Require explicit expected GPU identities
+  ansible.builtin.assert:
+    that:
+      - axis_h200_expected_gpu_uuids | length == axis_h200_expected_gpu_count | int
+      - axis_h200_expected_gpu_uuids | unique | list | length == axis_h200_expected_gpu_count | int
+    fail_msg: "Provide eight unique H200 GPU UUIDs in the private Axis inventory."
+
+- name: Optionally configure NVIDIA's signed container toolkit repository
+  ansible.builtin.get_url:
+    url: "{{ axis_h200_nvidia_toolkit_repo_url }}"
+    dest: /etc/yum.repos.d/nvidia-container-toolkit.repo
+    owner: root
+    group: root
+    mode: "0644"
+  when: axis_h200_manage_packages | bool
+
+- name: Optionally reconcile approved diagnostics and container packages
+  ansible.builtin.dnf:
+    name: "{{ axis_h200_base_packages + [axis_h200_nvidia_toolkit_package] }}"
+    state: present
+  when: axis_h200_manage_packages | bool
+
+- name: Read NVIDIA GPU UUIDs in driver-reported order
+  ansible.builtin.command:
+    cmd: nvidia-smi --query-gpu=uuid --format=csv,noheader
+  register: axis_h200_actual_gpu_uuids
+  changed_when: false
+
+- name: Require exactly the approved eight GPUs
+  ansible.builtin.assert:
+    that:
+      - axis_h200_actual_gpu_uuids.stdout_lines | length == axis_h200_expected_gpu_count | int
+      - axis_h200_actual_gpu_uuids.stdout_lines | sort == axis_h200_expected_gpu_uuids | sort
+    fail_msg: "GPU identities differ from private inventory. Stop before allocating devices."
+
+- name: Read GPU index, UUID and PCI bus mapping without unsupported minor_number field
+  ansible.builtin.command:
+    cmd: nvidia-smi --query-gpu=index,uuid,pci.bus_id --format=csv,noheader
+  register: axis_h200_gpu_mapping
+  changed_when: false
+
+- name: Inspect NVIDIA GPU character devices
+  ansible.builtin.stat:
+    path: "/dev/nvidia{{ item }}"
+  loop: "{{ range(0, axis_h200_expected_gpu_count | int) | list }}"
+  register: axis_h200_gpu_device_stats
+
+- name: Confirm GPU character devices exist
+  ansible.builtin.assert:
+    that:
+      - item.stat.exists | default(false) | bool
+      - item.stat.ischr | default(false) | bool
+  loop: "{{ axis_h200_gpu_device_stats.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+
+- name: Verify NVIDIA Fabric Manager is active
+  ansible.builtin.command:
+    cmd: systemctl is-active nvidia-fabricmanager.service
+  register: axis_h200_fabric_manager
+  changed_when: false
+
+- name: Read NVIDIA CDI identities
+  ansible.builtin.command:
+    cmd: nvidia-ctk cdi list
+  register: axis_h200_cdi_devices
+  changed_when: false
+
+- name: Confirm every approved UUID is exposed by CDI
+  ansible.builtin.assert:
+    that:
+      - "('nvidia.com/gpu=' ~ item) in axis_h200_cdi_devices.stdout_lines"
+    fail_msg: "Approved GPU {{ item }} is missing from the NVIDIA CDI inventory."
+  loop: "{{ axis_h200_expected_gpu_uuids }}"
+
+- name: Inspect block devices and filesystem signatures without modification
+  ansible.builtin.command:
+    cmd: lsblk -e7 -o NAME,PATH,SIZE,FSTYPE,PTTYPE,MODEL,SERIAL,MOUNTPOINTS
+  register: axis_h200_block_devices
+  changed_when: false
+
+- name: Inspect existing NVMe filesystem and partition signatures
+  ansible.builtin.command:
+    argv:
+      - wipefs
+      - -n
+      - "{{ item }}"
+  loop: "{{ axis_h200_nvme_inspect_devices }}"
+  register: axis_h200_nvme_signatures
+  changed_when: false
+
+- name: Read SELinux enforcement status
+  ansible.builtin.command:
+    cmd: getenforce
+  register: axis_h200_selinux
+  changed_when: false
+
+- name: Read CDI refresh systemd path status
+  ansible.builtin.command:
+    cmd: systemctl is-enabled nvidia-cdi-refresh.path
+  register: axis_h200_cdi_refresh
+  changed_when: false
+  failed_when: false
+
+- name: Summarize non-destructive host readiness
+  ansible.builtin.debug:
+    msg:
+      - "Host checks passed. This is NOT a Slurm or multi-tenant isolation sign-off."
+      - "GPU map: {{ axis_h200_gpu_mapping.stdout_lines }}"
+      - "SELinux: {{ axis_h200_selinux.stdout | trim }}"
+      - "CDI refresh path: {{ axis_h200_cdi_refresh.stdout | trim }}"
+      - "Storage was inspected only; no filesystem, mount or RAID was created."

@@ -1,0 +1,9 @@
+---
+# Source-only Axis H200 readiness. Does not deploy Slurm, vLLM, or format disks.
+# Operator must provide an approved, private inventory and host-key verification.
+- name: Validate the temporary Axis H200 host before scheduling workloads
+  hosts: axis_h200
+  become: true
+  gather_facts: true
+  roles:
+    - axis_h200_host
