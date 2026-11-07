@@ -1,0 +1,24 @@
+---
+# Example only. Copy into ignored ansible/inventories/private/ and replace
+# placeholders. Verify the Axis broker's host key out-of-band first.
+# The SSH username or destination may change between portal allocations.
+all:
+  children:
+    axis_h200:
+      hosts:
+        xd670:
+          ansible_host: "<APPROVED_AXIS_SSH_ENDPOINT>"
+          ansible_user: "<CURRENT_AXIS_SSH_PRINCIPAL>"
+          ansible_ssh_common_args: >-
+            -o ServerAliveInterval=30
+            -o ServerAliveCountMax=6
+          axis_h200_expected_gpu_uuids:
+            - "<GPU_0_UUID>"
+            - "<GPU_1_UUID>"
+            - "<GPU_2_UUID>"
+            - "<GPU_3_UUID>"
+            - "<GPU_4_UUID>"
+            - "<GPU_5_UUID>"
+            - "<GPU_6_UUID>"
+            - "<GPU_7_UUID>"
+          axis_h200_manage_packages: false

@@ -1,0 +1,34 @@
+---
+# This role deliberately has no driver, filesystem, scheduler, or reboot tasks.
+axis_h200_expected_gpu_count: 8
+
+# Set exactly eight EXPECTED UUIDs in a private inventory, independently
+# recorded from the approved Axis allocation.
+axis_h200_expected_gpu_uuids: []
+
+# Package reconciliation is an explicit operator choice, not a side effect
+# of read-only preflight. Never use the EL9 nvidia_gpu_host role on Rocky 10.
+axis_h200_manage_packages: false
+axis_h200_nvidia_toolkit_repo_url: https://nvidia.github.io/libnvidia-container/stable/rpm/nvidia-container-toolkit.repo
+axis_h200_nvidia_toolkit_package: nvidia-container-toolkit-1.20.1-1
+axis_h200_base_packages:
+  - podman
+  - jq
+  - sysstat
+  - fio
+  - numactl
+  - pciutils
+  - lsof
+  - smartmontools
+  - tmux
+
+# Inspection only. Never infer approval to initialize or mount these devices.
+axis_h200_nvme_inspect_devices:
+  - /dev/nvme0n1
+  - /dev/nvme1n1
+  - /dev/nvme2n1
+  - /dev/nvme3n1
+  - /dev/nvme4n1
+  - /dev/nvme5n1
+  - /dev/nvme6n1
+  - /dev/nvme7n1
