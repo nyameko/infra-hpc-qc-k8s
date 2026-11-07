@@ -7,7 +7,8 @@ metadata:
     argocd.argoproj.io/hook: Sync
     argocd.argoproj.io/hook-delete-policy: BeforeHookCreation,HookSucceeded
 spec:
-  backoffLimit: 10
+  # A rejected or failed release must fail once, not flap for 15 minutes.
+  backoffLimit: 0
   activeDeadlineSeconds: 900
   template:
     metadata:
@@ -15,7 +16,7 @@ spec:
         app.kubernetes.io/part-of: agent-control-plane
         acp-role: migration
     spec:
-      restartPolicy: OnFailure
+      restartPolicy: Never
       automountServiceAccountToken: false
       securityContext:
         runAsNonRoot: true
@@ -51,12 +52,12 @@ spec:
               )
           migrate(dsn)
         env:
-        # Current observed production schema is v4. Do not auto-apply v5-v8
-        # before an operator verifies a restorable DB backup and authorizes
-        # the upgrade. Once schema v8 is installed, same-schema deployments
-        # automatically pass this gate without changing this value.
+        # RELEASE GATE: raise only after off-PVC backup, isolated restore,
+        # reviewed migrations 0005-0008 and explicit owner approval.
+        # This branch is a candidate; a merged DEV PR does not approve
+        # promoting it to MAIN (which automatically launches this hook).
         - name: ACP_APPROVED_MIGRATION_VERSION
-          value: '4'
+          value: '8'
         - name: ACP_MIGRATION_DATABASE_URL
           valueFrom:
             secretKeyRef:
