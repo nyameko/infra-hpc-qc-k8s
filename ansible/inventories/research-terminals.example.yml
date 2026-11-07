@@ -1,0 +1,11 @@
+---
+# Documentation-only inventory; supply real private addresses/identities
+# through the existing protected inventory. No privileged host is targeted
+# until an operator explicitly runs the playbook with a real inventory.
+all:
+  children:
+    research_terminals:
+      hosts:
+        research-login-example:
+          ansible_host: "<APPROVED_SEBOWA_OR_ACE_LOGIN_HOST_WG_ADDRESS>"
+          ansible_user: "<AUTHORIZED_HOST_ADMIN>"
