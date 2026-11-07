@@ -1,0 +1,51 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: paperclip-pilot-deny-by-default
+spec:
+  podSelector: {}
+  policyTypes: [Ingress, Egress]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: paperclip-pilot-dns
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: paperclip
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - {protocol: UDP, port: 53}
+        - {protocol: TCP, port: 53}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: paperclip-pilot-to-litellm-only
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: paperclip
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: litellm
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: litellm
+      ports:
+        - {protocol: TCP, port: 4000}
+# No public ingress, wildcard Internet egress, GitHub write, Kubernetes API,
+# SSH, Slurm, host sockets, or privileged agent tool capability at this stage.
+# Controlled engineering-agent egress requires a reviewed *separate* change.

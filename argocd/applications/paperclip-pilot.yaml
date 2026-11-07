@@ -1,0 +1,19 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: paperclip-pilot
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/nyameko/infra-hpc-qc-k8s.git
+    targetRevision: main
+    path: argocd/resources/paperclip-pilot
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: paperclip-pilot
+  # INTENTIONAL MANUAL FIRST SYNC ONLY. Missing secrets and unreviewed model
+  # allocation must NOT trigger production deployment on root sync.
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true
