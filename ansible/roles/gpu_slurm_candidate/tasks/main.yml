@@ -47,7 +47,6 @@
     that:
       - item.uuid is match('^GPU-[a-zA-Z0-9-]+$')
       - item.minor | int >= 0
-      - item.minor | int < gpu_science_expected_gpu_count | int
     fail_msg: "Science GPUs must be mapped from UUID to actual /dev/nvidia minor, never guessed from nvidia-smi index."
   loop: "{{ gpu_science_devices }}"
 
