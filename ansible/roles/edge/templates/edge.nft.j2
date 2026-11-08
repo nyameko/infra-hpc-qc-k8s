@@ -38,6 +38,20 @@ table inet filter {
 
         ct state established,related accept
 
+{% if edge_h200_slurm_forward_enabled | default(false) | bool %}
+        # XD670 -> persistent Slurm controller. Separate from the researcher wg0.
+        # No public TCP ingress. Routes, Neutron port security and reciprocal
+        # controller reachability must be independently verified beforehand.
+        iifname "wg-fabric" oifname "{{ ansible_facts.default_ipv4.interface }}" ip saddr {{ edge_h200_slurm_peer_ip }} ip daddr {{ edge_h200_slurm_controller_ip }} tcp dport 6817 accept
+        # slurmctld -> XD670 slurmd. Keep other ports closed by default.
+        iifname "{{ ansible_facts.default_ipv4.interface }}" oifname "wg-fabric" ip saddr {{ edge_h200_slurm_controller_ip }} ip daddr {{ edge_h200_slurm_peer_ip }} tcp dport 6818 accept
+{% if edge_h200_slurm_diagnostic_icmp | default(false) | bool %}
+        # Optional diagnostic probes; never required for Slurm operation.
+        iifname "wg-fabric" oifname "{{ ansible_facts.default_ipv4.interface }}" ip saddr {{ edge_h200_slurm_peer_ip }} ip daddr {{ edge_h200_slurm_controller_ip }} ip protocol icmp icmp type echo-request accept
+        iifname "{{ ansible_facts.default_ipv4.interface }}" oifname "wg-fabric" ip saddr {{ edge_h200_slurm_controller_ip }} ip daddr {{ edge_h200_slurm_peer_ip }} ip protocol icmp icmp type echo-request accept
+{% endif %}
+{% endif %}
+
         iifname "wg0" oifname "{{ ansible_facts.default_ipv4.interface }}" accept
         iifname "{{ ansible_facts.default_ipv4.interface }}" oifname "wg0" ct state established,related accept
 

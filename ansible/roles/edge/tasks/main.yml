@@ -21,6 +21,17 @@
     state: present
     reload: true
 
+- name: Validate gated H200 Slurm forwarding policy before rendering nftables
+  ansible.builtin.assert:
+    that:
+      - edge_h200_slurm_peer_ip == '10.61.0.3'
+      - edge_h200_slurm_controller_ip == '10.50.0.12'
+      - edge_h200_slurm_diagnostic_icmp is boolean
+    fail_msg: >-
+      Only the reviewed H200 /32 and single controller /32 may be forwarded.
+      Recheck the approved private route, Neutron and network security policy.
+  when: edge_h200_slurm_forward_enabled | bool
+
 - name: Deploy nftables configuration
   ansible.builtin.template:
     src: edge.nft.j2
@@ -28,6 +39,7 @@
     owner: root
     group: root
     mode: "0644"
+    validate: /usr/sbin/nft -c -f %s
   notify: Restart nftables
 
 - name: Configure nftables service entrypoint
