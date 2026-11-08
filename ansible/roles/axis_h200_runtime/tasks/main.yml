@@ -1,0 +1,93 @@
+---
+- name: Require exactly the two approved mounted paths
+  ansible.builtin.assert:
+    that:
+      - axis_h200_runtime_mounts | length == 2
+      - "(axis_h200_runtime_mounts | map(attribute='path') | list | sort) == (['/srv/h200/inference/models', '/srv/h200/science/scratch'] | sort)"
+
+- name: Require independently verified filesystem identities
+  ansible.builtin.assert:
+    that:
+      - item.path in ['/srv/h200/inference/models', '/srv/h200/science/scratch']
+      - item.uuid | default('') | length >= 32
+      - item.serial | default('') | length > 0
+    fail_msg: "Supply verified mount paths, UUIDs and device serials in ignored private inventory."
+  loop: "{{ axis_h200_runtime_mounts }}"
+
+- name: Resolve existing filesystem UUIDs without modifying any disks
+  ansible.builtin.command:
+    argv: [blkid, -U, "{{ item.uuid }}"]
+  loop: "{{ axis_h200_runtime_mounts }}"
+  register: axis_h200_runtime_uuid_devices
+  changed_when: false
+  check_mode: false
+
+- name: Resolve approved disk serials
+  ansible.builtin.command:
+    argv: [lsblk, -dn, -o, SERIAL, "{{ item.stdout | trim }}"]
+  loop: "{{ axis_h200_runtime_uuid_devices.results }}"
+  loop_control:
+    label: "{{ item.item.path }}"
+  register: axis_h200_runtime_serials
+  changed_when: false
+  check_mode: false
+
+- name: Reject disk replacement or unexpected filesystem identity
+  ansible.builtin.assert:
+    that:
+      - item.stdout | trim == item.item.item.serial
+    fail_msg: "Approved disk serial does not match the filesystem UUID; refusing persistence."
+  loop: "{{ axis_h200_runtime_serials.results }}"
+  loop_control:
+    label: "{{ item.item.item.path }}"
+
+- name: Optionally reconcile fstab and mounts for already verified XFS filesystems
+  ansible.posix.mount:
+    path: "{{ item.path }}"
+    src: "UUID={{ item.uuid }}"
+    fstype: xfs
+    opts: defaults,noatime,nofail,x-systemd.device-timeout=10s
+    state: mounted
+  loop: "{{ axis_h200_runtime_mounts }}"
+  when: axis_h200_runtime_manage_persistence | bool
+
+- name: Read actual mounted filesystem UUIDs and types
+  ansible.builtin.command:
+    argv: [findmnt, -n, -o, "UUID,FSTYPE", --mountpoint, "{{ item.path }}"]
+  loop: "{{ axis_h200_runtime_mounts }}"
+  register: axis_h200_runtime_findmnt
+  changed_when: false
+  check_mode: false
+
+- name: Verify both mounts are real XFS filesystems with the approved UUIDs
+  ansible.builtin.assert:
+    that:
+      - item.stdout.split() | length == 2
+      - item.stdout.split()[0] == item.item.uuid
+      - item.stdout.split()[1] == 'xfs'
+    fail_msg: "A required XFS filesystem is missing or mismatched. Stop before starting services."
+  loop: "{{ axis_h200_runtime_findmnt.results }}"
+  loop_control:
+    label: "{{ item.item.path }}"
+
+- name: Optionally enable the existing H200 WireGuard interface for boot
+  ansible.builtin.systemd:
+    name: "wg-quick@{{ axis_h200_runtime_wireguard_interface }}"
+    enabled: true
+    state: started
+  when: axis_h200_runtime_manage_persistence | bool
+
+- name: Inspect WireGuard interface status without exposing its private key
+  ansible.builtin.command:
+    argv: [wg, show, "{{ axis_h200_runtime_wireguard_interface }}", latest-handshakes]
+  register: axis_h200_runtime_wg_handshakes
+  changed_when: false
+  check_mode: false
+
+- name: Summarize runtime scope and outstanding acceptance gates
+  ansible.builtin.debug:
+    msg:
+      - "Validated two approved XFS mounts and running WireGuard interface."
+      - "Persistent changes opted in: {{ axis_h200_runtime_manage_persistence | bool }}"
+      - "Handshake epochs: {{ axis_h200_runtime_wg_handshakes.stdout_lines }}"
+      - "No storage was formatted; no Slurm, vLLM or multi-user GPU isolation was configured."

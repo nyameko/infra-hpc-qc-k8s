@@ -1,0 +1,16 @@
+---
+# Break-glass only, from Axis broker access, not over the live H200 VPN.
+# Existing live interfaces and configs are NEVER overwritten.
+axis_h200_wg_restore: false
+axis_h200_wg_interface: wg-h200
+axis_h200_wg_address: 10.61.0.3/32
+axis_h200_wg_listen_port: 51821
+axis_h200_wg_allowed_ips:
+  - 10.61.0.1/32
+  - 10.50.0.0/24
+  - 10.51.0.0/24
+axis_h200_wg_endpoint_host: ""
+axis_h200_wg_endpoint_port: 51821
+axis_h200_wg_private_key: ""
+axis_h200_wg_gateway_public_key: ""
+axis_h200_wg_psk: ""
