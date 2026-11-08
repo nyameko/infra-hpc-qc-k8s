@@ -1,0 +1,8 @@
+---
+# H200 science access to the persistent Slurm controller.
+# Disabled until Neutron address pairs, return routing and security groups
+# have been approved and verified. Never forward the whole management network.
+edge_h200_slurm_forward_enabled: false
+edge_h200_slurm_peer_ip: "10.61.0.3"
+edge_h200_slurm_controller_ip: "10.50.0.12"
+edge_h200_slurm_diagnostic_icmp: false
