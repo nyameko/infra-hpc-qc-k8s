@@ -1,0 +1,18 @@
+---
+# Safe by default: no model download, token generation, unit installation or startup.
+axis_h200_vllm_manage: false
+axis_h200_vllm_start: false
+
+# Copy the immutable image ref from: podman image inspect IMAGE --format '{{ "{{json .RepoDigests}}" }}'
+axis_h200_vllm_image: ""
+axis_h200_vllm_gpu_uuid: ""
+axis_h200_vllm_model: Qwen/Qwen3-8B
+axis_h200_vllm_model_cache: /srv/h200/inference/models
+axis_h200_vllm_hf_cache: /srv/h200/inference/models/hf-cache
+axis_h200_vllm_env_file: /etc/vllm/h200.env
+axis_h200_vllm_port: 8000
+axis_h200_vllm_max_model_len: 8192
+axis_h200_vllm_gpu_memory_utilization: "0.80"
+# Official vLLM CUDA images support an unprivileged in-container account.
+# Podman is rootful during initial operational proving; the container process isn't.
+axis_h200_vllm_container_user: "2000:0"
