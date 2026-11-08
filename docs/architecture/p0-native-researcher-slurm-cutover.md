@@ -67,7 +67,7 @@ Only real active public keys from the user's account may be installed. Never
 generate or store a private researcher key in the platform backend or the
 public repo. The researcher may generate their *own* dedicated SSH key in
 Jupyter under private `~/.ssh` and register its public half with their
-Quantum Platform account. Ensure the Jupyter single-user runtime uses
+Quantum Platform account. The Jupyter CPU image includes the ordinary OpenSSH client (no shared key). Ensure the Jupyter single-user runtime uses
 the same POSIX UID/GID as site SSH, and SSH host-key pinning is verified
 out of band. A registered public key alone is **not** proof that it has
 reached the login host.

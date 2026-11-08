@@ -38,6 +38,21 @@
   loop_control:
     label: "{{ item.name }}"
 
+- name: Verify research primary GID is already provisioned on login host
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/id
+      - -g
+      - "{{ item.name }}"
+  register: researcher_slurm_identity_gid
+  changed_when: false
+  failed_when: >-
+    researcher_slurm_identity_gid.rc != 0 or
+    (researcher_slurm_identity_gid.stdout | int) != (item.gid | int)
+  loop: "{{ research_users }}"
+  loop_control:
+    label: "{{ item.name }}"
+
 - name: Ensure SSH principal-match group
   ansible.builtin.group:
     name: "{{ researcher_slurm_ssh_group }}"
@@ -91,6 +106,26 @@
   loop: "{{ research_users }}"
   loop_control:
     label: "{{ item.name }}"
+  no_log: true
+
+- name: Find stale research key files from removed inventory accounts
+  ansible.builtin.find:
+    paths: "{{ researcher_slurm_keys_dir }}"
+    file_type: file
+    recurse: false
+  register: researcher_slurm_key_files
+  changed_when: false
+
+- name: Remove stale keys no longer present in authoritative private inventory
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: absent
+  loop: "{{ researcher_slurm_key_files.files }}"
+  loop_control:
+    label: "{{ item.path | basename }}"
+  when: >-
+    (item.path | basename) not in
+    (research_users | map(attribute='name') | list)
   no_log: true
 
 - name: Validate enabled public keys with the system OpenSSH parser
