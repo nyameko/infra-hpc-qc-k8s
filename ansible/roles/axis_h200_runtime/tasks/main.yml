@@ -1,8 +1,13 @@
 ---
-- name: Require an exact, explicitly recorded two-filesystem plan
+- name: Require exactly the two approved mounted paths
   ansible.builtin.assert:
     that:
       - axis_h200_runtime_mounts | length == 2
+      - "(axis_h200_runtime_mounts | map(attribute='path') | list | sort) == (['/srv/h200/inference/models', '/srv/h200/science/scratch'] | sort)"
+
+- name: Require independently verified filesystem identities
+  ansible.builtin.assert:
+    that:
       - item.path in ['/srv/h200/inference/models', '/srv/h200/science/scratch']
       - item.uuid | default('') | length >= 32
       - item.serial | default('') | length > 0
