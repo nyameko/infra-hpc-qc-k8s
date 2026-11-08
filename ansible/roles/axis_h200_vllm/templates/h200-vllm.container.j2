@@ -19,7 +19,7 @@ Environment=HF_HOME=/home/vllm/.cache/huggingface
 Volume={{ axis_h200_vllm_hf_cache }}:/home/vllm/.cache/huggingface
 ShmSize=16g
 PublishPort=127.0.0.1:{{ axis_h200_vllm_port }}:8000
-Exec=--model {{ axis_h200_vllm_model }} --tensor-parallel-size 1 --max-model-len {{ axis_h200_vllm_max_model_len }} --gpu-memory-utilization {{ axis_h200_vllm_gpu_memory_utilization }} --host 0.0.0.0 --port 8000
+Exec={{ axis_h200_vllm_model }} --tensor-parallel-size 1 --max-model-len {{ axis_h200_vllm_max_model_len }} --gpu-memory-utilization {{ axis_h200_vllm_gpu_memory_utilization }} --host 0.0.0.0 --port 8000
 
 [Service]
 Restart=on-failure
