@@ -101,3 +101,13 @@ measurement.
 
 See [M2a](../tutorials/m2a-jupyterhub-kubespawner-workbench.md) for the concrete
 capacity model and acceptance tests.
+
+## M5 batch-first quantum simulator academy (8 November 2026)
+
+> **Scientific preparation is cheap; expensive execution is scheduled.**
+
+The ordinary JupyterHub/KubeSpawner workbench is a small CPU-based *preparation and analysis* environment. A100/H200 simulator execution is a separate, durable Slurm `sbatch` allocation: a scientist can close/reopen the notebook without holding a GPU. This is the default user experience; **do not** add interactive GPU Jupyter reservations or Open OnDemand merely to run scientific jobs. BatchSpawner can remain an optional specialist HPC mode, not the onboarding default.
+
+A Slurm researcher identity must be authenticated end-to-end; **remove** the obsolete privileged sudo/forced-command `jupyterhub-slurm-helper` only after replacing it with a secure native per-user `sbatch/squeue/sacct/scancel` path. No `runuser`, service-selected UID or privileged impersonation. P0 acceptance: an authorized user submits/cancels their own job and cannot act on another user, verified by human operator. Existing CPU production flow must not be disrupted while transitioning.
+
+P1: Axis/A100 site authority must approve GPU assignment, GRES/cgroup and accounting TRES, with inference devices disjoint from research. P2: real ACE A100 Aer GPU one-device batch. P3: same test on remote Axis H200 using approved staging and result verification. See [H200 data staging](h200-scratch-and-data-staging.md) and [Quantum Workflows M5 plan](https://github.com/nyameko/quantum-workflows/blob/dev/docs/M5-BATCH-FIRST-SIMULATOR-PATH.md). No live rollout or GPU entitlement is implied by this documentation.
