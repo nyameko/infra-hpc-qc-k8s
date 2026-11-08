@@ -1,0 +1,123 @@
+---
+- name: Require authoritative private researcher inventory
+  ansible.builtin.assert:
+    that:
+      - research_users is defined
+      - research_users | length > 0
+    fail_msg: >-
+      Supply research_users from protected inventory, including provisioned
+      POSIX identity, explicit execution_enabled flag and public SSH keys.
+
+- name: Validate researcher principal and opt-in key records
+  ansible.builtin.assert:
+    that:
+      - item.name is match('^[a-z_][a-z0-9_-]*$')
+      - item.uid | int >= 20000
+      - item.gid | int >= 20000
+      - not (item.execution_enabled | default(false) | bool) or
+        (item.ssh_public_keys | default([]) | length) > 0
+    fail_msg: >-
+      Invalid researcher identity or no approved SSH public key for
+      enabled user. Never install service private keys here.
+  loop: "{{ research_users }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Verify research principal is already provisioned on this login host
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/id
+      - -u
+      - "{{ item.name }}"
+  register: researcher_slurm_identity_uid
+  changed_when: false
+  failed_when: >-
+    researcher_slurm_identity_uid.rc != 0 or
+    (researcher_slurm_identity_uid.stdout | int) != (item.uid | int)
+  loop: "{{ research_users }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Ensure SSH principal-match group
+  ansible.builtin.group:
+    name: "{{ researcher_slurm_ssh_group }}"
+    state: present
+
+# ALL managed research accounts belong to the match group, including
+# revoked/disabled ones. Disabled users receive an empty authorized-key
+# file, so they cannot bypass revocation through ~/.ssh/authorized_keys.
+- name: Match all managed research accounts to centralized SSH key policy
+  ansible.builtin.user:
+    name: "{{ item.name }}"
+    groups:
+      - "{{ researcher_slurm_ssh_group }}"
+    append: true
+  loop: "{{ research_users }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Create root-owned researcher SSH key directory
+  ansible.builtin.file:
+    path: "{{ researcher_slurm_keys_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Validate each enabled researcher public key is a single OpenSSH line
+  ansible.builtin.assert:
+    that:
+      - item.1 is match('^(ssh-ed25519|ssh-rsa|ecdsa-sha2-nistp256|ecdsa-sha2-nistp384|ecdsa-sha2-nistp521|sk-ssh-ed25519@openssh.com|sk-ecdsa-sha2-nistp256@openssh.com) [A-Za-z0-9+/=]+( [^\\r\\n]*)?$')
+    fail_msg: "Invalid SSH public key. Key options/newlines are not accepted."
+  loop: "{{ research_users | subelements('ssh_public_keys', skip_missing=True) }}"
+  loop_control:
+    label: "{{ item.0.name }}"
+  when: item.0.execution_enabled | default(false) | bool
+  no_log: true
+
+- name: Publish root-owned per-researcher authorized SSH public keys
+  ansible.builtin.copy:
+    dest: "{{ researcher_slurm_keys_dir }}/{{ item.name }}"
+    owner: root
+    group: root
+    mode: "0644"
+    # Empty for users with execution_enabled false.
+    content: >-
+      {{
+        ((item.ssh_public_keys | default([])) | join('\n')) ~ '\n'
+        if item.execution_enabled | default(false) | bool
+        else ''
+      }}
+  loop: "{{ research_users }}"
+  loop_control:
+    label: "{{ item.name }}"
+  no_log: true
+
+- name: Validate enabled public keys with the system OpenSSH parser
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/ssh-keygen
+      - -lf
+      - "{{ researcher_slurm_keys_dir }}/{{ item.name }}"
+  changed_when: false
+  loop: "{{ research_users }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when: item.execution_enabled | default(false) | bool
+  no_log: true
+
+# Must be appended to main sshd_config, NOT a config.d drop-in at the top:
+# Match clauses remain in effect until another Match is encountered.
+- name: Restrict research SSH accounts to site-approved keys only
+  ansible.builtin.blockinfile:
+    path: /etc/ssh/sshd_config
+    marker: "# {mark} QUANTUM SLURM RESEARCHER SSH"
+    block: |
+      Match Group {{ researcher_slurm_ssh_group }}
+          AuthorizedKeysFile {{ researcher_slurm_keys_dir }}/%u
+          AuthenticationMethods publickey
+          PasswordAuthentication no
+          KbdInteractiveAuthentication no
+    validate: /usr/sbin/sshd -t -f %s
+    backup: true
+  notify: restart sshd

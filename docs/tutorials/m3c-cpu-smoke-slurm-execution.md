@@ -1,5 +1,13 @@
 # M3c — Quantum Platform to Slurm cpu-smoke
 
+> **Historical legacy implementation — P0 deprecation.** The shared
+> `jupyterhub-gateway` key, root-owned helper, passwordless sudo and `runuser`
+> described below are **not approved for new deployment**. P0 replaces them
+> with real per-researcher SSH login and native Slurm commands. See
+> [P0 cutover and acceptance](../architecture/p0-native-researcher-slurm-cutover.md).
+> This legacy guide is retained only to explain migration of already-running systems.
+>
+
 ## Existing trust boundary reused
 
 M3c uses the existing restricted SSH gateway on the Slurm login tier:

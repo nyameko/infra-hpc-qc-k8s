@@ -8,3 +8,13 @@
     - ../group_vars/slurm_cluster.yml
   roles:
     - research_identity
+
+- name: Install native SSH access scoped to each provisioned researcher
+  hosts: slurm_login
+  become: true
+  gather_facts: false
+  vars_files:
+    - ../group_vars/jupyterhub.yml
+    - ../group_vars/slurm_cluster.yml
+  roles:
+    - researcher_slurm_ssh
