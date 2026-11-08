@@ -55,6 +55,24 @@ Verify with the site operator which entity owns each GPU and which
 provider permits Slurm daemon admission. An Axis-owned scheduler should
 be used remotely, not competed with by another `slurmd`.
 
+## Controller-side audit (independent of GPU host access)
+
+From an operator account with approved read access to the **existing**
+`slurm_controller` inventory group, run:
+
+```bash
+cd ansible
+ANSIBLE_HOST_KEY_CHECKING=True ansible-playbook \
+  -i inventories/private/hosts.yml \
+  playbooks/gpu-slurm-controller-audit.yml --check
+```
+
+This reads `scontrol show config/nodes/partition`, `sinfo`, and
+`sacctmgr show user/association/qos` without creating or changing
+accounts, jobs or partitions. Inspect the effective controller settings
+before designing site quotas. The controller playbook and both GPU host
+inventories can be reviewed independently, in parallel.
+
 ## P1 review-only GPU config generation
 
 Copy the relevant `ansible/vars/{ace-a100,axis-h200}-gpu.example.yml`
