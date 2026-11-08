@@ -1,0 +1,11 @@
+---
+# Post-install capture / reconciliation; does not deploy vLLM or Slurm.
+# Default run is read-only. Explicit opt-in persists existing XFS mounts
+# and enables an already configured, running WireGuard interface.
+- name: Verify and optionally persist observed Axis H200 runtime
+  hosts: axis_h200
+  become: true
+  gather_facts: true
+  roles:
+    - axis_h200_host
+    - axis_h200_runtime
