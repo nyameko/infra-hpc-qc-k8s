@@ -1,0 +1,6 @@
+# REVIEW CANDIDATE ONLY: explicit science GPUs; inference devices deliberately absent.
+# Avoid AutoDetect=nvml on a mixed science/inference physical host:
+# it can detect devices owned by a different allocator.
+{% for d in gpu_science_devices %}
+NodeName={{ gpu_science_node_name }} {% if loop.first %}AutoDetect=off {% endif %}Name=gpu File=/dev/nvidia{{ d.minor }}
+{% endfor %}
