@@ -1,0 +1,19 @@
+---
+# Render-only plan example, NOT approved configuration. Copy to ignored
+# inventories/private/ace-a100-gpu-plan.yml; fill from P1 evidence.
+gpu_science_site: ace-a100
+gpu_science_site_approval_recorded: false
+gpu_science_node_name: ""
+gpu_science_node_addr: ""
+gpu_science_partition: science-a100
+gpu_science_node_cpus: 0
+gpu_science_node_real_memory_mb: 0
+gpu_science_expected_gpu_count: 0
+gpu_science_expected_gpu_uuids: []
+# Exactly one science GPU by UUID and Linux /dev/nvidia minor.
+gpu_science_devices: []
+# Every existing inference GPU that must never appear in the science GRES.
+gpu_science_inference_uuids: []
+# Restricted SlurmDBD programme/project accounts; require approved QOS.
+gpu_science_allowed_accounts: []
+gpu_science_max_time: "08:00:00"
