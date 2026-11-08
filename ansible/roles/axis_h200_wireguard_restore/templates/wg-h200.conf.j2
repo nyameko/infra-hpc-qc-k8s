@@ -1,0 +1,12 @@
+# Created only via explicit break-glass bootstrap on an unconfigured host.
+[Interface]
+Address = {{ axis_h200_wg_address }}
+ListenPort = {{ axis_h200_wg_listen_port }}
+PrivateKey = {{ axis_h200_wg_private_key }}
+
+[Peer]
+PublicKey = {{ axis_h200_wg_gateway_public_key }}
+PresharedKey = {{ axis_h200_wg_psk }}
+Endpoint = {{ axis_h200_wg_endpoint_host }}:{{ axis_h200_wg_endpoint_port }}
+AllowedIPs = {{ axis_h200_wg_allowed_ips | join(', ') }}
+PersistentKeepalive = 25

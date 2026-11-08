@@ -11,7 +11,9 @@ table inet filter {
         ip protocol icmp accept
         ip6 nexthdr icmpv6 accept
 
-        udp dport 51820 accept
+        # WG researcher access (51820) and the infrastructure fabric (51821).
+        # Fabric peers use authenticated keys; keep the port accessible for roaming.
+        udp dport { 51820, 51821 } accept
 
         tcp dport 22 ip saddr {{ bootstrap_ssh_cidr }} accept
         tcp dport 22 ip saddr {{ vpn_cidr }} accept

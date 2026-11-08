@@ -1,0 +1,10 @@
+---
+# H200 preflight + explicitly opt-in rootful Podman Quadlet for a single
+# pinned inference GPU. No live deployment in this source-only PR.
+- name: Reconcile private, GPU-pinned Axis H200 inference service
+  hosts: axis_h200
+  become: true
+  gather_facts: true
+  roles:
+    - axis_h200_host
+    - axis_h200_vllm
