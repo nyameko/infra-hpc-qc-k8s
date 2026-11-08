@@ -1,0 +1,9 @@
+---
+# Use only through temporary Axis broker SSH on an unconfigured host.
+# Re-uses the original secret values from private Ansible Vault; default off.
+- name: Break-glass restore of the approved H200 WireGuard client
+  hosts: axis_h200
+  become: true
+  gather_facts: true
+  roles:
+    - axis_h200_wireguard_restore
