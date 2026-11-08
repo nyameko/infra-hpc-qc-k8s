@@ -1,0 +1,72 @@
+---
+- name: Read whether the existing H200 WireGuard interface is already live
+  ansible.builtin.command:
+    argv: [wg, show, "{{ axis_h200_wg_interface }}", public-key]
+  register: axis_h200_wg_live
+  changed_when: false
+  failed_when: false
+
+- name: Read whether existing WireGuard config is present
+  ansible.builtin.stat:
+    path: "/etc/wireguard/{{ axis_h200_wg_interface }}.conf"
+  register: axis_h200_wg_config
+
+- name: Explain that restoring WireGuard is a break-glass operation
+  ansible.builtin.debug:
+    msg: >-
+      WireGuard runtime present: {{ axis_h200_wg_live.rc == 0 }};
+      config present: {{ axis_h200_wg_config.stat.exists | default(false) }}.
+      This role makes no changes unless axis_h200_wg_restore=true.
+      To restore an erased host, connect via the Axis broker, not wg-h200.
+  when: not (axis_h200_wg_restore | bool)
+
+- name: Restore the original approved WireGuard identity on an empty host
+  when: axis_h200_wg_restore | bool
+  block:
+    - name: Refuse to overwrite a live interface or existing config
+      ansible.builtin.assert:
+        that:
+          - axis_h200_wg_live.rc != 0
+          - not (axis_h200_wg_config.stat.exists | default(false))
+          - axis_h200_wg_interface == 'wg-h200'
+          - axis_h200_wg_address == '10.61.0.3/32'
+          - axis_h200_wg_allowed_ips | length >= 1
+          - "'0.0.0.0/0' not in axis_h200_wg_allowed_ips"
+          - axis_h200_wg_private_key | length == 44
+          - axis_h200_wg_gateway_public_key | length == 44
+          - axis_h200_wg_psk | length == 44
+          - axis_h200_wg_endpoint_host | length > 0
+          - axis_h200_wg_endpoint_port | int > 0
+          - axis_h200_wg_endpoint_port | int <= 65535
+        fail_msg: >-
+          Refusing unsafe restoration. Use the existing protected WireGuard
+          secrets and verify that this is an unconfigured replacement host.
+      no_log: true
+
+    - name: Ensure WireGuard tools are installed on the restored host
+      ansible.builtin.dnf:
+        name: wireguard-tools
+        state: present
+
+    - name: Ensure protected WireGuard configuration directory exists
+      ansible.builtin.file:
+        path: /etc/wireguard
+        state: directory
+        owner: root
+        group: root
+        mode: "0700"
+
+    - name: Restore protected WireGuard config from Vault
+      ansible.builtin.template:
+        src: wg-h200.conf.j2
+        dest: /etc/wireguard/wg-h200.conf
+        owner: root
+        group: root
+        mode: "0600"
+      no_log: true
+
+    - name: Start and enable recovered WireGuard client
+      ansible.builtin.systemd:
+        name: wg-quick@wg-h200
+        state: started
+        enabled: true
