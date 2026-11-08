@@ -97,6 +97,36 @@
   check_mode: false
   failed_when: false
 
+- name: Inspect currently configured Slurm GPU GRES (if installed)
+  ansible.builtin.shell: |
+    if command -v slurmd >/dev/null 2>&1; then
+      timeout 12 slurmd -G 2>&1
+    else
+      echo "slurmd not installed"
+    fi
+  args:
+    executable: /bin/bash
+  register: gpu_slurm_gres_discovery
+  changed_when: false
+  check_mode: false
+  failed_when: false
+
+- name: Inspect effective compute cgroup configuration without editing it
+  ansible.builtin.command:
+    argv: [cat, /etc/slurm/cgroup.conf]
+  register: gpu_slurm_cgroup_config
+  changed_when: false
+  check_mode: false
+  failed_when: false
+
+- name: Inspect kernel cgroup v2 controller support
+  ansible.builtin.command:
+    argv: [cat, /sys/fs/cgroup/cgroup.controllers]
+  register: gpu_slurm_cgroup_v2
+  changed_when: false
+  check_mode: false
+  failed_when: false
+
 - name: Check science scratch mount without creating a filesystem
   ansible.builtin.command:
     argv: [findmnt, --target, "{{ gpu_slurm_scratch_root }}", --output, TARGET,SOURCE,FSTYPE,OPTIONS, --noheadings]
@@ -117,6 +147,9 @@
       - "Running compute processes (verify before science admission): {{ gpu_slurm_running_compute.stdout_lines }}"
       - "GPU topology: {{ gpu_slurm_topology.stdout_lines }}"
       - "slurmd -C: {{ gpu_slurm_discovery.stdout_lines }}"
+      - "slurmd -G: {{ gpu_slurm_gres_discovery.stdout_lines }}"
+      - "cgroup.conf: {{ gpu_slurm_cgroup_config.stdout_lines }}"
+      - "Kernel cgroup v2 controllers: {{ gpu_slurm_cgroup_v2.stdout_lines }}"
       - "Effective scheduler settings / unavailable: {{ gpu_slurm_scheduler_config.stdout_lines }}"
       - "Scratch: {{ gpu_slurm_scratch_mount.stdout_lines | default(['not specified']) }}"
       - "Read-only. Slurm GRES/cgroups, MUNGE, accounts, routes, QOS and isolation have NOT been proven."
