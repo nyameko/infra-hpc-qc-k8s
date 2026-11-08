@@ -13,6 +13,20 @@
       "wiki_url": "https://github.com/nyameko/infra-hpc-qc-k8s/wiki/Architecture"
     },
     {
+      "slug": "Axis-H200-Disaster-Recovery",
+      "title": "Axis H200 Disaster Recovery",
+      "source_path": "docs/wiki/Axis-H200-Disaster-Recovery.md",
+      "source_url": "https://github.com/nyameko/infra-hpc-qc-k8s/blob/dev/docs/wiki/Axis-H200-Disaster-Recovery.md",
+      "wiki_url": "https://github.com/nyameko/infra-hpc-qc-k8s/wiki/Axis-H200-Disaster-Recovery"
+    },
+    {
+      "slug": "Axis-H200-Operations",
+      "title": "Axis H200 Operations",
+      "source_path": "docs/wiki/Axis-H200-Operations.md",
+      "source_url": "https://github.com/nyameko/infra-hpc-qc-k8s/blob/dev/docs/wiki/Axis-H200-Operations.md",
+      "wiki_url": "https://github.com/nyameko/infra-hpc-qc-k8s/wiki/Axis-H200-Operations"
+    },
+    {
       "slug": "Cloud-portability-and-contribution-patterns",
       "title": "Cloud portability and contribution patterns",
       "source_path": "docs/wiki/Cloud-portability-and-contribution-patterns.md",
