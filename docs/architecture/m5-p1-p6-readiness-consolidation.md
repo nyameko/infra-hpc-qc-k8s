@@ -7,6 +7,27 @@ do NOT presume either GPU site is fully configured or federated.
 
 > **Scientific preparation is cheap; expensive execution is scheduled.**
 
+## Confirmed source-tree baseline (not a live cluster observation)
+
+The current `dev` Ansible configuration declares `slurm_cluster_name: quantum-cpu`,
+two CPU partitions (`cpu-small` and `cpu-large`) and four CPU-only
+`slurm_nodes` in `ansible/group_vars/slurm_cluster.yml`. The public
+`slurm.conf.j2` has no GPU GRES declarations or A100/H200 GPU partitions.
+`cgroup.conf.j2` already sets `ConstrainDevices=yes`, but that **does not**
+demonstrate GPU scheduling/device isolation without correctly declared GPU
+devices, GRES and an observed allocation.
+
+ACE's `ansible/playbooks/ace-inference.yml` configures a
+`gpu_inference` host with NVIDIA/DCGM and `vllm_server`, not a Slurm
+GPU compute node. The `axis-h200.yml` and `axis-h200-runtime.yml`
+playbooks explicitly state they do **not** install Slurm. Therefore,
+**neither ACE A100 nor Axis H200 scheduler integration can be inferred from
+the current public source**. Private inventory / deployed configuration
+could differ and must be inspected without disrupting existing inference.
+
+This makes P1 an **evidence-and-admission gate**, not a trivial addition of
+`#SBATCH --gres=gpu:1`.
+
 ## P1 — Discover what actually exists before configuring GPUs
 
 **ACE A100** and **Axis Atmos H200** are independent operational domains.
