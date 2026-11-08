@@ -1,0 +1,43 @@
+---
+# Explicit, separately approved *cutover* playbook.
+# DO NOT run before native per-user access and portal migration are verified.
+- name: Retire the legacy root-powered Jupyter Slurm gateway
+  hosts: slurm_login
+  become: true
+  gather_facts: false
+  vars_files:
+    - ../group_vars/jupyterhub.yml
+  tasks:
+    - name: Require explicit operator confirmation of completed migration
+      ansible.builtin.assert:
+        that:
+          - slurm_legacy_gateway_retirement_approved | default(false) | bool
+        fail_msg: >-
+          Do not retire the gateway until native researcher Slurm submission,
+          portal compatibility and rollback have passed operator acceptance.
+
+    - name: Remove legacy passwordless sudo authorization
+      ansible.builtin.file:
+        path: /etc/sudoers.d/jupyterhub-slurm-gateway
+        state: absent
+
+    - name: Remove privileged job helper
+      ansible.builtin.file:
+        path: /usr/local/sbin/jupyterhub-slurm-helper
+        state: absent
+
+    - name: Remove forced-command SSH entrypoint
+      ansible.builtin.file:
+        path: /usr/local/sbin/jupyterhub-slurm-ssh-entry
+        state: absent
+
+    - name: Remove legacy shared gateway service account and home
+      ansible.builtin.user:
+        name: jupyterhub-gateway
+        state: absent
+        remove: true
+
+    - name: Remove obsolete service-account group
+      ansible.builtin.group:
+        name: jupyterhub-gateway
+        state: absent
