@@ -1,0 +1,18 @@
+---
+# There is deliberately no default GPU site or permission to render.
+gpu_science_render_enabled: false
+gpu_science_site_approval_recorded: false
+gpu_science_site: ""
+gpu_science_node_name: ""
+gpu_science_node_addr: ""
+gpu_science_partition: ""
+gpu_science_allowed_accounts: []
+gpu_science_node_cpus: 0
+gpu_science_node_real_memory_mb: 0
+gpu_science_expected_gpu_count: 0
+gpu_science_expected_gpu_uuids: []
+gpu_science_inference_uuids: []
+# Explicit operator-reviewed mapping {uuid: GPU-..., minor: N}; NOT an NVML index.
+gpu_science_devices: []
+gpu_science_max_time: "08:00:00"
+gpu_science_output_dir: "/tmp/gpu-slurm-candidate"
