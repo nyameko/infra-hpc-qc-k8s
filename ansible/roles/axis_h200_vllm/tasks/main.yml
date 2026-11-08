@@ -27,6 +27,7 @@
         argv: [findmnt, -n, -o, FSTYPE, --mountpoint, "{{ axis_h200_vllm_model_cache }}"]
       register: axis_h200_vllm_mount
       changed_when: false
+      check_mode: false
       failed_when: axis_h200_vllm_mount.rc != 0 or (axis_h200_vllm_mount.stdout | trim) != 'xfs'
 
     - name: Check existing protected API key file
@@ -92,6 +93,7 @@
             lines=p.read_text().splitlines();
             sys.exit(0 if len(lines)==1 and lines[0].startswith('VLLM_API_KEY=') and len(lines[0].split('=',1)[1])>=32 else 1)
       changed_when: false
+      check_mode: false
       no_log: true
 
     - name: Require already present image to prevent unexpected pulls
@@ -99,6 +101,7 @@
         argv: [podman, image, exists, "{{ axis_h200_vllm_image }}"]
       register: axis_h200_vllm_image_present
       changed_when: false
+      check_mode: false
       failed_when: axis_h200_vllm_image_present.rc != 0
 
     - name: Require GPU UUID to be exported by NVIDIA CDI
@@ -106,6 +109,7 @@
         argv: [nvidia-ctk, cdi, list]
       register: axis_h200_vllm_cdi
       changed_when: false
+      check_mode: false
       failed_when: "('nvidia.com/gpu=' ~ axis_h200_vllm_gpu_uuid) not in axis_h200_vllm_cdi.stdout"
 
     - name: Create unprivileged container model-cache subdirectory
@@ -164,6 +168,7 @@
         argv: [findmnt, -n, -o, FSTYPE, --mountpoint, "{{ axis_h200_vllm_model_cache }}"]
       register: axis_h200_vllm_mount
       changed_when: false
+      check_mode: false
       failed_when: axis_h200_vllm_mount.rc != 0 or (axis_h200_vllm_mount.stdout | trim) != 'xfs'
 
     - name: Confirm the existing protected API key file exists
@@ -190,6 +195,7 @@
             lines=p.read_text().splitlines();
             sys.exit(0 if len(lines)==1 and lines[0].startswith('VLLM_API_KEY=') and len(lines[0].split('=',1)[1])>=32 else 1)
       changed_when: false
+      check_mode: false
       no_log: true
 
     - name: Require already present image to prevent unexpected pulls
@@ -197,6 +203,7 @@
         argv: [podman, image, exists, "{{ axis_h200_vllm_image }}"]
       register: axis_h200_vllm_image_present
       changed_when: false
+      check_mode: false
       failed_when: axis_h200_vllm_image_present.rc != 0
 
     - name: Require GPU UUID to be exported by NVIDIA CDI
@@ -204,6 +211,7 @@
         argv: [nvidia-ctk, cdi, list]
       register: axis_h200_vllm_cdi
       changed_when: false
+      check_mode: false
       failed_when: "('nvidia.com/gpu=' ~ axis_h200_vllm_gpu_uuid) not in axis_h200_vllm_cdi.stdout"
 
     - name: Create unprivileged container model-cache subdirectory
