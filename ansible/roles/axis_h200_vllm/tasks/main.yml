@@ -29,7 +29,46 @@
       changed_when: false
       failed_when: axis_h200_vllm_mount.rc != 0 or (axis_h200_vllm_mount.stdout | trim) != 'xfs'
 
-    - name: Confirm the existing protected API key file exists
+    - name: Check existing protected API key file
+      ansible.builtin.stat:
+        path: "{{ axis_h200_vllm_env_file }}"
+      register: axis_h200_vllm_env_stat
+
+    - name: Validate private recovery key on host rebuild
+      ansible.builtin.assert:
+        that:
+          - axis_h200_vllm_api_key | length >= 32
+        fail_msg: "A recovery API key is required from encrypted private inventory."
+      when:
+        - axis_h200_vllm_restore_credentials | bool
+        - not (axis_h200_vllm_env_stat.stat.exists | default(false))
+      no_log: true
+
+    - name: Ensure protected API credential directory exists
+      ansible.builtin.file:
+        path: /etc/vllm
+        state: directory
+        owner: root
+        group: root
+        mode: "0700"
+      when:
+        - axis_h200_vllm_restore_credentials | bool
+        - not (axis_h200_vllm_env_stat.stat.exists | default(false))
+
+    - name: Restore missing API credential only from encrypted inventory
+      ansible.builtin.copy:
+        content: "VLLM_API_KEY={{ axis_h200_vllm_api_key }}\n"
+        dest: "{{ axis_h200_vllm_env_file }}"
+        owner: root
+        group: root
+        mode: "0600"
+        force: false
+      when:
+        - axis_h200_vllm_restore_credentials | bool
+        - not (axis_h200_vllm_env_stat.stat.exists | default(false))
+      no_log: true
+
+    - name: Re-check final credential ownership and permissions
       ansible.builtin.stat:
         path: "{{ axis_h200_vllm_env_file }}"
       register: axis_h200_vllm_env_stat
