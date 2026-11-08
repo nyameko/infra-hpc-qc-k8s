@@ -100,6 +100,29 @@ reached the login host.
    who ran each real job, job/account/partition, denial test,
    `sacct` result and exact commit/image revision.
 
+## P0 acceptance script and evidence (manual, researcher session)
+
+The source-controlled `tests/ansible/p0-researcher-slurm-acceptance.sh` is an
+**operator-observed** native Slurm test, not a privileged gateway:
+
+```bash
+# Inside nlisa's own authenticated SSH session on the ACE login host:
+bash tests/ansible/p0-researcher-slurm-acceptance.sh --inspect
+bash tests/ansible/p0-researcher-slurm-acceptance.sh --submit-hello
+# Inspect the printed Slurm job ID via squeue, sacct and owned result file.
+bash tests/ansible/p0-researcher-slurm-acceptance.sh --submit-cancel-test
+# Then inspect User ownership, cancel only that disposable job via scancel.
+```
+
+The script does not run any tests by default, cannot be executed as the
+service/root account and will never cancel an allocation automatically.
+Record `JobIDRaw,User,Account,State,ExitCode,Elapsed,AllocTRES`,
+researcher UID/GID and operating host. For the **negative** ownership
+test, a second cooperating test researcher must create their own disposable
+sleep job; `nlisa` then attempts `scancel <other_test_job_id>` and Slurm
+must deny the operation while that job remains active. Do not use another
+person's real work. The check must be verified by the facility operator.
+
 ## P0 evidence packet (manual, researcher session)
 
 Run these as the researcher's *own account* on the site-authorized login

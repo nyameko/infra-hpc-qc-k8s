@@ -30,6 +30,17 @@ class ResearcherSlurmSecurityTests(unittest.TestCase):
         self.assertIn("    - researcher_slurm_ssh",
                       (ROOT / "ansible/playbooks/research-identities.yml").read_text())
 
+    def test_acceptance_is_opt_in_and_never_impersonates(self):
+        script = (ROOT / "tests/ansible/p0-researcher-slurm-acceptance.sh").read_text()
+        self.assertIn('mode="${1:---inspect}"', script)
+        self.assertIn("sbatch --parsable", script)
+        self.assertIn("squeue", script)
+        self.assertIn("sacct", script)
+        self.assertIn("scancel", script)
+        self.assertIn("READ-ONLY INSPECTION COMPLETE", script)
+        self.assertNotIn("runuser -u", script)
+        self.assertNotIn("NOPASSWD", script)
+
     def test_retirement_is_separate_confirmed_operator_action(self):
         policy = POLICY.read_text()
         self.assertIn("slurm_legacy_gateway_retirement_approved", policy)

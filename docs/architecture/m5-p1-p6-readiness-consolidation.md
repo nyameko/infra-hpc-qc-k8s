@@ -51,6 +51,37 @@ Do not infer that the CPU `quantum-cpu` partition can allocate A100/H200.
 The five independent student teams must share policy-controlled allocations;
 one A100 is not five simultaneously dedicated GPUs.
 
+## Deferred CPU cluster-fabric and performance acceptance (not a P0 gate)
+
+The initial CPU `quantum-cpu` Slurm smoke and Ansible configuration do **not**
+prove that all compute nodes expose a coherent research filesystem or
+Lmod software stack. Track this independently; schedule a real site-wide
+HPL acceptance run when operator time is available.
+
+Evidence still required:
+- Correct /home/research NFS export, per-node mount versions/options,
+  UID/GID and POSIX ACL/0700 isolation, usable read/write on *each*
+  login/compute node, no stale handles or ghost mounts; quantify throughput
+  and metadata latency under realistic load.
+- Lmod available to each authorized researcher on all CPU compute nodes,
+  module paths/defaults and environment parity across nodes, with a real
+  Slurm batch `module load` test (not merely login-node `module avail`).
+- `srun` fanout, PMI/PMIx/MPI selection and fabric connectivity on
+  multiple CPU nodes. Record `sacct` allocation, I/O and failure behavior.
+- A **full CPU cluster** High Performance Linpack (HPL) benchmark with a
+  real multi-node Slurm allocation, validated residual and measured
+  sustained performance. HPL memory problem size and process grid must
+  be adapted to the actual CPU nodes and network; not every provisioned
+  core may be suitable for the first run. Compare achieved performance
+  with a defensible measured peak and record versions.
+- Observed cleanup, scheduler contention, exporter/telemetry and
+  rolling-restart behavior, before declaring the CPU HPC fabric production-ready.
+
+Do not call this complete from a one-node Slurm hello job. It is also
+**not** a reason to delay the P0 researcher-authentication test. Actual
+cross-node NFS and MPI correctness *does* matter before claiming
+whole-cluster scientific reproducibility and HPL acceptance.
+
 ## P2 — CPU workbench → actual ACE A100 Aer GPU batch
 
 Preconditions: P0 native per-user site access and P1 A100 isolation/offerings,
