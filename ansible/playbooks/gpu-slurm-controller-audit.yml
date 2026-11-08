@@ -1,0 +1,9 @@
+---
+# P1 read-only audit of the EXISTING Sebowa controller/SlurmDBD.
+# No sacctmgr add/modify, scontrol update, package or service changes.
+- name: Audit the existing shared Slurm controller before GPU admission
+  hosts: slurm_controller
+  become: false
+  gather_facts: false
+  roles:
+    - gpu_slurm_controller_audit
