@@ -20,6 +20,7 @@
   loop: "{{ axis_h200_runtime_mounts }}"
   register: axis_h200_runtime_uuid_devices
   changed_when: false
+  check_mode: false
 
 - name: Resolve approved disk serials
   ansible.builtin.command:
@@ -29,6 +30,7 @@
     label: "{{ item.item.path }}"
   register: axis_h200_runtime_serials
   changed_when: false
+  check_mode: false
 
 - name: Reject disk replacement or unexpected filesystem identity
   ansible.builtin.assert:
@@ -55,6 +57,7 @@
   loop: "{{ axis_h200_runtime_mounts }}"
   register: axis_h200_runtime_findmnt
   changed_when: false
+  check_mode: false
 
 - name: Verify both mounts are real XFS filesystems with the approved UUIDs
   ansible.builtin.assert:
@@ -79,6 +82,7 @@
     argv: [wg, show, "{{ axis_h200_runtime_wireguard_interface }}", latest-handshakes]
   register: axis_h200_runtime_wg_handshakes
   changed_when: false
+  check_mode: false
 
 - name: Summarize runtime scope and outstanding acceptance gates
   ansible.builtin.debug:
