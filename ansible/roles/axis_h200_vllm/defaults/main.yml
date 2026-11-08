@@ -2,6 +2,9 @@
 # Safe by default: no model download, token generation, unit installation or startup.
 axis_h200_vllm_manage: false
 axis_h200_vllm_start: false
+# On a rebuilt host only: supply the API key from encrypted private Vault.
+axis_h200_vllm_restore_credentials: false
+axis_h200_vllm_api_key: ""
 
 # Copy the immutable image ref from: podman image inspect IMAGE --format '{{ "{{json .RepoDigests}}" }}'
 axis_h200_vllm_image: ""
