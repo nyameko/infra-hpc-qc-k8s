@@ -1,0 +1,16 @@
+---
+# Post-install reconciliation for an already provisioned temporary Axis H200.
+# No partitioning, formatting, key generation, driver changes or services by default.
+axis_h200_runtime_manage_persistence: false
+axis_h200_runtime_wireguard_interface: wg-h200
+
+# Set exactly two approved existing XFS filesystems in ignored private inventory.
+# Serial + filesystem UUID together guard against namespace renumbering.
+axis_h200_runtime_mounts: []
+# Example private-only entries:
+#   - path: /srv/h200/inference/models
+#     uuid: <EXISTING_FILESYSTEM_UUID>
+#     serial: <VERIFIED_DEVICE_SERIAL>
+#   - path: /srv/h200/science/scratch
+#     uuid: <EXISTING_FILESYSTEM_UUID>
+#     serial: <VERIFIED_DEVICE_SERIAL>
