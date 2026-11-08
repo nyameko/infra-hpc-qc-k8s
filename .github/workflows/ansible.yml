@@ -30,6 +30,9 @@ jobs:
       - name: Install required Ansible collections
         run: ansible-galaxy collection install -r ansible/requirements.yml
 
+      - name: Enforce Slurm gateway cancellation privilege invariant
+        run: python3 -m unittest discover -s tests/ansible -p 'test_slurm_gateway_security.py'
+
       - name: Syntax check
         working-directory: ansible
         run: |
