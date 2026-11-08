@@ -1,0 +1,78 @@
+---
+- name: Refuse to render a GPU allocation without explicit site review
+  ansible.builtin.assert:
+    that:
+      - gpu_science_render_enabled | bool
+      - gpu_science_site_approval_recorded | bool
+      - gpu_science_site in ['ace-a100', 'axis-h200']
+      - gpu_science_node_name is match('^[a-zA-Z0-9][a-zA-Z0-9_-]*$')
+      - gpu_science_node_addr | length > 0
+      - "'<' not in gpu_science_node_addr"
+      - gpu_science_partition is match('^[a-zA-Z0-9][a-zA-Z0-9_-]*$')
+      - gpu_science_node_cpus | int > 0
+      - gpu_science_node_real_memory_mb | int > 0
+      - gpu_science_allowed_accounts | length > 0
+      - gpu_science_expected_gpu_count | int > 0
+      - gpu_science_expected_gpu_uuids | length == gpu_science_expected_gpu_count | int
+      - gpu_science_expected_gpu_uuids | unique | list | length == gpu_science_expected_gpu_count | int
+      - gpu_science_devices | length > 0
+      - gpu_science_devices | map(attribute='uuid') | unique | list | length == gpu_science_devices | length
+      - gpu_science_devices | map(attribute='minor') | unique | list | length == gpu_science_devices | length
+      - gpu_science_inference_uuids | unique | list | length == gpu_science_inference_uuids | length
+      - gpu_science_inference_uuids | difference(gpu_science_expected_gpu_uuids) | length == 0
+      - gpu_science_devices | map(attribute='uuid') | list | difference(gpu_science_expected_gpu_uuids) | length == 0
+      - gpu_science_devices | map(attribute='uuid') | list | intersect(gpu_science_inference_uuids) | length == 0
+      - gpu_science_output_dir is match('^/tmp/gpu-slurm-candidate(/[a-zA-Z0-9_-]+)?$')
+    fail_msg: >-
+      GPU candidate generation is disabled until operator-owned UUID/minor
+      inventory, explicit science/inference separation, node resources,
+      site authorization and project accounts are entered in private vars.
+
+- name: Require four H200 science GPUs and four separately reserved inference GPUs
+  ansible.builtin.assert:
+    that:
+      - gpu_science_expected_gpu_count | int == 8
+      - gpu_science_devices | length == 4
+      - gpu_science_inference_uuids | length == 4
+  when: gpu_science_site == 'axis-h200'
+
+- name: Require exactly one approved A100 science pilot GPU
+  ansible.builtin.assert:
+    that:
+      - gpu_science_devices | length == 1
+  when: gpu_science_site == 'ace-a100'
+
+- name: Validate explicit device files and account identifiers
+  ansible.builtin.assert:
+    that:
+      - item.uuid is match('^GPU-[a-zA-Z0-9-]+$')
+      - item.minor | int >= 0
+      - item.minor | int < gpu_science_expected_gpu_count | int
+    fail_msg: "Science GPUs must be mapped from UUID to actual /dev/nvidia minor, never guessed from nvidia-smi index."
+  loop: "{{ gpu_science_devices }}"
+
+- name: Create private local candidate directory (no remote deployment)
+  ansible.builtin.file:
+    path: "{{ gpu_science_output_dir }}/{{ gpu_science_site }}"
+    state: directory
+    mode: "0700"
+
+- name: Render science-only GRES candidate with autodetection OFF
+  ansible.builtin.template:
+    src: gres.conf.j2
+    dest: "{{ gpu_science_output_dir }}/{{ gpu_science_site }}/gres.conf.candidate"
+    mode: "0600"
+
+- name: Render inactive controller node and partition candidate
+  ansible.builtin.template:
+    src: slurm-gpu.fragment.j2
+    dest: "{{ gpu_science_output_dir }}/{{ gpu_science_site }}/slurm-gpu.fragment.candidate"
+    mode: "0600"
+
+- name: Report safe output and explicit non-deployment boundary
+  ansible.builtin.debug:
+    msg: >-
+      Rendered review-only candidates at {{ gpu_science_output_dir }}/{{ gpu_science_site }}.
+      NO Slurm daemons, MUNGE keys, firewall rules, partitions or GPUs changed.
+      Do NOT apply until native P0, routing, account/QOS enforcement,
+      per-UUID minor verification, CPU/memory reservation and cgroup negative tests pass.
