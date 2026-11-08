@@ -1,0 +1,4 @@
+---
+# Bound to real POSIX researchers, *not* a shared gateway service account.
+researcher_slurm_ssh_group: quantum-slurm-researchers
+researcher_slurm_keys_dir: /etc/ssh/quantum-slurm-researchers

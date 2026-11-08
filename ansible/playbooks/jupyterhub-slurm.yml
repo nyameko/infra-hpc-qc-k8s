@@ -7,13 +7,8 @@
   roles:
     - hpc_user_environment
 
-- name: Configure restricted JupyterHub Slurm gateway
-  hosts: slurm_login
-  become: true
-  vars_files:
-    - ../group_vars/jupyterhub.yml
-  roles:
-    - jupyterhub_slurm_gateway
+# P0: old shared root-capable SSH gateway is no longer deployed here.
+# Per-researcher login authorization lives in research-identities.yml.
 
 - name: Stage JupyterHub execution image on Slurm compute nodes
   hosts: slurm_compute
