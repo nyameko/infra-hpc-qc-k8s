@@ -1,0 +1,122 @@
+---
+- name: Require reviewed site and complete expected GPU inventory
+  ansible.builtin.assert:
+    that:
+      - gpu_slurm_site in ['ace-a100', 'axis-h200']
+      - gpu_slurm_expected_gpu_count | int > 0
+      - gpu_slurm_expected_gpu_uuids | length == gpu_slurm_expected_gpu_count | int
+      - gpu_slurm_expected_gpu_uuids | unique | list | length == gpu_slurm_expected_gpu_count | int
+      - gpu_slurm_science_uuids | unique | list | length == gpu_slurm_science_uuids | length
+      - gpu_slurm_inference_uuids | unique | list | length == gpu_slurm_inference_uuids | length
+      - gpu_slurm_science_uuids | intersect(gpu_slurm_inference_uuids) | length == 0
+      - gpu_slurm_science_uuids | difference(gpu_slurm_expected_gpu_uuids) | length == 0
+      - gpu_slurm_inference_uuids | difference(gpu_slurm_expected_gpu_uuids) | length == 0
+    fail_msg: "Missing private GPU UUID inventory or overlapping science/inference allocations. No GPUs are approved."
+- name: Read NVIDIA physical UUID, PCI location and reported GPU index
+  ansible.builtin.command:
+    argv:
+      - nvidia-smi
+      - --query-gpu=uuid,pci.bus_id,index,name
+      - --format=csv,noheader
+  register: gpu_slurm_nvidia_inventory
+  changed_when: false
+  check_mode: false
+
+- name: Derive observed NVIDIA device UUIDs
+  ansible.builtin.set_fact:
+    gpu_slurm_observed_uuids: >-
+      {{ gpu_slurm_nvidia_inventory.stdout_lines |
+         map('regex_replace', ',.*$', '') | map('trim') | list }}
+
+- name: Refuse unexpected, missing or duplicate physical GPUs
+  ansible.builtin.assert:
+    that:
+      - gpu_slurm_observed_uuids | length == gpu_slurm_expected_gpu_count | int
+      - gpu_slurm_observed_uuids | unique | list | length == gpu_slurm_expected_gpu_count | int
+      - gpu_slurm_observed_uuids | sort == gpu_slurm_expected_gpu_uuids | sort
+    fail_msg: "Observed NVIDIA GPU UUIDs differ from approved private inventory; do not render GRES or admit the host."
+
+- name: Inspect NVIDIA /dev/nvidia minor mapping from driver information
+  ansible.builtin.shell: |
+    for f in /proc/driver/nvidia/gpus/*/information; do
+      [ -r "$f" ] || continue
+      printf '%s\n' "$f"
+      grep -E '^(GPU UUID|Device Minor|Bus Location):' "$f" || true
+    done
+  args:
+    executable: /bin/bash
+  register: gpu_slurm_driver_minor_map
+  changed_when: false
+  check_mode: false
+
+- name: Inspect GPU compute users without modifying them
+  ansible.builtin.command:
+    argv:
+      - nvidia-smi
+      - --query-compute-apps=gpu_uuid,pid,process_name
+      - --format=csv,noheader
+  register: gpu_slurm_running_compute
+  changed_when: false
+  check_mode: false
+  failed_when: false
+
+- name: Inspect GPU topology and locality
+  ansible.builtin.command:
+    argv: [nvidia-smi, topo, -m]
+  register: gpu_slurm_topology
+  changed_when: false
+  check_mode: false
+  failed_when: false
+
+- name: Inspect Slurm compute discovery if installed
+  ansible.builtin.shell: |
+    if command -v slurmd >/dev/null 2>&1; then
+      timeout 12 slurmd -C
+    else
+      echo "slurmd not installed"
+    fi
+  args:
+    executable: /bin/bash
+  register: gpu_slurm_discovery
+  changed_when: false
+  check_mode: false
+  failed_when: false
+
+- name: Inspect Slurm effective scheduler settings if reachable
+  ansible.builtin.shell: |
+    if command -v scontrol >/dev/null 2>&1; then
+      timeout 12 scontrol show config 2>&1 |
+        grep -E '^(ClusterName|AccountingStorageEnforce|GresTypes|SelectType|TaskPlugin|ProctrackType|JobAcctGatherType|AccountingStorageType)[[:space:]]*=' || true
+    else
+      echo "scontrol not installed"
+    fi
+  args:
+    executable: /bin/bash
+  register: gpu_slurm_scheduler_config
+  changed_when: false
+  check_mode: false
+  failed_when: false
+
+- name: Check science scratch mount without creating a filesystem
+  ansible.builtin.command:
+    argv: [findmnt, --target, "{{ gpu_slurm_scratch_root }}", --output, TARGET,SOURCE,FSTYPE,OPTIONS, --noheadings]
+  register: gpu_slurm_scratch_mount
+  changed_when: false
+  check_mode: false
+  failed_when: false
+  when: gpu_slurm_scratch_root | length > 0
+
+- name: Report site observations (NOT scheduler admission)
+  ansible.builtin.debug:
+    msg:
+      - "Site: {{ gpu_slurm_site }}; expected controller {{ gpu_slurm_expected_controller_ip }}"
+      - "Observed GPU UUID/index/PCI: {{ gpu_slurm_nvidia_inventory.stdout_lines }}"
+      - "Driver UUID/device-minor mapping: {{ gpu_slurm_driver_minor_map.stdout_lines }}"
+      - "Science UUIDs proposed, NOT admitted: {{ gpu_slurm_science_uuids }}"
+      - "Inference UUIDs to exclude: {{ gpu_slurm_inference_uuids }}"
+      - "Running compute processes (verify before science admission): {{ gpu_slurm_running_compute.stdout_lines }}"
+      - "GPU topology: {{ gpu_slurm_topology.stdout_lines }}"
+      - "slurmd -C: {{ gpu_slurm_discovery.stdout_lines }}"
+      - "Effective scheduler settings / unavailable: {{ gpu_slurm_scheduler_config.stdout_lines }}"
+      - "Scratch: {{ gpu_slurm_scratch_mount.stdout_lines | default(['not specified']) }}"
+      - "Read-only. Slurm GRES/cgroups, MUNGE, accounts, routes, QOS and isolation have NOT been proven."
