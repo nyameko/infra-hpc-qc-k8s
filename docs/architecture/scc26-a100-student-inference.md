@@ -21,6 +21,8 @@ The A100 has no floating IP. For this no-inbound-ACE variant, each Sebowa team e
 
 `AllowedIPs` for A100 peers must be **their respective single /32 tunnel addresses only**. The student edge's peer for the A100 must allow **only A100's overlay /32**, not a management, storage, Kubernetes or default CIDR. The separate nftables table on A100 rejects EVERY student-ingress destination except overlay-IP:8443 and rejects ALL student-to-other-interface forwarding. Host firewalld/SG rules can further deny the traffic; these must be checked without removing production policy.
 
+The student proxy starts conservatively with **one concurrent inference request per team** and a **four-request aggregate student cap**, in addition to per-team request rate limiting. This bounds student demand but does not reserve GPU capacity or guarantee production M4 latency: compare production baseline before and after enabling students, and disable student proxy immediately if M4 service is degraded.
+
 Do NOT assume that setting an extra WireGuard key automatically makes remote Kubernetes pods routable. The team edge must explicitly route ONLY the A100 overlay /32 and apply SNAT for the approved TCP 8443 flow, so the remote source equals that team's WireGuard peer /32. The edge must restrict forwarding to that destination/port and should restrict source workloads to its own student namespaces. Avoid full-subnet route advertisement and general tunnel forwarding.
 
 ### Example addresses only — NOT assigned live
