@@ -1,0 +1,130 @@
+---
+- name: Provision dedicated student inference access (explicit opt-in only)
+  when: student_inference_enabled | bool
+  block:
+    - name: Validate isolation and five-team inventory before touching the host
+      ansible.builtin.assert:
+        that:
+          - student_inference_interface == 'wg-students'
+          - student_inference_wg_host_ip | length > 6
+          - student_inference_wg_address == student_inference_wg_host_ip ~ '/32'
+          - student_inference_wg_private_key | length == 44
+          - student_inference_backend_token | length >= 24
+          - student_inference_backend_url == 'http://127.0.0.1:8000'
+          - student_inference_proxy_port | int == 8443
+          - student_inference_peers | length == 5
+          - student_inference_peers | map(attribute='team') | list | unique | length == 5
+          - student_inference_peers | map(attribute='peer_ip') | list | unique | length == 5
+          - student_inference_peers | map(attribute='public_key') | list | unique | length == 5
+        fail_msg: "Incomplete/unsafe private student inference inventory; refusing changes."
+      no_log: true
+
+    - name: Check that the existing vLLM service is active; do not manage/restart it
+      ansible.builtin.command:
+        argv: [systemctl, is-active, --quiet, vllm]
+      changed_when: false
+
+    - name: Validate each protected student peer definition
+      ansible.builtin.assert:
+        that:
+          - item.team is match('^[a-z0-9][a-z0-9-]{1,30}$')
+          - item.peer_ip | length > 6
+          - item.peer_ip != student_inference_wg_host_ip
+          - item.public_key | length == 44
+          - item.endpoint | length > 3
+          - item.api_key | length >= 32
+        fail_msg: "Invalid/unsafe student peer data in protected inventory."
+      loop: "{{ student_inference_peers }}"
+      loop_control:
+        label: "{{ item.team }}"
+      no_log: true
+
+    - name: Install only the VPN, firewall and proxy userspace dependencies
+      ansible.builtin.dnf:
+        name: [wireguard-tools, nftables, nginx]
+        state: present
+
+    - name: Ensure private configuration paths exist
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0700"
+      loop:
+        - /etc/wireguard
+        - /etc/scc26-model-proxy
+
+    - name: Install a dedicated nftables allowlist for the student tunnel
+      ansible.builtin.template:
+        src: student-firewall.nft.j2
+        dest: /etc/scc26-model-proxy/student-firewall.nft
+        owner: root
+        group: root
+        mode: "0600"
+      register: student_firewall_config
+
+    - name: Install new student tunnel without altering wg0 or wg-fabric
+      ansible.builtin.template:
+        src: wg-students.conf.j2
+        dest: /etc/wireguard/wg-students.conf
+        owner: root
+        group: root
+        mode: "0600"
+      register: student_wireguard_config
+      no_log: true
+
+    - name: Enable isolated student WireGuard tunnel
+      ansible.builtin.systemd:
+        name: wg-quick@wg-students
+        enabled: true
+        state: "{{ 'restarted' if (student_wireguard_config.changed or student_firewall_config.changed) else 'started' }}"
+
+    - name: Render root-only student authentication proxy configuration
+      ansible.builtin.template:
+        src: student-nginx.conf.j2
+        dest: /etc/scc26-model-proxy/nginx.conf
+        owner: root
+        group: root
+        mode: "0600"
+      register: student_proxy_config
+      no_log: true
+
+    - name: Install separate proxy systemd unit (not the default nginx service)
+      ansible.builtin.template:
+        src: student-model-proxy.service.j2
+        dest: /etc/systemd/system/scc26-model-proxy.service
+        owner: root
+        group: root
+        mode: "0644"
+      register: student_proxy_unit
+
+    - name: Validate authentication proxy syntax without exposing keys
+      ansible.builtin.command:
+        argv: [/usr/sbin/nginx, -t, -c, /etc/scc26-model-proxy/nginx.conf]
+      changed_when: false
+      no_log: true
+
+    - name: Start dedicated student proxy; leave vLLM untouched
+      ansible.builtin.systemd:
+        name: scc26-model-proxy
+        daemon_reload: true
+        enabled: true
+        state: "{{ 'restarted' if (student_proxy_config.changed or student_proxy_unit.changed) else 'started' }}"
+
+    - name: Verify student-only proxy binds to the new tunnel
+      ansible.builtin.uri:
+        url: "http://{{ student_inference_wg_host_ip }}:{{ student_inference_proxy_port }}/v1/models"
+        status_code: 401
+        return_content: false
+      changed_when: false
+
+    - name: Verify one authorised model listing through the student proxy
+      ansible.builtin.uri:
+        url: "http://{{ student_inference_wg_host_ip }}:{{ student_inference_proxy_port }}/v1/models"
+        headers:
+          Authorization: "Bearer {{ student_inference_peers[0].api_key }}"
+        status_code: 200
+        return_content: false
+      changed_when: false
+      no_log: true
