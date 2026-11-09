@@ -16,6 +16,7 @@
           - student_inference_peers | map(attribute='team') | list | unique | length == 5
           - student_inference_peers | map(attribute='peer_ip') | list | unique | length == 5
           - student_inference_peers | map(attribute='public_key') | list | unique | length == 5
+          - student_inference_peers | map(attribute='api_key') | list | unique | length == 5
         fail_msg: "Incomplete/unsafe private student inference inventory; refusing changes."
       no_log: true
 
