@@ -1,0 +1,13 @@
+# Dedicated nftables table: never flush/replace existing ACE host rules.
+# Acts as an additional deny filter for all inbound/forwarded student traffic.
+table inet scc26_student_inference {
+  chain input_students {
+    type filter hook input priority -150; policy accept;
+    iifname "{{ student_inference_interface }}" ip daddr {{ student_inference_wg_host_ip }} tcp dport {{ student_inference_proxy_port }} accept
+    iifname "{{ student_inference_interface }}" drop
+  }
+  chain forward_students {
+    type filter hook forward priority -150; policy accept;
+    iifname "{{ student_inference_interface }}" drop
+  }
+}
