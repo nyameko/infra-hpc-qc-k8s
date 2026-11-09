@@ -1,0 +1,29 @@
+---
+# READ-ONLY P1 sample. Copy into ignored inventories/private/gpu-slurm.yml.
+# Merge with existing protected site SSH inventory, DO NOT expose credentials.
+# Populate UUIDs from existing approved machine access and host inventory.
+all:
+  children:
+    gpu_science_hosts:
+      children:
+        ace_a100:
+          hosts:
+            ace-a100-candidate:
+              ansible_host: "<APPROVED_ACE_PRIVATE_HOST>"
+              gpu_slurm_site: ace-a100
+              gpu_slurm_expected_gpu_count: 0  # set after physical inventory
+              gpu_slurm_expected_gpu_uuids: []
+              gpu_slurm_science_uuids: []
+              gpu_slurm_inference_uuids: []
+              gpu_slurm_scratch_root: ""
+        axis_h200:
+          hosts:
+            xd670:
+              ansible_host: "<APPROVED_AXIS_PRIVATE_SSH_ENDPOINT>"
+              ansible_user: "<AXIS_APPROVED_OPERATOR>"
+              gpu_slurm_site: axis-h200
+              gpu_slurm_expected_gpu_count: 8
+              gpu_slurm_expected_gpu_uuids: []
+              gpu_slurm_science_uuids: []
+              gpu_slurm_inference_uuids: []
+              gpu_slurm_scratch_root: /srv/h200/science/scratch

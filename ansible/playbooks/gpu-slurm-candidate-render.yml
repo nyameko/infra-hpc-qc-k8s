@@ -1,0 +1,11 @@
+---
+# Render inactive, review-only Slurm GPU candidate fragments to /tmp.
+# This playbook NEVER contacts a Slurm host or writes to /etc/slurm.
+# Supply -e @inventories/private/<site-gpu-plan>.yml and explicitly opt in.
+- name: Render but do not deploy approved GPU Slurm configuration candidates
+  hosts: localhost
+  connection: local
+  become: false
+  gather_facts: false
+  roles:
+    - gpu_slurm_candidate
