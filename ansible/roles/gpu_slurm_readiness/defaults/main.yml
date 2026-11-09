@@ -1,0 +1,9 @@
+---
+# Values come from protected site inventory. No GPU is approved by default.
+gpu_slurm_site: ""
+gpu_slurm_expected_gpu_count: 0
+gpu_slurm_expected_gpu_uuids: []
+gpu_slurm_science_uuids: []
+gpu_slurm_inference_uuids: []
+gpu_slurm_scratch_root: ""
+gpu_slurm_expected_controller_ip: "10.50.0.12"

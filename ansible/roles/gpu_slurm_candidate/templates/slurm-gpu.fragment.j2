@@ -1,0 +1,7 @@
+# REVIEW CANDIDATE ONLY: DO NOT install directly; merge with existing
+# Sebowa quantum-cpu slurm.conf after P0, accounting and network approval.
+# GresTypes is a global setting and must occur only once in the final file.
+GresTypes=gpu
+NodeName={{ gpu_science_node_name }} NodeAddr={{ gpu_science_node_addr }} CPUs={{ gpu_science_node_cpus }} RealMemory={{ gpu_science_node_real_memory_mb }} Gres=gpu:{{ gpu_science_devices | length }} State=UNKNOWN
+# Inactive until per-researcher negative cgroup and accounting checks pass.
+PartitionName={{ gpu_science_partition }} Nodes={{ gpu_science_node_name }} Default=NO MaxTime={{ gpu_science_max_time }} OverSubscribe=NO AllowAccounts={{ gpu_science_allowed_accounts | join(',') }} State=INACTIVE

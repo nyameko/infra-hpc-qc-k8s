@@ -1,0 +1,9 @@
+---
+# P1 read-only science GPU inventory on both independent sites.
+# Never installs Slurm, edits a service or changes a GPU allocation.
+- name: Inspect ACE A100 and Axis H200 science scheduler readiness
+  hosts: gpu_science_hosts
+  become: false
+  gather_facts: true
+  roles:
+    - gpu_slurm_readiness

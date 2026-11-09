@@ -1,0 +1,22 @@
+---
+# Render-only plan example, NOT approved configuration. Copy to ignored
+# inventories/private/axis-h200-gpu-plan.yml; fill from P1 evidence.
+# Controller is the EXISTING Sebowa slurm-controller-01 (10.50.0.12).
+# Host IP over existing infrastructure WG; NOT a public provider address.
+gpu_science_site: axis-h200
+gpu_science_site_approval_recorded: false
+gpu_science_node_name: xd670
+gpu_science_node_addr: "10.61.0.3"
+gpu_science_partition: science-h200
+# Establish actual Slurmd topology AND isolate inference CPUs/RAM first.
+gpu_science_node_cpus: 0
+gpu_science_node_real_memory_mb: 0
+gpu_science_expected_gpu_count: 8
+gpu_science_expected_gpu_uuids: []
+# Exactly 4 verified science GPU UUID+device-minor records.
+# A driver GPU index is NOT necessarily a Linux /dev/nvidia device minor.
+gpu_science_devices: []
+# Exactly 4 distinct GPU UUIDs reserved for inference, not Slurm.
+gpu_science_inference_uuids: []
+gpu_science_allowed_accounts: []
+gpu_science_max_time: "08:00:00"

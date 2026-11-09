@@ -1,0 +1,61 @@
+---
+- name: Inspect live controller and accounting enforcement settings
+  ansible.builtin.command:
+    argv: [scontrol, show, config]
+  changed_when: false
+  check_mode: false
+  register: gpu_slurm_controller_config
+
+- name: Inspect currently declared nodes and GRES
+  ansible.builtin.command:
+    argv: [scontrol, show, nodes, -o]
+  changed_when: false
+  check_mode: false
+  register: gpu_slurm_nodes
+
+- name: Inspect active partition policy
+  ansible.builtin.command:
+    argv: [scontrol, show, partition, -o]
+  changed_when: false
+  check_mode: false
+  register: gpu_slurm_partitions
+
+- name: Inspect scheduler TRES and partition visibility
+  ansible.builtin.command:
+    argv: [sinfo, -o, "%P|%N|%G|%T|%C"]
+  changed_when: false
+  check_mode: false
+  register: gpu_slurm_sinfo
+
+- name: Inspect registered non-privileged researcher accounts
+  ansible.builtin.command:
+    argv: [sacctmgr, -nP, show, user, format=User,AdminLevel,DefaultAccount]
+  changed_when: false
+  check_mode: false
+  register: gpu_slurm_users
+
+- name: Inspect SlurmDBD associations and partitions
+  ansible.builtin.command:
+    argv: [sacctmgr, -nP, show, association, format=Cluster,Account,User,Partition,QOS]
+  changed_when: false
+  check_mode: false
+  register: gpu_slurm_associations
+
+- name: Inspect QOS limits (do not modify)
+  ansible.builtin.command:
+    argv: [sacctmgr, -nP, show, qos, format=Name,Priority,MaxJobsPU,MaxSubmitJobsPU]
+  changed_when: false
+  check_mode: false
+  register: gpu_slurm_qos
+
+- name: Emit private P1 controller evidence summary
+  ansible.builtin.debug:
+    msg:
+      - "Effective important settings: {{ gpu_slurm_controller_config.stdout_lines | select('match', '^(ClusterName|AccountingStorageEnforce|AccountingStorageType|GresTypes|SelectType|SelectTypeParameters|TaskPlugin|ProctrackType|JobAcctGatherType)[ ]*=') | list }}"
+      - "Nodes: {{ gpu_slurm_nodes.stdout_lines }}"
+      - "Partitions: {{ gpu_slurm_partitions.stdout_lines }}"
+      - "sinfo partition/node/GRES: {{ gpu_slurm_sinfo.stdout_lines }}"
+      - "Users/admin levels: {{ gpu_slurm_users.stdout_lines }}"
+      - "Associations: {{ gpu_slurm_associations.stdout_lines }}"
+      - "QOS: {{ gpu_slurm_qos.stdout_lines }}"
+      - "READ ONLY. Capture in protected operator evidence; never mark GPU admission accepted without real negative tests."
