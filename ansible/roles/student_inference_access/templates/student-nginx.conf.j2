@@ -1,0 +1,46 @@
+# Standalone NGINX instance with no default :80/:443 listener.
+# Full file is root-only because it contains the private backend and team keys.
+user nginx;
+worker_processes 1;
+error_log stderr warn;
+pid /run/scc26-model-proxy.pid;
+
+events { worker_connections 1024; }
+
+http {
+    log_format scc26 'team=$student_team src=$remote_addr status=$status bytes=$body_bytes_sent duration=$request_time';
+    access_log /dev/stdout scc26;
+
+    map $http_authorization $student_team {
+        default "";
+{% for peer in student_inference_peers %}
+        "Bearer {{ peer.api_key }}" "{{ peer.team }}";
+{% endfor %}
+    }
+    limit_req_zone $student_team zone=scc26_team_rps:1m rate=2r/s;
+
+    server {
+        listen {{ student_inference_wg_host_ip }}:{{ student_inference_proxy_port }};
+        server_name _;
+        client_max_body_size 4m;
+        limit_req zone=scc26_team_rps burst=8 nodelay;
+        limit_req_status 429;
+
+        if ($student_team = "") { return 401; }
+
+        proxy_http_version 1.1;
+        proxy_set_header Host 127.0.0.1;
+        proxy_set_header Authorization "Bearer {{ student_inference_backend_token }}";
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header Connection "";
+        proxy_buffering off;
+        proxy_read_timeout 300s;
+        proxy_send_timeout 300s;
+
+        # Only the API operations required by the student applications.
+        location = /v1/models { proxy_pass {{ student_inference_backend_url }}; }
+        location = /v1/chat/completions { proxy_pass {{ student_inference_backend_url }}; }
+        location = /v1/completions { proxy_pass {{ student_inference_backend_url }}; }
+        location / { return 404; }
+    }
+}
