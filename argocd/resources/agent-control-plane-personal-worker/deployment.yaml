@@ -36,7 +36,7 @@ spec:
       # has brought PostgreSQL to the schema packaged inside that image.
       initContainers:
       - name: wait-for-acp-schema
-        image: ghcr.io/nyameko/agent-control-plane-hermes@sha256:6ec37a755e57ef868a2fcce6052535588d14742bc85df75ab973dae811f1bdda
+        image: ghcr.io/nyameko/agent-control-plane-hermes@sha256:4ef8c30839b7065a7a7e52815c4ae2f71df83ca90da8d1d3f65ae217e2d8c445
         command:
         - python
         - -c
@@ -80,7 +80,7 @@ spec:
             memory: 256Mi
       containers:
       - name: personal-worker
-        image: ghcr.io/nyameko/agent-control-plane-hermes@sha256:6ec37a755e57ef868a2fcce6052535588d14742bc85df75ab973dae811f1bdda
+        image: ghcr.io/nyameko/agent-control-plane-hermes@sha256:4ef8c30839b7065a7a7e52815c4ae2f71df83ca90da8d1d3f65ae217e2d8c445
         # Both personal worker and schema-check init container use the same
         # reviewed immutable Hermes digest, promoted through infra dev PR.
         imagePullPolicy: Always
