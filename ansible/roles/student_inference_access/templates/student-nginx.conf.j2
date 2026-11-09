@@ -18,6 +18,9 @@ http {
 {% endfor %}
     }
     limit_req_zone $student_team zone=scc26_team_rps:1m rate=2r/s;
+    # Bound student concurrency to reduce interference with M4 inference.
+    limit_conn_zone $student_team zone=scc26_team_conns:1m;
+    limit_conn_zone $server_name zone=scc26_total_conns:1m;
 
     server {
         listen {{ student_inference_wg_host_ip }}:{{ student_inference_proxy_port }};
@@ -25,6 +28,9 @@ http {
         client_max_body_size 4m;
         limit_req zone=scc26_team_rps burst=8 nodelay;
         limit_req_status 429;
+        limit_conn scc26_team_conns 1;
+        limit_conn scc26_total_conns 4;
+        limit_conn_status 429;
 
         if ($student_team = "") { return 401; }
 
