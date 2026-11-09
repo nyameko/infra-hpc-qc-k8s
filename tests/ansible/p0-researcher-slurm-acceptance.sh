@@ -74,7 +74,9 @@ mkdir -p -- "$proof_dir"
 chmod 0700 -- "$proof_dir"
 
 if [[ "$mode" == --submit-hello ]]; then
-  wrap="/bin/hostname"
+  # Exercise the compute-node POSIX identity and shared NFS home as well
+  # as the scheduler allocation. The output is the researcher's own file.
+  wrap="/usr/bin/id -un && /usr/bin/id -u && /usr/bin/hostname && /usr/bin/test -w '$HOME/.quantum-platform'"
   name="p0-native-hello"
 else
   wrap="/bin/sleep 180"

@@ -8,6 +8,27 @@
       Supply research_users from protected inventory, including provisioned
       POSIX identity, explicit execution_enabled flag and public SSH keys.
 
+- name: Reject duplicate researcher usernames and UID/GID allocations
+  ansible.builtin.assert:
+    that:
+      - (research_users | map(attribute='name') | list | length) ==
+        (research_users | map(attribute='name') | unique | list | length)
+      - (research_users | map(attribute='uid') | list | length) ==
+        (research_users | map(attribute='uid') | unique | list | length)
+      - (research_users | map(attribute='gid') | list | length) ==
+        (research_users | map(attribute='gid') | unique | list | length)
+    fail_msg: "Duplicate research principal or POSIX ID in private inventory."
+
+- name: Reject SSH public key duplication across research identities
+  ansible.builtin.assert:
+    that:
+      - (research_users | map(attribute='ssh_public_keys', default=[]) | flatten | list | length) ==
+        (research_users | map(attribute='ssh_public_keys', default=[]) | flatten | unique | list | length)
+    fail_msg: >-
+      An SSH key cannot authorize more than one research identity.
+      Check user ownership and fingerprints in private inventory.
+  no_log: true
+
 - name: Validate researcher principal and opt-in key records
   ansible.builtin.assert:
     that:
