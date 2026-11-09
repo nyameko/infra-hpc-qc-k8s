@@ -1,0 +1,18 @@
+[Interface]
+Address = {{ student_inference_wg_address }}
+PrivateKey = {{ student_inference_wg_private_key }}
+# A100 has no floating IP. It initiates UDP towards the reachable Sebowa edges.
+# nftables rules are installed BEFORE the tunnel is brought up.
+PreUp = /usr/sbin/nft -f /etc/scc26-model-proxy/student-firewall.nft
+PostDown = /usr/sbin/nft delete table inet scc26_student_inference
+SaveConfig = false
+
+{% for peer in student_inference_peers %}
+[Peer]
+# {{ peer.team }}
+PublicKey = {{ peer.public_key }}
+AllowedIPs = {{ peer.peer_ip }}/32
+Endpoint = {{ peer.endpoint }}
+PersistentKeepalive = 25
+
+{% endfor %}

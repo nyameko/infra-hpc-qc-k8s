@@ -1,0 +1,20 @@
+---
+# Opt-in: default playbook execution changes nothing.
+student_inference_enabled: false
+student_inference_interface: wg-students
+# Private inventory must supply a distinct unused /32 and address.
+student_inference_wg_address: ""
+student_inference_wg_host_ip: ""
+student_inference_wg_private_key: ""
+student_inference_proxy_port: 8443
+student_inference_backend_url: "http://127.0.0.1:8000"
+# Reuse the *existing* protected vLLM backend secret in operator inventory.
+# Never issue that secret to students.
+student_inference_backend_token: "{{ vllm_server_bearer_token | default('') }}"
+# Exactly five entries from protected inventory:
+# - team: team-identifier (letters, digits, hyphens)
+#   public_key: WireGuard public key of the student's Sebowa edge
+#   peer_ip: unique WireGuard overlay /32 host address
+#   endpoint: reachable Sebowa edge DNS/IP:UDP-port
+#   api_key: unique randomly generated, private team bearer secret
+student_inference_peers: []

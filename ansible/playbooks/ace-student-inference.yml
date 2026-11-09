@@ -1,0 +1,9 @@
+---
+# Separate, opt-in access plane for the *existing* ACE A100 vLLM server.
+# Does not apply the vllm_server, wg_fabric or quantum-platform roles.
+- name: Configure SCC26 student-only A100 inference access
+  hosts: gpu_inference
+  become: true
+  gather_facts: true
+  roles:
+    - student_inference_access
